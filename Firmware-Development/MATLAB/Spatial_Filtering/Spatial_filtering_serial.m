@@ -21,6 +21,9 @@ chirp_samples = 128;
 No_of_chirps = 64;
 
 % Variables
+fs = 1000000;
+fax_bins = [0 : chirp_samples-1];
+fax_hz = fax_bins*fs/chirp_samples;
 frame =1;
 mat = zeros(No_of_chirps,chirp_samples);
 fft_abs = zeros(No_of_chirps,chirp_samples);
@@ -80,16 +83,16 @@ while true
  
     % Graphs
     subplot(num_of_fig,1,1);
-    plot(coh_int);
+    plot(fax_hz,coh_int);
     xlabel('Coherent Integration');
     title(['Frame No. ',num2str(frame)])
     
     subplot(num_of_fig,1,2);
-    plot(mti);
+    plot(fax_hz,mti);
     xlabel('Moving Average Filter(MTI)');
     
     subplot(num_of_fig,1,3);
-    plot(spat_filt);
+    plot(fax_hz,spat_filt);
     xlabel('Spatial Filtering');
     drawnow  
     
