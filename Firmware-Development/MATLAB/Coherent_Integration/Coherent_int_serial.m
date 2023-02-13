@@ -21,6 +21,10 @@ No_of_chirps = 64;
 frame =1;
 mat = zeros(No_of_chirps,chirp_samples);
 fft_abs = zeros(No_of_chirps,chirp_samples);
+fft_abs_tp = transpose(fft_abs);
+coh_int_tp = zeros(No_of_chirps,1);
+coh_int = transpose(coh_int_tp);
+
 frameStartStr = chirp_samples; % No. of samplesin a chirp as a reference for start of chirp
 
 % Main Program
@@ -53,36 +57,16 @@ while true
         fft_abs(chirps,:) = abs(range_fft);
     end
     
-    for chirps = 1:No_of_chirps
-        plot(fft_abs(chirps,:))
-        title(['Frame No. ',num2str(frame)])
-        drawnow
-    end
-    
-    %subplot(4,1,1)
-    %plot(mat)
-
-
-    %subplot(4,1,2)
-    %plot(w)
-
-    %subplot(4,1,3)
-    %plot(avg_windowed)
-
-    
-    %subplot(4,1,4)
-    %plot(zero_padded)
-
-    
-    %figure
-    %plot(range_fft)
-
-    
-    %figure('Name','FFT ABS','NumberTitle','off');
-    
+    fft_abs_tp = transpose(fft_abs);
+    coh_int_tp = pulsint(fft_abs_tp,"coherent");
+    coh_int = transpose(coh_int_tp);
+    plot(coh_int);
+    title(['Frame No. ',num2str(frame)])
+    drawnow  
 
     fft_avg = mean(fft_abs);   
     frame = frame+1
+    flushinput(frameData);
 end
 
 fclose(frameData);
