@@ -18,6 +18,8 @@ extern "C"
 #include "debug.h"
 #include "Error.h"
 
+#include "presence_radar_default.h"
+
 ifx_Avian_Device_t* ifx_avian_create_dummy_from_xensiv(xensiv_bgt60trxx_t *bgt60) {
    
 	IFX_ERR_BRK_NULL(bgt60);
@@ -82,19 +84,19 @@ void ifx_avian_get_config(ifx_Avian_Device_t* handle, ifx_Avian_Config_t* config
    //  device_config->mimo_mode = IFX_MIMO_OFF;
 
 
-   config->sample_rate_Hz = 1000000;
-   // config.rx_mask
-   // config.tx_mask
+   config->sample_rate_Hz = XENSIV_BGT60TRXX_CONF_SAMPLE_RATE;
+   config->rx_mask = 1;
+   config->tx_mask =  1;
    config->tx_power_level = 31;
-   config->if_gain_dB = 33;
-   config->start_frequency_Hz = 60020000000;
-   config->end_frequency_Hz = 61020000000;
-   config->num_samples_per_chirp = 128;
-   config->num_chirps_per_frame = 64;
-   config->chirp_repetition_time_s = 0.00050564f;
-   config->frame_repetition_time_s = 0.2f;
-   // config.hp_cutoff_Hz;
-   // config.aaf_cutoff_Hz;  
+   config->if_gain_dB = 50;
+   config->start_frequency_Hz = XENSIV_BGT60TRXX_CONF_START_FREQ_HZ;
+   config->end_frequency_Hz = XENSIV_BGT60TRXX_CONF_END_FREQ_HZ;
+   config->num_samples_per_chirp = XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP;
+   config->num_chirps_per_frame = XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME;
+   config->chirp_repetition_time_s = XENSIV_BGT60TRXX_CONF_CHIRP_REPETITION_TIME_S;
+   config->frame_repetition_time_s = XENSIV_BGT60TRXX_CONF_FRAME_REPETITION_TIME_S;
+   config->hp_cutoff_Hz = 80000;
+   config->aaf_cutoff_Hz = 500000;  
    // to be defined 
  
 }
@@ -144,7 +146,7 @@ ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
    const uint32_t num_total_fifo_data = num_samples_per_frame + (6 * cfg->num_chirps_per_frame);
    uint16_t *samples = (uint16_t *)malloc(sizeof(uint16_t) * num_total_fifo_data);
 
-   frame->rows = 1; // No of antennas
+   frame->rows = cfg->rx_mask; // No of antennas
    frame->cols = cfg->num_chirps_per_frame;
    frame->slices = cfg->num_samples_per_chirp;
    frame->stride[0] = 1;

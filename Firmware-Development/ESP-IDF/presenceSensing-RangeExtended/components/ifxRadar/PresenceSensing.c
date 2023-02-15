@@ -56,6 +56,7 @@
 #include "SpectrumAxis.h"
 
 #include "debug.h"
+#include "presence_radar_default.h"
 /*
 ==============================================================================
    2. LOCAL DEFINITIONS
@@ -75,12 +76,18 @@
 
 #define MTI_WEIGHT_DEFAULT 1
 #define RANGE_SPECTRUM_MODE_DEFAULT IFX_RS_MODE_MAX_BIN
-#define MIN_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)0.2)
-#define MAX_DETECTION_RANGE_M_DEFAULT 2
-// #define MIN_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)0.15)
-// #define MAX_DETECTION_RANGE_M_DEFAULT 9.6
+
+//  Lomas / Default
+// #define MIN_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)0.2)
+// #define MAX_DETECTION_RANGE_M_DEFAULT 2
+// #define RANGE_HYSTERESIS_PERCENT_DEFAULT 10
+
+//Ours:
 #define RANGE_HYSTERESIS_PERCENT_DEFAULT 10
-// #define RANGE_HYSTERESIS_PERCENT_DEFAULT 50
+//Below settings can be changed as per requirement;
+#define MAX_DETECTION_RANGE_M_DEFAULT 9.6
+#define MIN_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)0.50) 
+
 
 #define PRESENCE_CONFIRM_COUNT_DEFAULT 5
 #define ABSENCE_CONFIRM_COUNT_DEFAULT 4
@@ -240,21 +247,21 @@ void ifx_presence_sensing_get_config_defaults(ifx_Radar_Sensor_t sensor_type, if
     // const uint8_t num_rx = sensor_info->num_rx_antennas;
     // ifx_avian_destroy(handle);
 
-     const uint8_t num_rx = 1;
+     const uint8_t num_rx = XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS;
 
     /* default device configuration for presence sensing */
     #if 1
-    device_config->sample_rate_Hz = 1000000;         // 1 MHz
+    device_config->sample_rate_Hz = XENSIV_BGT60TRXX_CONF_SAMPLE_RATE;         // 1 MHz
     device_config->rx_mask = (num_rx >= 3) ? 4 : 1;  // Use RX1-3 when device has at least 3 antennas, RX1 otherwise
-    device_config->tx_mask = 1;
+    device_config->tx_mask = XENSIV_BGT60TRXX_CONF_NUM_TX_ANTENNAS;
     device_config->tx_power_level = TX_POWER_LEVEL_UPPER;
     device_config->if_gain_dB = 33;                  // 33 dB
-    device_config->start_frequency_Hz = 60020000000; // 60.02 GHz
-    device_config->end_frequency_Hz = 61020000000; // 61.02 GHz
-    device_config->num_samples_per_chirp = 128;
-    device_config->num_chirps_per_frame = 64;
-    device_config->chirp_repetition_time_s = 0.00050564f; // 505.64 µs
-    device_config->frame_repetition_time_s = 0.2f;    // frame rate of 5 Hz
+    device_config->start_frequency_Hz = XENSIV_BGT60TRXX_CONF_START_FREQ_HZ; // 60.02 GHz
+    device_config->end_frequency_Hz = XENSIV_BGT60TRXX_CONF_END_FREQ_HZ; // 61.02 GHz
+    device_config->num_samples_per_chirp = XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP;
+    device_config->num_chirps_per_frame = XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME;
+    device_config->chirp_repetition_time_s = XENSIV_BGT60TRXX_CONF_CHIRP_REPETITION_TIME_S; // 505.64 µs
+    device_config->frame_repetition_time_s = XENSIV_BGT60TRXX_CONF_FRAME_REPETITION_TIME_S;    // frame rate of 5 Hz
     device_config->hp_cutoff_Hz = 80000;
     device_config->aaf_cutoff_Hz = 500000;
     device_config->mimo_mode = IFX_MIMO_OFF;

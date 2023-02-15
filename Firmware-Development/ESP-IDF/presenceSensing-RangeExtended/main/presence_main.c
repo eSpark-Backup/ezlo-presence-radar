@@ -35,7 +35,7 @@
 
 #include "xensiv_bgt60trxx_esp32.h"
 #include "xensiv_bgt60trxx.h"
-
+#define XENSIV_BGT60TRXX_CONF_IMPL 1
 #include "presence_radar_default.h"
 
 #include "Avian.h"
@@ -361,9 +361,17 @@ ifx_Error_t presence_process(presence_t* presence_context, ifx_Cube_R_t* frame)
         return ifx_error_get();
     printf("----------------------------------------------\r\n");
     if (ps_result.cur_presence_state == IFX_PRESENCE_SENSING_PRESENT)
+    {
         printf("is_present: true\r\n");
-    else //if(cur_state == ABSENCE)
+        gpio_set_level(XNSIV_BGT60_LED_RED, 1);
+        gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
+    }
+
+    else{ //if(cur_state == ABSENCE)
         printf("is_present: false\r\n");
+        gpio_set_level(XNSIV_BGT60_LED_RED, 0);
+        gpio_set_level(XNSIV_BGT60_LED_GREEN, 0);
+    }
 
     printf("Number of targests found: %d\r\n", ps_result.num_targets);
 
@@ -418,7 +426,7 @@ int app_main(int argc, char* argv[]) {
     read_reg |= XENSIV_BGT60TRXX_REG_SFCTL_PREFIX_EN_MSK;  
     xensiv_bgt60trxx_set_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, read_reg);
 
-    xTaskCreate(vTaskLED_Toggle, "LED_TOGGLE", 1024, NULL, tskIDLE_PRIORITY, NULL);
+    // xTaskCreate(vTaskLED_Toggle, "LED_TOGGLE", 1024, NULL, tskIDLE_PRIORITY, NULL);
 
     // printf("Radar SDK Version: %s\n", ifx_sdk_get_version_string_full());
 
