@@ -3,6 +3,6 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := ethernet_basic
+PROJECT_NAME := W5500
 
 include $(IDF_PATH)/make/project.mk

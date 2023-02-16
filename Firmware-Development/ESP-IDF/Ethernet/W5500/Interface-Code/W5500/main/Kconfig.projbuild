@@ -1,4 +1,4 @@
-menu "Example Configuration"
+menu "Ethernet Module Configuration"
 
     config EXAMPLE_GPIO_RANGE_MIN
         int
@@ -10,94 +10,6 @@ menu "Example Configuration"
         default 46 if IDF_TARGET_ESP32S2
         default 19 if IDF_TARGET_ESP32C3
         default 48 if IDF_TARGET_ESP32S3
-
-    config EXAMPLE_USE_INTERNAL_ETHERNET
-        depends on IDF_TARGET_ESP32
-        select ETH_USE_ESP32_EMAC
-        bool "Internal EMAC"
-        help
-            Use internal Ethernet MAC controller.
-
-    if EXAMPLE_USE_INTERNAL_ETHERNET
-        choice EXAMPLE_ETH_PHY_MODEL
-            prompt "Ethernet PHY Device"
-            default EXAMPLE_ETH_PHY_IP101
-            help
-                Select the Ethernet PHY device to use in the example.
-
-            config EXAMPLE_ETH_PHY_IP101
-                bool "IP101"
-                help
-                    IP101 is a single port 10/100 MII/RMII/TP/Fiber Fast Ethernet Transceiver.
-                    Goto http://www.icplus.com.tw/pp-IP101G.html for more information about it.
-
-            config EXAMPLE_ETH_PHY_RTL8201
-                bool "RTL8201/SR8201"
-                help
-                    RTL8201F/SR8201F is a single port 10/100Mb Ethernet Transceiver with auto MDIX.
-                    Goto http://www.corechip-sz.com/productsview.asp?id=22 for more information about it.
-
-            config EXAMPLE_ETH_PHY_LAN87XX
-                bool "LAN87xx"
-                help
-                    Below chips are supported:
-                    LAN8710A is a small footprint MII/RMII 10/100 Ethernet Transceiver with HP Auto-MDIX and
-                        flexPWR® Technology.
-                    LAN8720A is a small footprint RMII 10/100 Ethernet Transceiver with HP Auto-MDIX Support.
-                    LAN8740A/LAN8741A is a small footprint MII/RMII 10/100 Energy Efficient Ethernet Transceiver
-                        with HP Auto-MDIX and flexPWR® Technology.
-                    LAN8742A is a small footprint RMII 10/100 Ethernet Transceiver with HP Auto-MDIX and
-                        flexPWR® Technology.
-                    Goto https://www.microchip.com for more information about them.
-
-            config EXAMPLE_ETH_PHY_DP83848
-                bool "DP83848"
-                help
-                    DP83848 is a single port 10/100Mb/s Ethernet Physical Layer Transceiver.
-                    Goto http://www.ti.com/product/DP83848J for more information about it.
-
-            config EXAMPLE_ETH_PHY_KSZ8041
-                bool "KSZ8041"
-                help
-                    The KSZ8041 is a single supply 10Base-T/100Base-TX Physical Layer Transceiver.
-                    Goto https://www.microchip.com/wwwproducts/en/KSZ8041 for more information about it.
-
-            config EXAMPLE_ETH_PHY_KSZ8081
-                bool "KSZ8081"
-                help
-                    The KSZ8081 is a single supply 10Base-T/100Base-TX Physical Layer Transceiver.
-                    Goto https://www.microchip.com/wwwproducts/en/KSZ8081 for more information about it.
-        endchoice # EXAMPLE_ETH_PHY_MODEL
-
-        config EXAMPLE_ETH_MDC_GPIO
-            int "SMI MDC GPIO number"
-            range EXAMPLE_GPIO_RANGE_MIN EXAMPLE_GPIO_RANGE_MAX
-            default 23
-            help
-                Set the GPIO number used by SMI MDC.
-
-        config EXAMPLE_ETH_MDIO_GPIO
-            int "SMI MDIO GPIO number"
-            range EXAMPLE_GPIO_RANGE_MIN EXAMPLE_GPIO_RANGE_MAX
-            default 18
-            help
-                Set the GPIO number used by SMI MDIO.
-
-        config EXAMPLE_ETH_PHY_RST_GPIO
-            int "PHY Reset GPIO number"
-            range -1 EXAMPLE_GPIO_RANGE_MAX
-            default 5
-            help
-                Set the GPIO number used to reset PHY chip.
-                Set to -1 to disable PHY chip hardware reset.
-
-        config EXAMPLE_ETH_PHY_ADDR
-            int "PHY Address"
-            range 0 31
-            default 1
-            help
-                Set PHY address according your board schematic.
-    endif # EXAMPLE_USE_INTERNAL_ETHERNET
 
     config EXAMPLE_USE_SPI_ETHERNET
         bool "SPI Ethernet"
