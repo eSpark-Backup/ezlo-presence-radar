@@ -79,8 +79,27 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
     ESP_LOGI(TAG, "~~~~~~~~~~~");
 }
 
+#define PWR_EN  GPIO_NUM_13
+
 void app_main(void)
 {
+    // Setting PWRN_EN High to active W5500 IC
+    gpio_config_t pwrEnConfig = 
+    {
+        .pin_bit_mask = (1UL<<PWR_EN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    if(gpio_config(&pwrEnConfig) == ESP_OK) 
+    { ESP_LOGI(TAG, "PWR_EN OutputMode Done!"); }
+    else
+    { ESP_LOGE(TAG, "PWR_EN OutputMode Failed"); }
+    
+    gpio_set_level(PWR_EN, 1);
+
     // Initialize TCP/IP network interface (should be called only once in application)
     ESP_ERROR_CHECK(esp_netif_init());
     // Create default event loop that running in background
