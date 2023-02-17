@@ -103,8 +103,8 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     // *********** STATIC IP ***********
-    char* ip= "192.168.18.235";
-    char* gateway = "192.168.18.1";
+    char* ip= "192.168.1.249";
+    char* gateway = "192.168.1.1";
     char* netmask = "255.255.255.0";
     esp_netif_ip_info_t info_t;
     memset(&info_t, 0, sizeof(esp_netif_ip_info_t));
