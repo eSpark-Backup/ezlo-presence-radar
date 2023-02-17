@@ -1,0 +1,276 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Source.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\2DMTI.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\AngleCapon.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\AngleMonopulse.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\argparse.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Complex.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\cpu.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Cube.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\DBF.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\DBSCAN.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\DeviceCalc.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\DeviceConfig.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\DeviceControl.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Error.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\FFT.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\kernel.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\LA.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Log.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Math.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Matrix.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Mem.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\MTI.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\OSCFAR.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\PeakSearch.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\PreprocessedFFT.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\RangeAngleImage.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\RangeSpectrum.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Signal.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\SpectrumAxis.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Util.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Uuid.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Vector.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Version.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\Window.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\RangeDopplerMap.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\components\mufft.c">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\components\2DMTI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Algo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\AngleCapon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\AngleMonopulse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\argparse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Avian.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Base.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Complex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\ConstantWaveControl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Cube.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\DBF.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\DBSCAN.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Defines.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\DeInterleaver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\DeviceCalc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\DeviceConfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\DeviceControl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\FFT.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\ifxRadarDeviceCommon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\iMath.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\LA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Macros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Matrix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Mem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Metrics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\MTI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\mufft.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\mufft_internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\OSCFAR.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\PeakSearch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\PreprocessedFFT.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\presence_radar_default.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\presence_radar_settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\RangeAngleImage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\RangeDopplerMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\RangeSpectrum.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Shapes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Signal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Simd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\SpectrumAxis.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Util.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Uuid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Vector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\Window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\components\rdm_defaults.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

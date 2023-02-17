@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{75686103-B5AA-4465-A3FE-3CEA702E2012}</ProjectGuid>
+    <RootNamespace>RangeDopplerC</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\components\2DMTI.c" />
+    <ClCompile Include="..\components\AngleCapon.c" />
+    <ClCompile Include="..\components\AngleMonopulse.c" />
+    <ClCompile Include="..\components\argparse.c" />
+    <ClCompile Include="..\components\Complex.c" />
+    <ClCompile Include="..\components\cpu.c" />
+    <ClCompile Include="..\components\Cube.c" />
+    <ClCompile Include="..\components\DBF.c" />
+    <ClCompile Include="..\components\DBSCAN.c" />
+    <ClCompile Include="..\components\DeviceCalc.c" />
+    <ClCompile Include="..\components\DeviceConfig.c" />
+    <ClCompile Include="..\components\DeviceControl.c" />
+    <ClCompile Include="..\components\Error.c" />
+    <ClCompile Include="..\components\FFT.c" />
+    <ClCompile Include="..\components\kernel.c" />
+    <ClCompile Include="..\components\LA.c" />
+    <ClCompile Include="..\components\Log.c" />
+    <ClCompile Include="..\components\Math.c" />
+    <ClCompile Include="..\components\Matrix.c" />
+    <ClCompile Include="..\components\Mem.c" />
+    <ClCompile Include="..\components\MTI.c" />
+    <ClCompile Include="..\components\mufft.c" />
+    <ClCompile Include="..\components\OSCFAR.c" />
+    <ClCompile Include="..\components\PeakSearch.c" />
+    <ClCompile Include="..\components\PreprocessedFFT.c" />
+    <ClCompile Include="..\components\RangeAngleImage.c" />
+    <ClCompile Include="..\components\RangeDopplerMap.c" />
+    <ClCompile Include="..\components\RangeSpectrum.c" />
+    <ClCompile Include="..\components\Signal.c" />
+    <ClCompile Include="..\components\SpectrumAxis.c" />
+    <ClCompile Include="..\components\Util.c" />
+    <ClCompile Include="..\components\Uuid.c" />
+    <ClCompile Include="..\components\Vector.c" />
+    <ClCompile Include="..\components\Version.c" />
+    <ClCompile Include="..\components\Window.c" />
+    <ClCompile Include="Source.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\components\2DMTI.h" />
+    <ClInclude Include="..\components\Algo.h" />
+    <ClInclude Include="..\components\AngleCapon.h" />
+    <ClInclude Include="..\components\AngleMonopulse.h" />
+    <ClInclude Include="..\components\argparse.h" />
+    <ClInclude Include="..\components\Avian.h" />
+    <ClInclude Include="..\components\Base.h" />
+    <ClInclude Include="..\components\Complex.h" />
+    <ClInclude Include="..\components\ConstantWaveControl.h" />
+    <ClInclude Include="..\components\Cube.h" />
+    <ClInclude Include="..\components\DBF.h" />
+    <ClInclude Include="..\components\DBSCAN.h" />
+    <ClInclude Include="..\components\Defines.h" />
+    <ClInclude Include="..\components\DeInterleaver.h" />
+    <ClInclude Include="..\components\DeviceCalc.h" />
+    <ClInclude Include="..\components\DeviceConfig.h" />
+    <ClInclude Include="..\components\DeviceControl.h" />
+    <ClInclude Include="..\components\Error.h" />
+    <ClInclude Include="..\components\FFT.h" />
+    <ClInclude Include="..\components\ifxRadarDeviceCommon.h" />
+    <ClInclude Include="..\components\iMath.h" />
+    <ClInclude Include="..\components\LA.h" />
+    <ClInclude Include="..\components\Log.h" />
+    <ClInclude Include="..\components\Macros.h" />
+    <ClInclude Include="..\components\Matrix.h" />
+    <ClInclude Include="..\components\Mem.h" />
+    <ClInclude Include="..\components\Metrics.h" />
+    <ClInclude Include="..\components\MTI.h" />
+    <ClInclude Include="..\components\mufft.h" />
+    <ClInclude Include="..\components\mufft_internal.h" />
+    <ClInclude Include="..\components\OSCFAR.h" />
+    <ClInclude Include="..\components\PeakSearch.h" />
+    <ClInclude Include="..\components\PreprocessedFFT.h" />
+    <ClInclude Include="..\components\presence_radar_default.h" />
+    <ClInclude Include="..\components\presence_radar_settings.h" />
+    <ClInclude Include="..\components\RangeAngleImage.h" />
+    <ClInclude Include="..\components\RangeDopplerMap.h" />
+    <ClInclude Include="..\components\RangeSpectrum.h" />
+    <ClInclude Include="..\components\rdm_defaults.h" />
+    <ClInclude Include="..\components\Shapes.h" />
+    <ClInclude Include="..\components\Signal.h" />
+    <ClInclude Include="..\components\Simd.h" />
+    <ClInclude Include="..\components\SpectrumAxis.h" />
+    <ClInclude Include="..\components\Types.h" />
+    <ClInclude Include="..\components\Util.h" />
+    <ClInclude Include="..\components\Uuid.h" />
+    <ClInclude Include="..\components\Vector.h" />
+    <ClInclude Include="..\components\Version.h" />
+    <ClInclude Include="..\components\Window.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
