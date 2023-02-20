@@ -77,9 +77,24 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
 }
 
 #define PWR_EN  GPIO_NUM_13
+#define RST_PIN GPIO_NUM_11
 
 void app_main(void)
 {
+    // RST PIN GPIO:
+    gpio_config_t rstPinConfig = 
+    {
+        .pin_bit_mask = (1UL<<RST_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    if(gpio_config(&rstPinConfig) == ESP_OK) 
+    { ESP_LOGI(TAG, "RST_PIN OutputMode Done!"); }
+    else
+    { ESP_LOGE(TAG, "RST_PIN OutputMode Failed"); }
+
     // Setting PWRN_EN High to active W5500 IC
     gpio_config_t pwrEnConfig = 
     {
@@ -95,7 +110,16 @@ void app_main(void)
     else
     { ESP_LOGE(TAG, "PWR_EN OutputMode Failed"); }
     
+    // 1.Enable PWR to W5500 via mosfet
     gpio_set_level(PWR_EN, 1);
+    // 2. Wait 500mS
+    vTaskDelay(500 / portTICK_RATE_MS);
+    // 3. pull reset low, wait 5mS
+    gpio_set_level(RST_PIN, 0);
+    vTaskDelay(5 / portTICK_RATE_MS);
+    // 4. pull reset high, wait 10mS
+    gpio_set_level(RST_PIN, 1);
+    vTaskDelay(10 / portTICK_RATE_MS);
 
     // Initialize TCP/IP network interface (should be called only once in application)
     ESP_ERROR_CHECK(esp_netif_init());
