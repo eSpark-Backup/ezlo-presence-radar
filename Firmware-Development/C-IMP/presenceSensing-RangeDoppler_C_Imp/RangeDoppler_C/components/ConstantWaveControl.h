@@ -49,8 +49,8 @@ extern "C"
 ==============================================================================
 */
 
-#include <DeviceControl.h>
-#include <DeviceConfig.h>
+#include "DeviceControl.h"
+#include "DeviceConfig.h"
 
 /*
 ==============================================================================

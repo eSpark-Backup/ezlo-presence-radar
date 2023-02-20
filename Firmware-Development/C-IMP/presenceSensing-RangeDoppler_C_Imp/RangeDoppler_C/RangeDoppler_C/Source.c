@@ -5,6 +5,18 @@
 #include "../components/SpectrumAxis.h"
 #include "../components/RangeDopplerMap.h"
 #include "../components/rdm_defaults.h"
+#include "../components/RDM.h"
+
+#define TRACE_B printf
+typedef struct
+{
+	ifx_Avian_Device_t *device_handle;
+	ifx_Matrix_R_t *rdm;
+	ifx_RDM_t *rdm_handle;
+	ifx_2DMTI_R_t *mti_handle;
+	ifx_Math_Axis_Spec_t range_spec;
+	ifx_Math_Axis_Spec_t speed_spec;
+} rdm_t;
 
 ifx_Error_t rdm_init(rdm_t *rdm_context)
 {
@@ -138,12 +150,13 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
 	ifx_Error_t ret = 0;
 	ifx_Matrix_R_t antenna_data;
 	ifx_cube_get_row_r(frame, 0, &antenna_data);
+
 	ifx_rdm_run_r(rdm_context->rdm_handle, &antenna_data, rdm_context->rdm);
 	if ((ret = ifx_error_get()))
 	{
 		return ret;
 	}
-	printf("Running            MTI");
+
 	ifx_2dmti_run_r(rdm_context->mti_handle, rdm_context->rdm, rdm_context->rdm);
 	if ((ret = ifx_error_get()))
 	{
@@ -159,12 +172,57 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
 	// speed
 	const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->rdm) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
 
-	printf(", range_m:%g, speed_m_s:%g", range, speed);
+	printf("range_m:%g, speed_m_s:%g\n", range, speed);
 
 	return (ifx_error_get());
 }
 
+xensiv_bgt60trxx_t *xnsiv_bgt60tr13c = NULL;
+
 int main()
 {
-	printf("Hello World\n");
+	ifx_Error_t error = IFX_OK;
+	ifx_Avian_Device_t *device_handle = NULL;
+	ifx_Cube_R_t *frame = NULL;
+
+	xnsiv_bgt60tr13c = (xensiv_bgt60trxx_t *)malloc(sizeof(xensiv_bgt60trxx_t));
+	device_handle = ifx_avian_create_dummy_from_xensiv(xnsiv_bgt60tr13c);
+
+	rdm_t *rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
+	ifx_Avian_Config_t *dev_config = (ifx_Avian_Config_t *)malloc(sizeof(ifx_Avian_Config_t));
+	ifx_avian_get_config(device_handle, dev_config);
+
+	if (rdm_init(rdm_context) != IFX_OK)
+	{
+		TRACE_B("Failed to Init RDM object!\n");
+	}
+
+	if (rdm_config(rdm_context, device_handle, dev_config) != IFX_OK)
+	{
+		TRACE_B("Failed to config rdm object!\n");
+	}
+
+	frame = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));
+	frame->rows = dev_config->rx_mask; // No of antennas
+	frame->cols = dev_config->num_chirps_per_frame;
+	frame->slices = dev_config->num_samples_per_chirp;
+	frame->stride[0] = 1;
+	frame->stride[1] = frame->cols;
+
+	for (uint8_t x=0; x<64 ;x++)
+	{
+		frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * 8192);
+		memset(frame->d, 0, sizeof(float) * 8192);
+
+		for (uint16_t y = 0; y < 8192;y++) 
+		{
+			frame->d[y] = (float)rdmData[(x*8192)+y];
+		}
+		if (rdm_process(rdm_context, frame) != IFX_OK)
+		{
+			TRACE_B("Failed processing RDM!\n");
+			break;
+		}
+		free(frame->d);
+	}
 }

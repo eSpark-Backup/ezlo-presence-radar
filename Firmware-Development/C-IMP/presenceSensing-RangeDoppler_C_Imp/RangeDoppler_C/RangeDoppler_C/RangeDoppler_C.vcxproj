@@ -199,6 +199,7 @@
     <ClInclude Include="..\components\RangeAngleImage.h" />
     <ClInclude Include="..\components\RangeDopplerMap.h" />
     <ClInclude Include="..\components\RangeSpectrum.h" />
+    <ClInclude Include="..\components\RDM.h" />
     <ClInclude Include="..\components\rdm_defaults.h" />
     <ClInclude Include="..\components\Shapes.h" />
     <ClInclude Include="..\components\Signal.h" />

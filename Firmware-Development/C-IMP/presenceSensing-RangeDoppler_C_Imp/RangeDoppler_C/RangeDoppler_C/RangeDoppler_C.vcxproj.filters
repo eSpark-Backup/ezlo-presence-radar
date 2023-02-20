@@ -272,5 +272,8 @@
     <ClInclude Include="..\components\rdm_defaults.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\components\RDM.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

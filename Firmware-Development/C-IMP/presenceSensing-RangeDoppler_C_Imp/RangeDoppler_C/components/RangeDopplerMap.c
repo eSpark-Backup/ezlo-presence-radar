@@ -322,6 +322,7 @@ void ifx_rdm_run_r(ifx_RDM_t* handle,
     IFX_ERR_BRK_COND(mRows(input) != num_of_chirps, IFX_ERROR_DIMENSION_MISMATCH);
     IFX_MAT_BRK_DIM((handle->rdm_matrix), output);
 
+
     const ifx_Math_Scale_Type_t scale = handle->output_scale_type;
 
     ifx_rdm_run_rc(handle, input, handle->rdm_matrix);

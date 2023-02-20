@@ -1,2 +1,6 @@
 ﻿  Source.c
-d:\esparkconsultinggroup\projects\ezlo-radarsensorpro\firmware\presencesensing-rangedoppler_c_imp\rangedoppler_c\components\constantwavecontrol.h(52): fatal error C1083: Cannot open include file: 'DeviceControl.h': No such file or directory
+d:\esparkconsultinggroup\projects\ezlo-radarsensorpro\firmware\presencesensing-rangedoppler_c_imp\rangedoppler_c\rangedoppler_c\source.c(23): warning C4013: 'memset' undefined; assuming extern returning int
+d:\esparkconsultinggroup\projects\ezlo-radarsensorpro\firmware\presencesensing-rangedoppler_c_imp\rangedoppler_c\rangedoppler_c\source.c(188): warning C4013: 'malloc' undefined; assuming extern returning int
+d:\esparkconsultinggroup\projects\ezlo-radarsensorpro\firmware\presencesensing-rangedoppler_c_imp\rangedoppler_c\rangedoppler_c\source.c(205): warning C4133: '=': incompatible types - from 'ifx_Avian_Device_t *' to 'ifx_Cube_R_t *'
+d:\esparkconsultinggroup\projects\ezlo-radarsensorpro\firmware\presencesensing-rangedoppler_c_imp\rangedoppler_c\rangedoppler_c\source.c(226): warning C4013: 'free' undefined; assuming extern returning int
+  RangeDoppler_C.vcxproj -> D:\eSparkConsultingGroup\Projects\Ezlo-RadarSensorPro\Firmware\presenceSensing-RangeDoppler_C_Imp\RangeDoppler_C\Debug\RangeDoppler_C.exe
