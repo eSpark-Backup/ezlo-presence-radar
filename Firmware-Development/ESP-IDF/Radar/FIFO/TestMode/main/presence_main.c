@@ -306,75 +306,64 @@ int app_main(int argc, char* argv[]) {
     // * Test Mode * //
 
     uint32_t reg_read = 0;
-    while(1) {
+     uint16_t FillStatus =0;
+     uint8_t CREF = 0;
+    while(1) 
+    {
         
-        while(data_available == false);
-        data_available = false;   
-        TRACE_B("Data available !!!");        
-        
-        
-        //if ((error = ifx_error_get()) != IFX_OK)
-        //{
-          //  TRACE_B("Failed to get next frame: %s\n", ifx_error_to_string(error));
-            //break;
-        //}
-
-        // if(presence_process(Presence, frame) != IFX_OK) {
-        //     TRACE_B("Failed processing presence!\n");    
-        //     break;    
-        // }
-        // xensiv_bgt60trxx_soft_reset(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_RESET_FIFO);
-        // ESP_LOGI("get_fifo","Before!!!"); 
-         
-        ESP_LOGI();
-        uint16_t samples[NUM_SAMPLES_PER_FRAME];
-        int ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples,
-                                           NUM_SAMPLES_PER_FRAME);
-        if (xensiv_bgt60trxx_get_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_STAT1, &reg_read) != XENSIV_BGT60TRXX_STATUS_OK)
+        if (xensiv_bgt60trxx_get_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_FSTAT_TR13C, &reg_read) == XENSIV_BGT60TRXX_STATUS_OK)
         {
-            TRACE_B("Error reading STAT 1 Register");
+            // ESP_LOGI("FIFO","FSTAT : 0x%x", reg_read);
+            FillStatus = reg_read & 0x3FFF;
+            CREF = (reg_read >> 21) & 0x0001;
+            // ESP_LOGE("FIFO","Error reading FSTAT Register");
         }
-        TRACE_B("STAT 1: 0x%x", reg_read);
-        // ESP_LOGI("get_fifo","After!!!");
-        // ESP_LOGI("fifo,"ret =");                                           
-        if ( ret == XENSIV_BGT60TRXX_STATUS_OK)
+        if(CREF == 1 && FillStatus >= 64)
         {
-            ESP_LOGI("FIFO","RECVVVVVVVVVVV");
-            /* Check received data */
-            for (int32_t sample_idx = 0; sample_idx < NUM_SAMPLES_PER_FRAME; ++sample_idx)
-            {
-                    if (test_word != samples[sample_idx])
+            FillStatus = 0;
+            CREF = 0;
+
+            uint16_t samples[NUM_SAMPLES_PER_FRAME];
+            int ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples,
+                                           NUM_SAMPLES_PER_FRAME);                                      
+                if ( ret == XENSIV_BGT60TRXX_STATUS_OK)
+                {
+                    // ESP_LOGI("FIFO","RECVVVVVVVVVVV");
+                    gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
+                    /* Check received data */
+                    for (int32_t sample_idx = 0; sample_idx < NUM_SAMPLES_PER_FRAME; ++sample_idx)
                     {
-                        ESP_LOGI("TestMode","Frame %" PRIu32 " error detected. "
-                               "Expected: %" PRIu16 ". "
-                               "Received: %" PRIu16 "\n",
-                               frame_idx, test_word, samples[sample_idx]);
-                        // CY_ASSERT(0);
+                            if (test_word != samples[sample_idx])
+                            {
+                                ESP_LOGI("TestMode","Frame %" PRIu32 " error detected. "
+                                       "Expected: %" PRIu16 ". "
+                                       "Received: %" PRIu16 "\n",
+                                       frame_idx, test_word, samples[sample_idx]);
+                                // CY_ASSERT(0);
+                            }
+
+                            // Generate next test_word
+                            test_word = xensiv_bgt60trxx_get_next_test_word(test_word);
                     }
-
-                    // Generate next test_word
-                    test_word = xensiv_bgt60trxx_get_next_test_word(test_word);
-            }
-        }
-
-        // if (xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, false) != XENSIV_BGT60TRXX_STATUS_OK) {
-        //     TRACE_B("Error stopping the frame.");
-        // }        
-        else
-        {
-            ESP_LOGI("fifo","ret =%d", ret);
-            ESP_LOGI("fifo","ret =%d", ret);
-            ESP_LOGI("fifo","ret =%d", ret);
-        }
+                }
+    
+                else
+                {
+                    gpio_set_level(XNSIV_BGT60_LED_RED, 1);
+                    // ESP_LOGI("fifo","ret =%d", ret);
+                    // ESP_LOGI("fifo","ret =%d", ret);
+                    // ESP_LOGI("fifo","ret =%d", ret);
+                }
             // ESP_LOGI("TestMode","Frame %" PRIu32 " received correctly\n", frame_idx);
-        frame_idx++;
+                frame_idx++;
                         // xensiv_bgt60trxx_soft_reset(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_RESET_FIFO);
 
-        }        
+        }    
 
         // vTaskDelay(100 / portTICK_PERIOD_MS);
         // free(frame->d);
         // frame->d = NULL;
+}
 
 out:
 
