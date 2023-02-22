@@ -308,15 +308,31 @@ int app_main(int argc, char* argv[]) {
     uint32_t reg_read = 0;
      uint16_t FillStatus =0;
      uint8_t CREF = 0;
+     uint16_t delayCounter = 0;
     while(1) 
     {
+ 
+         if(delayCounter < 1000)
+         {
+            delayCounter++;
+            gpio_set_level(XNSIV_BGT60_LED_RED, 1);
+         }
+         else if(delayCounter < 2000){
+            delayCounter++;
+            gpio_set_level(XNSIV_BGT60_LED_RED, 0);
+         }
+         else
+         {
+            delayCounter =0;
+
+         }
         
         if (xensiv_bgt60trxx_get_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_FSTAT_TR13C, &reg_read) == XENSIV_BGT60TRXX_STATUS_OK)
         {
             // ESP_LOGI("FIFO","FSTAT : 0x%x", reg_read);
             FillStatus = reg_read & 0x3FFF;
             CREF = (reg_read >> 21) & 0x0001;
-            // ESP_LOGE("FIFO","Error reading FSTAT Register");
+            // ESP_LOGE("FIFO","reading FSTAT Register");
         }
         if(CREF == 1 && FillStatus >= 64)
         {
@@ -325,11 +341,12 @@ int app_main(int argc, char* argv[]) {
 
             uint16_t samples[NUM_SAMPLES_PER_FRAME];
             int ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples,
-                                           NUM_SAMPLES_PER_FRAME);                                      
+                                           NUM_SAMPLES_PER_FRAME);   
+                                        // int ret = 1;                                   
                 if ( ret == XENSIV_BGT60TRXX_STATUS_OK)
                 {
                     // ESP_LOGI("FIFO","RECVVVVVVVVVVV");
-                    gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
+                    // gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
                     /* Check received data */
                     for (int32_t sample_idx = 0; sample_idx < NUM_SAMPLES_PER_FRAME; ++sample_idx)
                     {
@@ -349,7 +366,7 @@ int app_main(int argc, char* argv[]) {
     
                 else
                 {
-                    gpio_set_level(XNSIV_BGT60_LED_RED, 1);
+                    // gpio_set_level(XNSIV_BGT60_LED_RED, 1);
                     // ESP_LOGI("fifo","ret =%d", ret);
                     // ESP_LOGI("fifo","ret =%d", ret);
                     // ESP_LOGI("fifo","ret =%d", ret);
