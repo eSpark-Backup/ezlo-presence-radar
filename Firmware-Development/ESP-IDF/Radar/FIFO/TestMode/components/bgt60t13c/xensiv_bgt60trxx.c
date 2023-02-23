@@ -27,6 +27,8 @@
 
 #include "xensiv_bgt60trxx.h"
 #include "xensiv_bgt60trxx_esp32.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "../debug/include/debug.h"
 
@@ -229,15 +231,15 @@ int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_add
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(data != NULL);
 
-    uint32_t * temp = (uint32_t *)malloc(sizeof(uint32_t));
+    uint32_t temp;  //(uint32_t *)malloc(sizeof(uint32_t));
 
-    *temp = (reg_addr << XENSIV_BGT60TRXX_SPI_REGADR_POS) & XENSIV_BGT60TRXX_SPI_REGADR_MSK;
+    temp = (reg_addr << XENSIV_BGT60TRXX_SPI_REGADR_POS) & XENSIV_BGT60TRXX_SPI_REGADR_MSK;
 
-    *temp = xensiv_bgt60trxx_esp32_word_reverse(*temp);    
+    temp = xensiv_bgt60trxx_esp32_word_reverse(temp);    
 
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
     int32_t status = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
-                                                            (uint8_t*)temp,
+                                                            (uint8_t*)&temp,
                                                             (uint8_t*)data,
                                                             XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
@@ -248,7 +250,8 @@ int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_add
         *data &= XENSIV_BGT60TRXX_SPI_DATA_MSK;
     }
 
-    free(temp);
+    // free(temp);
+    // temp = NULL;
     return status;
 }
 
@@ -317,6 +320,7 @@ int32_t xensiv_bgt60trxx_set_fifo_limit(const xensiv_bgt60trxx_t* dev, uint32_t 
 int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* data,
                                        uint32_t num_samples)
 {
+
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(data != NULL);
     xensiv_bgt60trxx_esp32_assert((num_samples % 2U) == 0U);
@@ -327,14 +331,16 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
                         (dev->type->fifo_addr << XENSIV_BGT60TRXX_SPI_BURST_MODE_SADR_POS);
 
     reg_addr = xensiv_bgt60trxx_esp32_word_reverse(reg_addr);
-
+    
     /* SPI read burst mode command */
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
-
+    vTaskDelay(2 / portTICK_RATE_MS);
+    // ESP_LOGI("fifo","spi-trans");
     int32_t retval = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
                                                             (uint8_t*)&reg_addr,
                                                             (uint8_t*)&gsr0,
                                                             XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
+    ESP_LOGI("get_fifo","gsr0 = %X", gsr0);
     
     if (XENSIV_BGT60TRXX_STATUS_OK == retval)
     {
@@ -342,16 +348,18 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
                      XENSIV_BGT60TRXX_REG_GSR0_SPI_BURST_ERR_MSK |
                      XENSIV_BGT60TRXX_REG_GSR0_CLK_NUM_ERR_MSK)) == 0U)
         {
+            // ESP_LOGI("fifo","spi-read");
             retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface,
                                                              data,
                                                              num_samples);
+            // ESP_LOGI("fifo","done");
         }
         else
         {
             retval = XENSIV_BGT60TRXX_STATUS_GSR0_ERROR;
         }
     }    
-
+    vTaskDelay(2 / portTICK_RATE_MS);
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
     return retval;
 }

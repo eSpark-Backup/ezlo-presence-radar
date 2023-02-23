@@ -155,20 +155,20 @@ void init_gpio(void) {
   gpio_config(&io_conf_inputs);  
 
   //change gpio intrrupt type for one pin
-  gpio_set_intr_type(XNSIV_BGT60_IRQ_GPIO, GPIO_INTR_POSEDGE);
-  gpio_set_intr_type(XNSIV_BGT60_BUTTON_GPIO, GPIO_INTR_POSEDGE);
+//   gpio_set_intr_type(XNSIV_BGT60_IRQ_GPIO, GPIO_INTR_POSEDGE);
+//   gpio_set_intr_type(XNSIV_BGT60_BUTTON_GPIO, GPIO_INTR_POSEDGE);
   
 
   //create a queue to handle gpio event from isr
-  gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+//   gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
   //start gpio task
-  xTaskCreate(gpio_irq_task, "FIFO Filled", 2048, NULL, 10, NULL);
+//   xTaskCreate(gpio_irq_task, "FIFO Filled", 2048, NULL, 10, NULL);
 
   //install gpio isr service
-  gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+//   gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
   //hook isr handler for specific gpio pin
-  gpio_isr_handler_add(XNSIV_BGT60_IRQ_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_IRQ_GPIO);
-  gpio_isr_handler_add(XNSIV_BGT60_BUTTON_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_BUTTON_GPIO);
+//   gpio_isr_handler_add(XNSIV_BGT60_IRQ_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_IRQ_GPIO);
+//   gpio_isr_handler_add(XNSIV_BGT60_BUTTON_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_BUTTON_GPIO);
 
   // Disable Reset
   gpio_set_level(XNSIV_BGT60_RST_GPIO, 1);
@@ -205,7 +205,7 @@ void esp32_spi_init(void) {
         #ifndef XNSIV_CS_HANDLING
         // .spics_io_num = XNSIV_BGT60_CS_GPIO,      //CS pin
         #endif
-        .queue_size=100,                          //We want to be able to queue 10 transactions at a time
+        .queue_size=500,                          //We want to be able to queue 10 transactions at a time
     };    
 
     //Initialize the SPI bus
@@ -286,7 +286,7 @@ int app_main(int argc, char* argv[]) {
     xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, NUM_SAMPLES_PER_FRAME);
     
     // * Test Mode * //
-    if (xensiv_bgt60trxx_enable_data_test_mode(device_handle->m_xensiv_device_handle, true) != XENSIV_BGT60TRXX_STATUS_OK)
+    if (xensiv_bgt60trxx_enable_data_test_mode(device_handle->m_xensiv_device_handle, false) != XENSIV_BGT60TRXX_STATUS_OK)
     {
         ESP_LOGE("TestMode","Failed to enable.");
     }
@@ -311,7 +311,7 @@ int app_main(int argc, char* argv[]) {
      uint16_t delayCounter = 0;
     while(1) 
     {
- 
+        ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
          if(delayCounter < 1000)
          {
             delayCounter++;
@@ -324,9 +324,8 @@ int app_main(int argc, char* argv[]) {
          else
          {
             delayCounter =0;
-
          }
-        
+        // ESP_LOGI("FSTAT","read");
         if (xensiv_bgt60trxx_get_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_FSTAT_TR13C, &reg_read) == XENSIV_BGT60TRXX_STATUS_OK)
         {
             // ESP_LOGI("FIFO","FSTAT : 0x%x", reg_read);
@@ -340,28 +339,32 @@ int app_main(int argc, char* argv[]) {
             CREF = 0;
 
             uint16_t samples[NUM_SAMPLES_PER_FRAME];
+            ESP_LOGI("FIFO","get-data");
             int ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples,
                                            NUM_SAMPLES_PER_FRAME);   
+            // ESP_LOGI("fifo","1");                               
                                         // int ret = 1;                                   
                 if ( ret == XENSIV_BGT60TRXX_STATUS_OK)
                 {
-                    // ESP_LOGI("FIFO","RECVVVVVVVVVVV");
+                    // ESP_LOGI("FIFO","Recv");
                     // gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
                     /* Check received data */
-                    for (int32_t sample_idx = 0; sample_idx < NUM_SAMPLES_PER_FRAME; ++sample_idx)
-                    {
-                            if (test_word != samples[sample_idx])
-                            {
-                                ESP_LOGI("TestMode","Frame %" PRIu32 " error detected. "
-                                       "Expected: %" PRIu16 ". "
-                                       "Received: %" PRIu16 "\n",
-                                       frame_idx, test_word, samples[sample_idx]);
-                                // CY_ASSERT(0);
-                            }
+                    // for (int32_t sample_idx = 0; sample_idx < NUM_SAMPLES_PER_FRAME; ++sample_idx)
+                    // {
+                    //         if (test_word != samples[sample_idx])
+                    //         {
+                    //             ESP_LOGI("TestMode","Frame %" PRIu32 " error detected. "
+                    //                    "Expected: %" PRIu16 ". "
+                    //                    "Received: %" PRIu16 "\n",
+                    //                    frame_idx, test_word, samples[sample_idx]);
+                    //             // CY_ASSERT(0);
+                    //         }
 
-                            // Generate next test_word
-                            test_word = xensiv_bgt60trxx_get_next_test_word(test_word);
-                    }
+                    //         // Generate next test_word
+                    //         // ESP_LOGI("fifo","2"); 
+                    //         test_word = xensiv_bgt60trxx_get_next_test_word(test_word);
+                            // ESP_LOGI("fifo","3"); 
+                    // }
                 }
     
                 else
@@ -372,7 +375,7 @@ int app_main(int argc, char* argv[]) {
                     // ESP_LOGI("fifo","ret =%d", ret);
                 }
             // ESP_LOGI("TestMode","Frame %" PRIu32 " received correctly\n", frame_idx);
-                frame_idx++;
+                // frame_idx++;
                         // xensiv_bgt60trxx_soft_reset(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_RESET_FIFO);
 
         }    
@@ -384,8 +387,9 @@ int app_main(int argc, char* argv[]) {
 
 out:
 
-    ifx_avian_destroy(device_handle);
+    // ifx_avian_destroy(device_handle);
     // ifx_cube_destroy_r(frame);
     // presence_cleanup();
-    return 0;
+    ESP_LOGI("Out","Occurs");
+    return 0;  
 }

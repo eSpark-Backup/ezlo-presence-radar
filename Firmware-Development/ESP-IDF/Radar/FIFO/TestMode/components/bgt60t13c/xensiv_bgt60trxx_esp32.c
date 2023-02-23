@@ -3,6 +3,8 @@
 #include "xensiv_bgt60trxx_esp32.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_system.h"
+#include "esp_log.h"
 
 void xensiv_bgt60trxx_esp32_rst_set(const void* iface, uint8_t val) {
     gpio_set_level(XNSIV_BGT60_RST_GPIO, (uint32_t)val);
@@ -45,7 +47,7 @@ int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
     xensiv_bgt60trxx_esp32_assert(iface != NULL);
     xensiv_bgt60trxx_esp32_assert(rx_data != NULL);
 
-    uint16_t * data = (uint16_t *) malloc(sizeof(uint16_t));
+    uint16_t data; //= (uint16_t *) malloc(sizeof(uint16_t));
     
     spi_transaction_t transaction; 
 
@@ -53,19 +55,20 @@ int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
     transaction.length = 12;
     transaction.rxlength = 12;
     transaction.user = NULL;
-    transaction.tx_buffer = data;
-    transaction.rx_buffer = data;
+    transaction.tx_buffer = &data;
+    transaction.rx_buffer = &data;
     
     
     for(uint32_t i = 0; i < len; i++) {        
         esp_err_t err = spi_device_polling_transmit(*(spi_device_handle_t *)iface, &transaction);        
-        rx_data[i] =  ((*data << 4) | (*data >> 12 )) & 0x0FFF;
+        rx_data[i] =  ((data << 4) | (data >> 12 )) & 0x0FFF;
     }
     if (ESP_OK == err)
         return XENSIV_BGT60TRXX_STATUS_OK;
     else 
         return XENSIV_BGT60TRXX_STATUS_DEV_ERROR;
-    free(data);
+    // free(data);
+    // data = NULL;
 }
 
 uint32_t xensiv_bgt60trxx_esp32_word_reverse(uint32_t x) {
@@ -81,10 +84,10 @@ void xensiv_bgt60trxx_esp32_assert(bool expr) {
 
     if(false == expr) {
         err_expr = ESP_FAIL;
+        ESP_LOGI("error","occurs!");
     } else {
         err_expr = ESP_OK;
     }
-    
     ESP_ERROR_CHECK(err_expr);
 
 }
