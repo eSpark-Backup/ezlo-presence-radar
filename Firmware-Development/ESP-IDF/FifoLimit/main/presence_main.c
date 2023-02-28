@@ -28,7 +28,7 @@
 
 #define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP)
 #define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
-uint16_t samples[TOTAL_DATA];
+static uint16_t samples[TOTAL_DATA];
 /*
 ==============================================================================
    2. LOCAL DEFINITIONS
@@ -296,7 +296,7 @@ ifx_Error_t presence_process(presence_t* presence_context, ifx_Cube_R_t* frame)
  */
 ifx_Avian_Device_t* device_handle = NULL;
 ifx_Cube_R_t* frame = NULL;
-
+extern int64_t timeduration;
 int app_main(int argc, char* argv[])
 {
     
@@ -381,7 +381,7 @@ int app_main(int argc, char* argv[])
         //     break;    
         // }
         // frameProcFlag = false;   
-        vTaskDelay(1000/ portTICK_RATE_MS);     
+        vTaskDelay(10/ portTICK_RATE_MS);     
     }
 
 out:
@@ -426,9 +426,11 @@ void getFIFO(void* pvParameter)
         //  {
         //     delayCounter =0;
         //  }
-
+        
         while(data_available == false);
+        // timeduration = esp_timer_get_time();
         data_available = false;
+        
             // ESP_LOGI("getFifo","CREF INT");
         
         // if(frameNum)
@@ -436,10 +438,13 @@ void getFIFO(void* pvParameter)
             // memset(frame1->d, 0, sizeof(float) * SAMP_PER_FRAME);
             // frame1 = ifx_avian_get_next_frame(device_handle, frame1);
         int ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples, TOTAL_DATA);
+        // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
         if(ret != 0)
         {
             ESP_LOGI("FIFO","failed!");
         }
+        
+        // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
             // while(frameProcFlag == 1);
             // frame = frame1;
     //         frameNum = 0;

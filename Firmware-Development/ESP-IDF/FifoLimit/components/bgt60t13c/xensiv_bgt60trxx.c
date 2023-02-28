@@ -29,7 +29,7 @@
 #include "xensiv_bgt60trxx_esp32.h"
 
 #include "../debug/include/debug.h"
-
+int64_t timeduration=0;
 #define XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES         (4U)
 #define XENSIV_BGT60TRXX_SOFT_RESET_DELAY_MS            (10U)
 
@@ -330,6 +330,7 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
 
     /* SPI read burst mode command */
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
+    // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
 
     int32_t retval = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
                                                             (uint8_t*)&reg_addr,
@@ -353,7 +354,9 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
     }    
 
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
-    ESP_LOGI("1","GSR = 0x%x",gsr0);
+    // if (retval) {
+        ESP_LOGI("1","GSR = 0x%x",gsr0);
+    // }
     return retval;
 }
 

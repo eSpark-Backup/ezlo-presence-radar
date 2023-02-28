@@ -85,7 +85,7 @@
 //Ours:
 #define RANGE_HYSTERESIS_PERCENT_DEFAULT 10
 //Below settings can be changed as per requirement;
-#define MAX_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)1.5) 
+#define MAX_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)9.6) 
 #define MIN_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)0.50) 
 
 
