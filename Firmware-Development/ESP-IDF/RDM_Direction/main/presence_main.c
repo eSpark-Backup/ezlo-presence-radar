@@ -369,12 +369,16 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
     {
         if (speed > 1.5)
         {
-            printf("Moving Forward\n");
+            printf("Range = %g , Moving Forward\n", range);
         }
         else if (speed < -1.5)
         {
-            printf("Moving Backward\n");
+            printf("Range = %g ,Moving Backward\n", range);
         }
+        // else 
+        // {
+        //     printf("Range = %g \n", range);
+        // }
     }
 
     return (ifx_error_get());
