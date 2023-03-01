@@ -355,7 +355,7 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
 
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
     // if (retval) {
-        ESP_LOGI("1","GSR = 0x%x",gsr0);
+        // ESP_LOGI("1","GSR = 0x%x",gsr0);
     // }
     return retval;
 }

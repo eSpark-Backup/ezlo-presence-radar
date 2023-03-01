@@ -23,12 +23,20 @@
 
 #include "Avian.h"
 #include "Base.h"
+#include "2DMTI.h"
+#include "SpectrumAxis.h"
 #include "RadarSegmentation.h"
-#include "PresenceSensing.h"
+#include "RangeDopplerMap.h"
+#include "rdm_defaults.h"
 
 #define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP)
 #define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
-static uint16_t samples[TOTAL_DATA];
+uint16_t* samples = NULL;
+static uint16_t samples1[TOTAL_DATA];
+static uint16_t samples2[TOTAL_DATA];
+
+
+
 /*
 ==============================================================================
    2. LOCAL DEFINITIONS
@@ -43,9 +51,15 @@ static uint16_t samples[TOTAL_DATA];
    3. LOCAL TYPES
 ==============================================================================
 */
-typedef struct {
-    ifx_PresenceSensing_t* presencesensing;
-} presence_t;
+typedef struct
+{
+    ifx_Avian_Device_t *device_handle;
+    ifx_Matrix_R_t *rdm;
+    ifx_RDM_t *rdm_handle;
+    ifx_2DMTI_R_t *mti_handle;
+    ifx_Math_Axis_Spec_t range_spec;
+    ifx_Math_Axis_Spec_t speed_spec;
+} rdm_t;
 
 /*
 ==============================================================================
@@ -68,7 +82,7 @@ volatile bool data_available = false;
 */
 static void IRAM_ATTR gpio_isr_handler(void* arg) {
     uint32_t gpio_num = (uint32_t) arg;
-    if(gpio_num == 13) {
+    if(gpio_num == XNSIV_BGT60_IRQ_GPIO) {
         data_available = true;
     } 
     // xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
@@ -189,104 +203,170 @@ static void print_device_config(const ifx_Avian_Config_t* config)
     printf("\n");
 }
 
-static void state_change_callback(ifx_PresenceSensing_State_t new_state, void* context)
+//----------------------------------------------------------------------------
+
+/**
+ * @brief Application specific initialization function
+ *
+ * Initializes the presence sensing context.
+ *
+ * @param ctx           context of the application
+ */
+ifx_Error_t rdm_init(rdm_t *rdm_context)
 {
-    (void)context;
-    switch(new_state){
-        case IFX_PRESENCE_SENSING_PRESENT:
-            TRACE_B("change: present");
-            break;
-        case IFX_PRESENCE_SENSING_ABSENT:
-            TRACE_B("change: absent");
-            break;
-        default:
-            break;
-    }
-}
-
-ifx_Error_t presence_init(presence_t* ctx)
-{
-    ctx->presencesensing = NULL;
-
-    return IFX_OK;
-}
-
-ifx_Error_t presence_config(presence_t* ctx, ifx_Avian_Device_t* device, ifx_Avian_Config_t* dev_config)
-{   
-    ifx_Error_t err = IFX_OK;
-    ifx_error_clear();
-    ifx_PresenceSensing_Config_t ps_config = { 0 };
-
-    ifx_Radar_Sensor_t sensor = IFX_AVIAN_BGT60TR13C;
-
-    err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));    
-    
-    ifx_presence_sensing_get_config_defaults(sensor, dev_config, &ps_config);
-
-    err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));    
-    ps_config.state_change_cb = state_change_callback;
-    
-    #if 0
-    if(device) {
-        //We use always last antenna as first one on some devices have leakage from tx (BGT60TR13C)
-        const ifx_Radar_Sensor_Info_t* sensor_info = ifx_avian_get_sensor_information(device);
-        dev_config->rx_mask = 1<<(sensor_info->num_rx_antennas-1u);
-    }
-    #endif
-    
-    dev_config->rx_mask = 1;
-
-    // ctx->presencesensing = ifx_presence_sensing_create(&ps_config);
-    ctx->presencesensing = ifx_presence_sensing_create(&ps_config);
-    err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));    
-  
+    memset(rdm_context, 0, sizeof(rdm_t));
     return ifx_error_get();
 }
 
-ifx_Error_t presence_cleanup(presence_t* ctx)
+/**
+ * @brief Application specific configuration function
+ *
+ * Configures the presence sensing with specified in json or default configuration.
+ * Defines a state change callback and creates an instance of presence sensing algorithm.
+ *
+ * @param ctx           context of the application
+ * @param device        connected device handle
+ * @param json          json handle with configuration
+ * @param dev_config    device configuration handle
+ */
+ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian_Config_t *dev_config)
 {
-    ifx_presence_sensing_destroy(ctx->presencesensing);
+    ifx_Error_t ret = 0;
 
-    return ifx_error_get();
-}
+    const uint32_t range_fft_size = dev_config->num_samples_per_chirp * 4;  // Zero padding of 4 gives good range resolution in Range spectrum
+    const uint32_t doppler_fft_size = dev_config->num_chirps_per_frame * 4; // Zero padding of 4 gives good range resolution in Doppler spectrum
 
-ifx_Error_t presence_process(presence_t* presence_context, ifx_Cube_R_t* frame)
-{
-    ifx_Matrix_R_t antenna_data;
-    
-    ifx_PresenceSensing_Result_t ps_result;
+    ifx_PPFFT_Config_t range_fft_config = {
+        .fft_type = IFX_FFT_TYPE_R2C,
+        .fft_size = range_fft_size,
+        .mean_removal_enabled = true,
+        .window_config = {IFX_WINDOW_BLACKMANHARRIS, dev_config->num_samples_per_chirp, 0, 1},
+        .is_normalized_window = 1};
 
-    ifx_cube_get_row_r(frame, RX_ANTENNA_ID, &antenna_data);
+    ifx_PPFFT_Config_t doppler_fft_config = {
+        .fft_type = IFX_FFT_TYPE_C2C,
+        .fft_size = doppler_fft_size,
+        .mean_removal_enabled = true,
+        .window_config = {IFX_WINDOW_CHEBYSHEV, dev_config->num_chirps_per_frame, 100, 1},
+        .is_normalized_window = 1};
 
-    ifx_presence_sensing_run(presence_context->presencesensing, &antenna_data, &ps_result);
-    
-    
-    if (ifx_error_get() != IFX_OK)
-        return ifx_error_get();
-    // printf("----------------------------------------------\r\n");
-    if (ps_result.cur_presence_state == IFX_PRESENCE_SENSING_PRESENT)
+    ifx_RDM_Config_t rdm_config = (ifx_RDM_Config_t){
+        .spect_threshold = IFX_SPECT_THRESHOLD,
+        .output_scale_type = IFX_SCALE_TYPE_LINEAR,
+        .range_fft_config = range_fft_config,
+        .doppler_fft_config = doppler_fft_config};
+
+    rdm_context->rdm_handle = ifx_rdm_create(&rdm_config);
+    if ((ret = ifx_error_get()))
     {
-        // printf("is_present: true\r\n");
-        gpio_set_level(XNSIV_BGT60_LED_RED, 1);
-        if (!isnan(ps_result.target_distance_m) && !isnan(ps_result.target_speed_m_s)) 
-        {   
-            ESP_LOGI("PresenceSensing","Number of targests found: %d", ps_result.num_targets);
-            ESP_LOGI("PresenceSensing","target_distance_m: %g, target_speed_m_s: %g, target_signal_strength: %g",
-            ps_result.target_distance_m, ps_result.target_speed_m_s, ps_result.target_signal_strength);    
+        printf("Here 1");
+        return ret;
+    }
+
+    rdm_context->rdm = ifx_mat_create_r(range_fft_size / 2, doppler_fft_size); // for real input, range dimension has info only in positive half
+    if ((ret = ifx_error_get()))
+    {
+        printf("Here 2");
+        return ret;
+    }
+
+    // MTI Filter for static target cancellation
+    rdm_context->mti_handle = ifx_2dmti_create_r(IFX_ALPHA_MTI_FILTER,
+                                                 IFX_MAT_ROWS(rdm_context->rdm),
+                                                 IFX_MAT_COLS(rdm_context->rdm));
+    if ((ret = ifx_error_get()))
+    {
+        printf("Here 3");
+        return ret;
+    }
+
+    const ifx_Float_t bandwidth_Hz = ifx_devconf_get_bandwidth(dev_config);
+    rdm_context->range_spec = ifx_spectrum_axis_calc_range_axis(IFX_FFT_TYPE_R2C, range_fft_size, dev_config->num_samples_per_chirp, bandwidth_Hz);
+    if ((ret = ifx_error_get()))
+    {
+        printf("Here 4");
+        return ret;
+    }
+
+    const ifx_Float_t center_freq_Hz = ifx_devconf_get_center_frequency(dev_config);
+    const ifx_Float_t chirptime_s = ifx_devconf_get_chirp_time(dev_config);
+    rdm_context->speed_spec = ifx_spectrum_axis_calc_speed_axis(IFX_FFT_TYPE_C2C, doppler_fft_size, center_freq_Hz, chirptime_s);
+
+    return (ifx_error_get());
+}
+
+/**
+ * @brief Application specific cleanup function
+ *
+ * Destroys the presence sensing instances and cleans up allocated memory.
+ *
+ * @param ctx           context of the application
+ */
+ifx_Error_t rdm_cleanup(rdm_t *rdm_context)
+{
+    ifx_rdm_destroy(rdm_context->rdm_handle);
+    ifx_mat_destroy_r(rdm_context->rdm);
+    ifx_2dmti_destroy_r(rdm_context->mti_handle);
+    return ifx_error_get();
+}
+
+/**
+ * @brief Application specific processing function
+ *
+ * Runs a presence sensing algorithm on fetched data and informs about the results.
+ *
+ * @param ctx           context of the application
+ * @param frame         collected frame
+ */
+void rdm_peak_search(const ifx_Matrix_R_t *matrix, uint32_t *rmax, uint32_t *cmax)
+{
+    *rmax = 0, *cmax = 0;
+    ifx_Float_t max_value = IFX_MAT_AT(matrix, 0, 0);
+
+    for (uint32_t r = 0; r < IFX_MAT_ROWS(matrix); r++)
+    {
+        for (uint32_t c = 0; c < IFX_MAT_COLS(matrix); c++)
+        {
+            ifx_Float_t value = IFX_MAT_AT(matrix, r, c);
+            if (value > max_value)
+            {
+                *rmax = r;
+                *cmax = c;
+                max_value = value;
+            }
         }
     }
+}
 
-    else{ 
-        // printf("is_present: false\r\n");
-        gpio_set_level(XNSIV_BGT60_LED_RED, 0);
+ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
+{
+    ifx_Error_t ret = 0;
+    ifx_Matrix_R_t antenna_data;
+    ifx_cube_get_row_r(frame, 0, &antenna_data);
+    ifx_rdm_run_r(rdm_context->rdm_handle, &antenna_data, rdm_context->rdm);
+    if ((ret = ifx_error_get()))
+    {
+        return ret;
     }
 
-    // printf("Number of targests found: %d\r\n", ps_result.num_targets);
+    ifx_2dmti_run_r(rdm_context->mti_handle, rdm_context->rdm, rdm_context->rdm);
+    if ((ret = ifx_error_get()))
+    {
+        return ret;
+    }
 
-    return ifx_error_get();
+    // do peak search
+    uint32_t rmax;
+    uint32_t cmax;
+    rdm_peak_search(rdm_context->rdm, &rmax, &cmax);
+    // range
+    const ifx_Float_t range = rmax * rdm_context->range_spec.value_bin_per_step;
+    // speed
+    const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->rdm) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
+
+    printf("range_m:%g, speed_m_s:%g\n", range, speed);
+
+    return (ifx_error_get());
 }
 
 /*
@@ -295,8 +375,8 @@ ifx_Error_t presence_process(presence_t* presence_context, ifx_Cube_R_t* frame)
 ==============================================================================
  */
 ifx_Avian_Device_t* device_handle = NULL;
-ifx_Cube_R_t* frame = NULL;
-extern int64_t timeduration;
+// ifx_Cube_R_t* frame = NULL;
+// extern int64_t timeduration;
 int app_main(int argc, char* argv[])
 {
     
@@ -335,16 +415,19 @@ int app_main(int argc, char* argv[])
 
     ifx_avian_get_config(device_handle, &device_config);
 
-    // presence_t* Presence = (presence_t*)malloc(sizeof(presence_t));
-    // ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
+    rdm_t *rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
+    ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
+    ifx_avian_get_config(device_handle, dev_config);
 
-    // if (presence_init(Presence) != IFX_OK) {
-    //     TRACE_B("Failed to Init Presence object!\n");     
-    // }
+    if (rdm_init(rdm_context) != IFX_OK)
+    {
+        TRACE_B("Failed to Init RDM object!\n");
+    }
 
-    // if (presence_config(Presence, device_handle, dev_config) != IFX_OK) {
-    //     TRACE_B("Failed to config presene sensor!\n");        
-    // }
+    if (rdm_config(rdm_context, device_handle, dev_config) != IFX_OK)
+    {
+        TRACE_B("Failed to config rdm object!\n");
+    }
     
     xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, SAMP_PER_FRAME);
 
@@ -355,15 +438,21 @@ int app_main(int argc, char* argv[])
     else {
         TRACE_B("Frame started !!");
     }
-    // uint32_t delayCounter=0;
+    uint32_t delayCounter=0;
+
+    ifx_Cube_R_t* frame = NULL;
+    frame = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));      
+    frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
+
+    
     while(1) 
     {
-        // if(delayCounter < 10)
+        // if(delayCounter < 100)
         //  {
         //     delayCounter++;
         //     gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
         //  }
-        //  else if(delayCounter < 20){
+        //  else if(delayCounter < 200){
         //     delayCounter++;
         //     gpio_set_level(XNSIV_BGT60_LED_GREEN, 0);
         //     // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
@@ -373,15 +462,34 @@ int app_main(int argc, char* argv[])
         //     delayCounter =0;
         //  }
          
-        // while(frameProcFlag == false);
+         
         
+        if (frameProcFlag)
+        {
+            frame = ifx_avian_get_next_frame(device_handle, frame,samples);
+            if(rdm_process(rdm_context, frame) != IFX_OK) 
+            {
+                TRACE_B("Failed rdm processing!\n");    
+                break;    
+            }
+            // printf("from samp addr = %p\n",samples);
+            // for (uint16_t i = 0; i < TOTAL_DATA; i++)
+            // {
+            //     printf("%d,",samples[i]);
+            //     /* code */
+            // }
+            // printf("\n");
+            frameProcFlag = 0;
+        }
+        
+        // frame = ifx_avian_get_next_frame(device_handle, frame);
         // if(presence_process(Presence, frame) != IFX_OK) 
         // {
         //     TRACE_B("Failed processing presence!\n");    
         //     break;    
         // }
         // frameProcFlag = false;   
-        vTaskDelay(10/ portTICK_RATE_MS);     
+        // vTaskDelay(10/ portTICK_RATE_MS);     
     }
 
 out:
@@ -408,7 +516,8 @@ void getFIFO(void* pvParameter)
     // uint16_t samples[SAMP_PER_FRAME];
     // bool frameNum = 1;
     // vTaskDelay(100/portTICK_RATE_MS);
-    // uint16_t delayCounter = 0;
+    uint16_t delayCounter = 0;
+    // vTaskDelay(1000/ portTICK_RATE_MS);  
     while(1)
     {
         // ** GPIO TOGGLE
@@ -427,7 +536,10 @@ void getFIFO(void* pvParameter)
         //     delayCounter =0;
         //  }
         
-        while(data_available == false);
+        if (!data_available)
+        {
+            continue;
+        }
         // timeduration = esp_timer_get_time();
         data_available = false;
         
@@ -437,12 +549,36 @@ void getFIFO(void* pvParameter)
         // {
             // memset(frame1->d, 0, sizeof(float) * SAMP_PER_FRAME);
             // frame1 = ifx_avian_get_next_frame(device_handle, frame1);
-        int ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples, TOTAL_DATA);
+        int ret=0;
+        
         // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
-        if(ret != 0)
+        
+        if (samples != samples1)
         {
-            ESP_LOGI("FIFO","failed!");
+            ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA);
+            
+            if (!frameProcFlag)
+            {
+                samples = samples1;
+                frameProcFlag = 1;
+            } 
+            
         }
+        else
+        {
+            ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples2, TOTAL_DATA);
+            if(ret != XENSIV_BGT60TRXX_STATUS_OK)
+            {
+                // ESP_LOGI("FIFO","failed!");
+                continue;
+            }
+            if (!frameProcFlag)
+            {
+                samples = samples2;
+                frameProcFlag = 1;
+            } 
+        }
+
         
         // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
             // while(frameProcFlag == 1);

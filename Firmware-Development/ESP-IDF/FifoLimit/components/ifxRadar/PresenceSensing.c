@@ -66,11 +66,11 @@
 #define MAX_NUM_OF_TARGETS         5
 
 /* default values for presence sensing configuration */
-#define RANGE_FFT_SIZE_DEFAULT 128
+#define RANGE_FFT_SIZE_DEFAULT 128*4
 #define RANGE_FFT_WINDOW_TYPE_DEFAULT IFX_WINDOW_BLACKMANNHARRIS
 #define RANGE_FFT_WINDOW_ALPHA_DEFAULT 0
 
-#define DOPPLER_FFT_SIZE_DEFAULT 128
+#define DOPPLER_FFT_SIZE_DEFAULT 128*4
 #define DOPPLER_FFT_WINDOW_TYPE_DEFAULT IFX_WINDOW_CHEBYSHEV
 #define DOPPLER_FFT_WINDOW_ALPHA_DEFAULT 60
 
@@ -255,7 +255,7 @@ void ifx_presence_sensing_get_config_defaults(ifx_Radar_Sensor_t sensor_type, if
     device_config->rx_mask = (num_rx >= 3) ? 4 : 1;  // Use RX1-3 when device has at least 3 antennas, RX1 otherwise
     device_config->tx_mask = XENSIV_BGT60TRXX_CONF_NUM_TX_ANTENNAS;
     device_config->tx_power_level = TX_POWER_LEVEL_UPPER;
-    device_config->if_gain_dB = 33;                  // 33 dB
+    device_config->if_gain_dB = IF_DB_GAIN;                  // 33 dB
     device_config->start_frequency_Hz = XENSIV_BGT60TRXX_CONF_START_FREQ_HZ; // 60.02 GHz
     device_config->end_frequency_Hz = XENSIV_BGT60TRXX_CONF_END_FREQ_HZ; // 61.02 GHz
     device_config->num_samples_per_chirp = XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP;
