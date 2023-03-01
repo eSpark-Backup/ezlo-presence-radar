@@ -1,0 +1,10 @@
+idf_component_register(SRCS "AngleCapon.c"
+                            "AngleMonopulse.c"
+                            "DBF.c"
+                            "PeakSearch.c"
+                            "PresenceSensing.c"
+                            "RangeAngleImage.c"
+                            "RangeDopplerMap.c"
+                            "RangeSpectrum.c"
+                            "SpectrumAxis.c"
+                    INCLUDE_DIRS "include" REQUIRES muFFT ifxBase ifxAlgo ifxAvian)
