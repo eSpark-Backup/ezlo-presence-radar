@@ -35,7 +35,10 @@ uint16_t* samples = NULL;
 static uint16_t samples1[TOTAL_DATA];
 static uint16_t samples2[TOTAL_DATA];
 // extern int64_t timeduration;
-
+uint32_t timeduration=0;
+uint32_t duration=0;
+uint32_t fillStartTime=0;
+uint32_t fillduration=0;
 /*
 ==============================================================================
    2. LOCAL DEFINITIONS
@@ -71,8 +74,7 @@ spi_device_handle_t xnsiv_bgt60_spi;
 static xQueueHandle gpio_evt_queue = NULL;
 TaskHandle_t getFIFOHandle = NULL;
 bool frameProcFlag = 0;
-volatile bool data_available = false;
-bool fifoFailed = false;
+uint8_t fifoFailed = 0;
 // Functions
 void getFifoData(void);
 void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cube_R_t* frame);
@@ -91,10 +93,13 @@ static void IRAM_ATTR gpio_isr_handler(void* arg) {
     uint32_t gpio_num = (uint32_t) arg;
     if(gpio_num == XNSIV_BGT60_IRQ_GPIO) {
         // gpio_intr_disable(XNSIV_BGT60_IRQ_GPIO);
+        fillduration = (int)(esp_timer_get_time() - fillStartTime);
+        timeduration = esp_timer_get_time();
         gpio_set_level(XNSIV_BGT60_CS_GPIO, 0);
         // timeduration = esp_timer_get_time();
-        data_available = true;
         getFifoData();
+        fillStartTime = esp_timer_get_time();
+        duration = (int)(esp_timer_get_time() - timeduration);
         // gpio_intr_enable(XNSIV_BGT60_IRQ_GPIO);
     } 
     // xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
@@ -376,22 +381,22 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
     // speed
     const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->rdm) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
 
-    // printf("range_m:%g, speed_m_s:%g\n", range, speed);
-    if (abs(speed) < 7  )
-    {
-        if (speed > 1.5)
-        {
-            printf("Range = %g , Moving Forward\n", range);
-        }
-        else if (speed < -1.5)
-        {
-            printf("Range = %g ,Moving Backward\n", range);
-        }
+    printf("range_m:%g, speed_m_s:%g\n", range, speed);
+    // if (abs(speed) < 7  )
+    // {
+    //     if (speed > 1.5)
+    //     {
+    //         printf("Range = %g , Moving Forward\n", range);
+    //     }
+    //     else if (speed < -1.5)
+    //     {
+    //         printf("Range = %g ,Moving Backward\n", range);
+    //     }
         // else 
         // {
         //     printf("Range = %g \n", range);
         // }
-    }
+    // }
 
     return (ifx_error_get());
 }
@@ -479,7 +484,7 @@ void radar(void* pvParameter)
     else {
         TRACE_B("Frame started !!");
     }
-
+    fillStartTime = esp_timer_get_time();
     ifx_Cube_R_t* frame = NULL;
     frame = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));      
     frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
@@ -497,51 +502,49 @@ void radar(void* pvParameter)
 
 void getFifoData(void) 
 {
-    if (!data_available)
+    // timeduration = esp_timer_get_time();
+    // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
+    int ret=0;
+    if (samples != samples1)
     {
-        return;
+        ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA);
+        if(ret != XENSIV_BGT60TRXX_STATUS_OK)
+        {
+            ESP_LOGI("FIFO","failed!");
+            fifoFailed = 1;
+            return;
+        }
+        if (!frameProcFlag)
+        {
+            samples = samples1;
+            frameProcFlag = 1;
+        } 
+        
     }
-        // timeduration = esp_timer_get_time();
-        data_available = false;
-        // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
-        int ret=0;
-        if (samples != samples1)
+    else
+    {
+        ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples2, TOTAL_DATA);
+        if(ret != XENSIV_BGT60TRXX_STATUS_OK)
         {
-            ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA);
-            if(ret != XENSIV_BGT60TRXX_STATUS_OK)
-            {
-                // ESP_LOGI("FIFO","failed!");
-                fifoFailed = true;
-                return;
-            }
-            if (!frameProcFlag)
-            {
-                samples = samples1;
-                frameProcFlag = 1;
-            } 
-            
+            ESP_LOGI("FIFO","failed!");
+            fifoFailed = 1;
+            return;
         }
-        else
+        if (!frameProcFlag)
         {
-            ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples2, TOTAL_DATA);
-            if(ret != XENSIV_BGT60TRXX_STATUS_OK)
-            {
-                // ESP_LOGI("FIFO","failed!");
-                fifoFailed = true;
-                return;
-            }
-            if (!frameProcFlag)
-            {
-                samples = samples2;
-                frameProcFlag = 1;
-            } 
-        }
+            samples = samples2;
+            frameProcFlag = 1;
+        } 
+    }
+    
+    fifoFailed = 2;
 }
 
 void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cube_R_t* frame)
 {
     if (frameProcFlag)
     {
+        // uint32_t timeduration = esp_timer_get_time();
         frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
         if(rdm_process(rdm_context, frame) != IFX_OK) 
         {
@@ -556,6 +559,7 @@ void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cub
         // }
         // printf("\n");
         frameProcFlag = 0;
+        // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
     }
 }
 
@@ -581,9 +585,17 @@ void blinky(void)
 
 void getFifoErr(void)
 {
-    if (fifoFailed)
+    if (fifoFailed == 1)
     {
         ESP_LOGI("FIFO","failed!");
-        fifoFailed= false;
+        fifoFailed= 0;
+    }
+    else if (fifoFailed == 2)
+    {
+        /* code */
+        ESP_LOGI("FIFO","Read Successfull");
+        // ESP_LOGI("FIFO", "Fifo Fill Time = %d us",fillduration);
+        // ESP_LOGI("FIFO", "SPI Read Time = %d us",duration);
+        fifoFailed= 0;
     }
 }
