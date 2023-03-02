@@ -327,15 +327,16 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
                         (dev->type->fifo_addr << XENSIV_BGT60TRXX_SPI_BURST_MODE_SADR_POS);
 
     reg_addr = xensiv_bgt60trxx_esp32_word_reverse(reg_addr);
-
+    
     /* SPI read burst mode command */
-    xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
+    // xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
     // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
 
     int32_t retval = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
                                                             (uint8_t*)&reg_addr,
                                                             (uint8_t*)&gsr0,
                                                             XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
+                                        
     
     if (XENSIV_BGT60TRXX_STATUS_OK == retval)
     {
@@ -343,9 +344,11 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
                      XENSIV_BGT60TRXX_REG_GSR0_SPI_BURST_ERR_MSK |
                      XENSIV_BGT60TRXX_REG_GSR0_CLK_NUM_ERR_MSK)) == 0U)
         {
+            
             retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface,
                                                              data,
                                                              num_samples);
+                                                             
         }
         else
         {
@@ -354,6 +357,7 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
     }    
 
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
+    
     // if (retval) {
         // ESP_LOGI("1","GSR = 0x%x",gsr0);
     // }

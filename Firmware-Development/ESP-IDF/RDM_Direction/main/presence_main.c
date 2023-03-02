@@ -34,8 +34,7 @@
 uint16_t* samples = NULL;
 static uint16_t samples1[TOTAL_DATA];
 static uint16_t samples2[TOTAL_DATA];
-
-
+// extern int64_t timeduration;
 
 /*
 ==============================================================================
@@ -71,9 +70,17 @@ spi_device_handle_t xnsiv_bgt60_spi;
 
 static xQueueHandle gpio_evt_queue = NULL;
 TaskHandle_t getFIFOHandle = NULL;
-void getFIFO(void* pvParameter);
 bool frameProcFlag = 0;
 volatile bool data_available = false;
+bool fifoFailed = false;
+// Functions
+void getFifoData(void);
+void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cube_R_t* frame);
+void blinky(void);
+void getFifoErr(void);
+
+// Tasks
+void radar(void* pvParameter);
 
 /*
 ==============================================================================
@@ -83,7 +90,12 @@ volatile bool data_available = false;
 static void IRAM_ATTR gpio_isr_handler(void* arg) {
     uint32_t gpio_num = (uint32_t) arg;
     if(gpio_num == XNSIV_BGT60_IRQ_GPIO) {
+        // gpio_intr_disable(XNSIV_BGT60_IRQ_GPIO);
+        gpio_set_level(XNSIV_BGT60_CS_GPIO, 0);
+        // timeduration = esp_timer_get_time();
         data_available = true;
+        getFifoData();
+        // gpio_intr_enable(XNSIV_BGT60_IRQ_GPIO);
     } 
     // xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
 }
@@ -135,7 +147,7 @@ void init_gpio(void) {
   gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
   //hook isr handler for specific gpio pin
   gpio_isr_handler_add(XNSIV_BGT60_IRQ_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_IRQ_GPIO);
-  gpio_isr_handler_add(XNSIV_BGT60_BUTTON_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_BUTTON_GPIO);
+//   gpio_isr_handler_add(XNSIV_BGT60_BUTTON_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_BUTTON_GPIO);
 
   // Disable Reset
   gpio_set_level(XNSIV_BGT60_RST_GPIO, 1);
@@ -167,7 +179,7 @@ void esp32_spi_init(void) {
     };
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz= 25*1000*1000,   
+        .clock_speed_hz= 50*1000*1000,   
         .mode=0,                                //SPI mode 0
         #ifndef XNSIV_CS_HANDLING
         // .spics_io_num = XNSIV_BGT60_CS_GPIO,      //CS pin
@@ -186,20 +198,20 @@ void esp32_spi_init(void) {
 static void print_device_config(const ifx_Avian_Config_t* config)
 {
     printf("Device configuration:\n");
-    // printf("sample_rate_Hz:          %" PRIu32 "\n", config->sample_rate_Hz);
-    // printf("rx_mask:                 %" PRIu32 "\n", config->rx_mask);
-    // printf("tx_mask:                 %" PRIu32 "\n", config->tx_mask);
+    printf("sample_rate_Hz:          %" PRIu32 "\n", config->sample_rate_Hz);
+    printf("rx_mask:                 %" PRIu32 "\n", config->rx_mask);
+    printf("tx_mask:                 %" PRIu32 "\n", config->tx_mask);
     printf("tx_power_level:          %" PRIu32 "\n", config->tx_power_level);
     printf("if_gain_dB:              %" PRIu32 "\n", config->if_gain_dB);
-    printf("start_frequency_Hz:      %" PRIu64 "\n", config->start_frequency_Hz);
-    printf("end_frequency_Hz:        %" PRIu64 "\n", config->end_frequency_Hz);
+    // printf("start_frequency_Hz:      %" PRIu64 "\n", config->start_frequency_Hz);
+    // printf("end_frequency_Hz:        %" PRIu64 "\n", config->end_frequency_Hz);
     printf("num_samples_per_chirp:   %" PRIu32 "\n", config->num_samples_per_chirp);
     printf("num_chirps_per_frame:    %" PRIu32 "\n", config->num_chirps_per_frame);
     printf("chirp_repetition_time_s: %g\n", config->chirp_repetition_time_s);
     printf("frame_repetition_time_s: %g\n", config->frame_repetition_time_s);
-    // printf("hp_cutoff_Hz:            %" PRIu32 "\n", config->hp_cutoff_Hz);
-    // printf("aaf_cutoff_Hz:           %" PRIu32 "\n", config->aaf_cutoff_Hz);
-    // printf("mimo_mode:               %s\n", config->mimo_mode == IFX_MIMO_TDM ? "time-domain multiplexed" : "off");
+    printf("hp_cutoff_Hz:            %" PRIu32 "\n", config->hp_cutoff_Hz);
+    printf("aaf_cutoff_Hz:           %" PRIu32 "\n", config->aaf_cutoff_Hz);
+    printf("mimo_mode:               %s\n", config->mimo_mode == IFX_MIMO_TDM ? "time-domain multiplexed" : "off");
     printf("\n");
 }
 
@@ -391,23 +403,35 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
  */
 ifx_Avian_Device_t* device_handle = NULL;
 // ifx_Cube_R_t* frame = NULL;
-// extern int64_t timeduration;
+
 int app_main(int argc, char* argv[])
 {
-    
-    ifx_Error_t error = IFX_OK;
-    ifx_Avian_Config_t device_config = {0};
-  
-    xnsiv_bgt60tr13c = (xensiv_bgt60trxx_t *)malloc(sizeof(xensiv_bgt60trxx_t));
-
     gpio_reset_pin(XNSIV_BGT60_LED_RED);
     gpio_reset_pin(XNSIV_BGT60_LED_GREEN);
 
     gpio_set_direction(XNSIV_BGT60_LED_RED, GPIO_MODE_OUTPUT);
     gpio_set_direction(XNSIV_BGT60_LED_GREEN, GPIO_MODE_OUTPUT);
 
-    xTaskCreatePinnedToCore(getFIFO,"getFIFO", 2048*3, NULL, 10, &getFIFOHandle, 1);
     init_gpio();
+    xTaskCreatePinnedToCore(radar,"radar", 2048*3, NULL, 10, &getFIFOHandle, 1);
+ 
+    while(1) 
+    {        
+        getFifoErr();        
+        vTaskDelay(500/ portTICK_RATE_MS);  
+    }
+    
+    return 0;
+}
+
+void radar(void* pvParameter)
+{
+    ifx_Error_t error = IFX_OK;
+    ifx_Avian_Config_t device_config = {0};
+  
+    xnsiv_bgt60tr13c = (xensiv_bgt60trxx_t *)malloc(sizeof(xensiv_bgt60trxx_t));
+
+    esp32_spi_init();
     bgt60_hard_reset();
 
     /* Open the device: Connect to the first radar sensor found. */
@@ -425,10 +449,11 @@ int app_main(int argc, char* argv[])
     
     uint32_t read_reg = 0;
     xensiv_bgt60trxx_get_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, &read_reg);
-    read_reg |= XENSIV_BGT60TRXX_REG_SFCTL_PREFIX_EN_MSK;  
+    read_reg |= XENSIV_BGT60TRXX_REG_SFCTL_PREFIX_EN_MSK | XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;  
     xensiv_bgt60trxx_set_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, read_reg);
 
     ifx_avian_get_config(device_handle, &device_config);
+    print_device_config(&device_config);
 
     rdm_t *rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
     ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
@@ -443,7 +468,7 @@ int app_main(int argc, char* argv[])
     {
         TRACE_B("Failed to config rdm object!\n");
     }
-    printf("%s",ifx_error_to_string(ifx_error_get()));
+    printf("%s\n",ifx_error_to_string(ifx_error_get()));
     
     xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, SAMP_PER_FRAME);
 
@@ -454,125 +479,41 @@ int app_main(int argc, char* argv[])
     else {
         TRACE_B("Frame started !!");
     }
-    uint32_t delayCounter=0;
 
     ifx_Cube_R_t* frame = NULL;
     frame = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));      
     frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
-
-    
-    while(1) 
+  
+    while(1)
     {
-        // if(delayCounter < 100)
-        //  {
-        //     delayCounter++;
-        //     gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
-        //  }
-        //  else if(delayCounter < 200){
-        //     delayCounter++;
-        //     gpio_set_level(XNSIV_BGT60_LED_GREEN, 0);
-        //     // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
-        //  }
-        //  else
-        //  {
-        //     delayCounter =0;
-        //  }
-         
-         
-        
-        if (frameProcFlag)
-        {
-            frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
-            if(rdm_process(rdm_context, frame) != IFX_OK) 
-            {
-                TRACE_B("Failed rdm processing!\n");    
-                break;    
-            }
-            // printf("from samp addr = %p\n",samples);
-            // for (uint16_t i = 0; i < TOTAL_DATA; i++)
-            // {
-            //     printf("%d,",samples[i]);
-            //     /* code */
-            // }
-            // printf("\n");
-            frameProcFlag = 0;
-        }
-        
-        // frame = ifx_avian_get_next_frame(device_handle, frame);
-        // if(presence_process(Presence, frame) != IFX_OK) 
-        // {
-        //     TRACE_B("Failed processing presence!\n");    
-        //     break;    
-        // }
-        // frameProcFlag = false;   
-        // vTaskDelay(10/ portTICK_RATE_MS);     
+       processFrame(device_handle, rdm_context, frame);
     }
 
-out:
-
+    out:
     ifx_avian_destroy(device_handle);
     // ifx_cube_destroy_r(frame);
     // presence_cleanup();
-    return 0;
 }
 
-void getFIFO(void* pvParameter)
+void getFifoData(void) 
 {
-    esp32_spi_init();
-
-    ifx_Error_t error = IFX_OK;
-
-    // ifx_Cube_R_t* frame1 = NULL;
-    // frame1 = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));      
-    // frame1->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
-
-    // ifx_Cube_R_t* frame2 = NULL;
-    // frame2 = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));
-    // frame2->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
-    // uint16_t samples[SAMP_PER_FRAME];
-    // bool frameNum = 1;
-    // vTaskDelay(100/portTICK_RATE_MS);
-    uint16_t delayCounter = 0;
-    // vTaskDelay(1000/ portTICK_RATE_MS);  
-    while(1)
+    if (!data_available)
     {
-        // ** GPIO TOGGLE
-        // if(delayCounter < 1000)
-        //  {
-        //     delayCounter++;
-        //     gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
-        //  }
-        //  else if(delayCounter < 2000){
-        //     delayCounter++;
-        //     gpio_set_level(XNSIV_BGT60_LED_GREEN, 0);
-        //     // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
-        //  }
-        //  else
-        //  {
-        //     delayCounter =0;
-        //  }
-        
-        if (!data_available)
-        {
-            continue;
-        }
+        return;
+    }
         // timeduration = esp_timer_get_time();
         data_available = false;
-        
-            // ESP_LOGI("getFifo","CREF INT");
-        
-        // if(frameNum)
-        // {
-            // memset(frame1->d, 0, sizeof(float) * SAMP_PER_FRAME);
-            // frame1 = ifx_avian_get_next_frame(device_handle, frame1);
-        int ret=0;
-        
         // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
-        
+        int ret=0;
         if (samples != samples1)
         {
             ret = xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA);
-            
+            if(ret != XENSIV_BGT60TRXX_STATUS_OK)
+            {
+                // ESP_LOGI("FIFO","failed!");
+                fifoFailed = true;
+                return;
+            }
             if (!frameProcFlag)
             {
                 samples = samples1;
@@ -586,7 +527,8 @@ void getFIFO(void* pvParameter)
             if(ret != XENSIV_BGT60TRXX_STATUS_OK)
             {
                 // ESP_LOGI("FIFO","failed!");
-                continue;
+                fifoFailed = true;
+                return;
             }
             if (!frameProcFlag)
             {
@@ -594,28 +536,54 @@ void getFIFO(void* pvParameter)
                 frameProcFlag = 1;
             } 
         }
+}
 
-        
-        // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
-            // while(frameProcFlag == 1);
-            // frame = frame1;
-    //         frameNum = 0;
-    //     }
-    //     else
-    //     {
-    //         // memset(frame2->d, 0, sizeof(float) * SAMP_PER_FRAME);
-    //         frame2 = ifx_avian_get_next_frame(device_handle, frame2);
-    //         // while(frameProcFlag == 1);
-    //         // frame = frame2;
-    //         frameNum = 1;
-    //     }
+void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cube_R_t* frame)
+{
+    if (frameProcFlag)
+    {
+        frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
+        if(rdm_process(rdm_context, frame) != IFX_OK) 
+        {
+            TRACE_B("Failed rdm processing!\n");    
+            return;    
+        }
+        // printf("from samp addr = %p\n",samples);
+        // for (uint16_t i = 0; i < TOTAL_DATA; i++)
+        // {
+        //     printf("%d,",samples[i]);
+        //     /* code */
+        // }
+        // printf("\n");
+        frameProcFlag = 0;
+    }
+}
 
-    //     if ((error = ifx_error_get()) != IFX_OK)
-    //     {
-    //         // ESP_LOGI("getFIFOTask","Failed to get next frame: %s\n", ifx_error_to_string(error));
-    //         continue;
-    //     }
-    //     // frameProcFlag = true;
-        
+void blinky(void)
+{
+    static uint16_t delayCounter = 0;
+    // ** GPIO TOGGLE
+    if(delayCounter < 1000)
+     {
+        delayCounter++;
+        gpio_set_level(XNSIV_BGT60_LED_GREEN, 1);
+     }
+     else if(delayCounter < 2000){
+        delayCounter++;
+        gpio_set_level(XNSIV_BGT60_LED_GREEN, 0);
+        // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
+     }
+     else
+     {
+        delayCounter =0;
+     }
+}
+
+void getFifoErr(void)
+{
+    if (fifoFailed)
+    {
+        ESP_LOGI("FIFO","failed!");
+        fifoFailed= false;
     }
 }
