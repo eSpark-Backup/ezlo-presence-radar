@@ -953,6 +953,10 @@ void ifx_mat_abt_r(const ifx_Matrix_R_t* inputA,
                    const ifx_Matrix_R_t* inputB,
                    ifx_Matrix_R_t* output)
 {
+    uint32_t rowsA = (inputA->rows);
+    uint32_t rowsB = (inputB->rows);
+    uint32_t colsA = (inputA->cols);
+
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -961,13 +965,15 @@ void ifx_mat_abt_r(const ifx_Matrix_R_t* inputA,
                      (inputB->rows != output->cols) ||
                      (inputA->cols != inputB->cols), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_row = 0; i_row < inputA->rows; ++i_row)
+    ifx_Float_t sum = 0;
+    for(uint32_t i_row = 0; i_row < rowsA; ++i_row)
     {
-        for(uint32_t j_row = 0; j_row < inputB->rows; ++j_row)
+        for(uint32_t j_row = 0; j_row < rowsB; ++j_row)
         {
-            ifx_Float_t sum = 0;
-            for(uint32_t col = 0; col < inputA->cols; ++col)
+            for(uint32_t col = 0; col < colsA; ++col)
+            {
                 sum += mAt(inputA, i_row, col) * mAt(inputB, j_row, col);
+            }
 
             mAt(output, i_row, j_row) = sum;
         }
@@ -980,6 +986,10 @@ void ifx_mat_abct_c(const ifx_Matrix_C_t* inputA,
                     const ifx_Matrix_C_t* inputB,
                     ifx_Matrix_C_t* output)
 {
+    uint32_t rowsA = inputA->rows;
+    uint32_t rowsB = inputB->rows;
+    uint32_t colsA = inputA->cols;
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -988,12 +998,11 @@ void ifx_mat_abct_c(const ifx_Matrix_C_t* inputA,
                      (inputB->rows != output->cols) ||
                      (inputA->cols != inputB->cols), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_row = 0; i_row < inputA->rows; ++i_row)
+    for(uint32_t i_row = 0; i_row < rowsA; ++i_row)
     {
-        for(uint32_t j_row = 0; j_row < inputB->rows; ++j_row)
+        for(uint32_t j_row = 0; j_row < rowsB; ++j_row)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-            for(uint32_t col = 0; col < inputA->cols; ++col)
+            for(uint32_t col = 0; col < colsA; ++col)
             {
                 ifx_Float_t ra = IFX_COMPLEX_REAL(mAt(inputA, i_row, col));
                 ifx_Float_t ia = IFX_COMPLEX_IMAG(mAt(inputA, i_row, col));
@@ -1013,6 +1022,10 @@ void ifx_mat_abt_c(const ifx_Matrix_C_t* inputA,
                    const ifx_Matrix_C_t* inputB,
                    ifx_Matrix_C_t* output)
 {
+    uint32_t rowsA = inputA->rows;
+    uint32_t rowsB = inputB->rows;
+    uint32_t colsA = inputA->cols;
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -1021,12 +1034,11 @@ void ifx_mat_abt_c(const ifx_Matrix_C_t* inputA,
                      (inputB->rows != output->cols) ||
                      (inputA->cols != inputB->cols), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_row = 0; i_row < inputA->rows; ++i_row)
+    for(uint32_t i_row = 0; i_row < rowsA; ++i_row)
     {
-        for(uint32_t j_row = 0; j_row < inputB->rows; ++j_row)
+        for(uint32_t j_row = 0; j_row < rowsB; ++j_row)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-            for(uint32_t col = 0; col < inputA->cols; ++col)
+            for(uint32_t col = 0; col < colsA; ++col)
             {
                 ifx_Complex_t tmp = ifx_complex_mul(mAt(inputA, i_row, col), mAt(inputB, j_row, col));
                 sum = ifx_complex_add(sum, tmp);
@@ -1042,6 +1054,10 @@ void ifx_mat_abt_rc(const ifx_Matrix_R_t* inputA,
                     const ifx_Matrix_C_t* inputB,
                     ifx_Matrix_C_t* output)
 {
+    uint32_t rowsA = inputA->rows;
+    uint32_t rowsB = inputB->rows;
+    uint32_t colsA = inputA->cols;
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -1050,12 +1066,11 @@ void ifx_mat_abt_rc(const ifx_Matrix_R_t* inputA,
                      (inputB->rows != output->cols) ||
                      (inputA->cols != inputB->cols), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_row = 0; i_row < inputA->rows; ++i_row)
+    for(uint32_t i_row = 0; i_row < rowsA; ++i_row)
     {
-        for(uint32_t j_row = 0; j_row < inputB->rows; ++j_row)
+        for(uint32_t j_row = 0; j_row < rowsB; ++j_row)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-            for(uint32_t col = 0; col < inputA->cols; ++col)
+            for(uint32_t col = 0; col < colsA; ++col)
             {
                 ifx_Complex_t tmp = ifx_complex_mul_real(mAt(inputB, j_row, col), mAt(inputA, i_row, col));
                 sum = ifx_complex_add(sum, tmp);
@@ -1071,6 +1086,10 @@ void ifx_mat_abt_cr(const ifx_Matrix_C_t* inputA,
                     const ifx_Matrix_R_t* inputB,
                     ifx_Matrix_C_t* output)
 {
+    uint32_t rowsA = inputA->rows;
+    uint32_t rowsB = inputB->rows;
+    uint32_t colsA = inputA->cols;
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -1079,12 +1098,11 @@ void ifx_mat_abt_cr(const ifx_Matrix_C_t* inputA,
                      (inputB->rows != output->cols) ||
                      (inputA->cols != inputB->cols), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_row = 0; i_row < inputA->rows; ++i_row)
+    for(uint32_t i_row = 0; i_row < rowsA; ++i_row)
     {
-        for(uint32_t j_row = 0; j_row < inputB->rows; ++j_row)
+        for(uint32_t j_row = 0; j_row < rowsB; ++j_row)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-            for(uint32_t col = 0; col < inputA->cols; ++col)
+            for(uint32_t col = 0; col < colsA; ++col)
             {
                 ifx_Complex_t tmp = ifx_complex_mul_real(mAt(inputA, i_row, col), mAt(inputB, j_row, col));
                 sum = ifx_complex_add(sum, tmp);
@@ -1100,6 +1118,10 @@ void ifx_mat_atb_r(const ifx_Matrix_R_t* inputA,
                    const ifx_Matrix_R_t* inputB,
                    ifx_Matrix_R_t* output)
 {
+    uint32_t colsA = inputA->cols;
+    uint32_t colsB = inputB->cols;
+    uint32_t rowsA = inputA->rows;
+    ifx_Float_t sum = 0;
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -1108,12 +1130,11 @@ void ifx_mat_atb_r(const ifx_Matrix_R_t* inputA,
                      (inputB->cols != output->cols) ||
                      (inputA->rows != inputB->rows), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_col = 0; i_col < inputA->cols; ++i_col)
+    for(uint32_t i_col = 0; i_col < colsA; ++i_col)
     {
-        for(uint32_t j_col = 0; j_col < inputB->cols; ++j_col)
+        for(uint32_t j_col = 0; j_col < colsB; ++j_col)
         {
-            ifx_Float_t sum = 0;
-            for(uint32_t row = 0; row < inputA->rows; ++row)
+            for(uint32_t row = 0; row < rowsA; ++row)
                 sum += mAt(inputA, row, i_col) * mAt(inputB, row, j_col);
 
             mAt(output, i_col, j_col) = sum;
@@ -1127,6 +1148,10 @@ void ifx_mat_atb_c(const ifx_Matrix_C_t* inputA,
                    const ifx_Matrix_C_t* inputB,
                    ifx_Matrix_C_t* output)
 {
+    uint32_t colsA = inputA->cols;
+    uint32_t colsB = inputB->cols;
+    uint32_t rowsA = inputA->rows;
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -1135,12 +1160,11 @@ void ifx_mat_atb_c(const ifx_Matrix_C_t* inputA,
                      (inputB->cols != output->cols) ||
                      (inputA->rows != inputB->rows), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_col = 0; i_col < inputA->cols; ++i_col)
+    for(uint32_t i_col = 0; i_col < colsA; ++i_col)
     {
-        for(uint32_t j_col = 0; j_col < inputB->cols; ++j_col)
+        for(uint32_t j_col = 0; j_col < colsB; ++j_col)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-            for(uint32_t row = 0; row < inputA->rows; ++row)
+            for(uint32_t row = 0; row < rowsA; ++row)
             {
                 ifx_Complex_t tmp = ifx_complex_mul(mAt(inputA, row, i_col), mAt(inputB, row, j_col));
                 sum = ifx_complex_add(sum, tmp);
@@ -1156,6 +1180,10 @@ void ifx_mat_atb_rc(const ifx_Matrix_R_t* inputA,
                     const ifx_Matrix_C_t* inputB,
                     ifx_Matrix_C_t* output)
 {
+    uint32_t colsA = inputA->cols;
+    uint32_t colsB = inputB->cols;
+    uint32_t rowsA = inputA->rows;
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -1164,12 +1192,11 @@ void ifx_mat_atb_rc(const ifx_Matrix_R_t* inputA,
                      (inputB->cols != output->cols) ||
                      (inputA->rows != inputB->rows), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_col = 0; i_col < inputA->cols; ++i_col)
+    for(uint32_t i_col = 0; i_col < colsA; ++i_col)
     {
-        for(uint32_t j_col = 0; j_col < inputB->cols; ++j_col)
+        for(uint32_t j_col = 0; j_col < colsB; ++j_col)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-            for(uint32_t row = 0; row < inputA->rows; ++row)
+            for(uint32_t row = 0; row < rowsA; ++row)
             {
                 ifx_Complex_t tmp = ifx_complex_mul_real(mAt(inputB, row, j_col), mAt(inputA, row, i_col));
                 sum = ifx_complex_add(sum, tmp);
@@ -1185,6 +1212,10 @@ void ifx_mat_atb_cr(const ifx_Matrix_C_t* inputA,
                     const ifx_Matrix_R_t* inputB,
                     ifx_Matrix_C_t* output)
 {
+    uint32_t colsA = inputA->cols;
+    uint32_t colsB = inputB->cols;
+    uint32_t rowsA = inputA->rows;
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(inputA);
     IFX_MAT_BRK_VALID(inputB);
     IFX_MAT_BRK_VALID(output);
@@ -1193,12 +1224,11 @@ void ifx_mat_atb_cr(const ifx_Matrix_C_t* inputA,
                      (inputB->cols != output->cols) ||
                      (inputA->rows != inputB->rows), IFX_ERROR_DIMENSION_MISMATCH)
 
-    for(uint32_t i_col = 0; i_col < inputA->cols; ++i_col)
+    for(uint32_t i_col = 0; i_col < colsA; ++i_col)
     {
-        for(uint32_t j_col = 0; j_col < inputB->cols; ++j_col)
+        for(uint32_t j_col = 0; j_col < colsB; ++j_col)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-            for(uint32_t row = 0; row < inputA->rows; ++row)
+            for(uint32_t row = 0; row < rowsA; ++row)
             {
                 ifx_Complex_t tmp = ifx_complex_mul_real(mAt(inputA, row, i_col), mAt(inputB, row, j_col));
                 sum = ifx_complex_add(sum, tmp);
@@ -1334,6 +1364,10 @@ void ifx_mat_mul_r(const ifx_Matrix_R_t* matrix_l,
                    const ifx_Matrix_R_t* matrix_r,
                    ifx_Matrix_R_t* result)
 {
+    uint32_t rowsL = mRows(matrix_l);
+    uint32_t colsR = mCols(matrix_r);
+    uint32_t colsL = mCols(matrix_l);
+    ifx_Float_t sum = 0;
     IFX_MAT_BRK_VALID(matrix_l);
     IFX_MAT_BRK_VALID(matrix_r);
     IFX_MAT_BRK_VALID(result);
@@ -1343,13 +1377,11 @@ void ifx_mat_mul_r(const ifx_Matrix_R_t* matrix_l,
 
     /* result_{jk} = (matrix_l)_{jl} * (matrix_r)_{lk} */
 
-    for (uint32_t j = 0; j < mRows(matrix_l); j++)
+    for (uint32_t j = 0; j < rowsL; j++)
     {
-        for (uint32_t k = 0; k < mCols(matrix_r); k++)
+        for (uint32_t k = 0; k < colsR; k++)
         {
-            ifx_Float_t sum = 0;
-
-            for (uint32_t l = 0; l < mCols(matrix_l); l++)
+            for (uint32_t l = 0; l < colsL; l++)
             {
                 sum += IFX_MAT_AT(matrix_l, j, l) * IFX_MAT_AT(matrix_r, l, k);
             }
@@ -1365,6 +1397,10 @@ void ifx_mat_mul_rc(const ifx_Matrix_R_t* matrix_l,
                     const ifx_Matrix_C_t* matrix_r,
                     ifx_Matrix_C_t* result)
 {
+    uint32_t rowsL = mRows(matrix_l);
+    uint32_t colsR = mCols(matrix_r);
+    uint32_t colsL = mCols(matrix_l);
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(matrix_l);
     IFX_MAT_BRK_VALID(matrix_r);
     IFX_MAT_BRK_VALID(result);
@@ -1374,13 +1410,11 @@ void ifx_mat_mul_rc(const ifx_Matrix_R_t* matrix_l,
 
     /* result_{jk} = (matrix_l)_{jl} * (matrix_r)_{lk} */
 
-    for (uint32_t j = 0; j < mRows(matrix_l); j++)
+    for (uint32_t j = 0; j < rowsL; j++)
     {
-        for (uint32_t k = 0; k < mCols(matrix_r); k++)
+        for (uint32_t k = 0; k < colsR; k++)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-
-            for (uint32_t l = 0; l < mCols(matrix_l); l++)
+            for (uint32_t l = 0; l < colsL; l++)
             {
                 ifx_Float_t a = IFX_MAT_AT(matrix_l, j, l);
                 ifx_Complex_t b = IFX_MAT_AT(matrix_r, l, k);
@@ -1398,6 +1432,10 @@ void ifx_mat_mul_c(const ifx_Matrix_C_t* matrix_l,
                    const ifx_Matrix_C_t* matrix_r,
                    ifx_Matrix_C_t* result)
 {
+    uint32_t rowsL = mRows(matrix_l);
+    uint32_t colsR = mCols(matrix_r);
+    uint32_t colsL = mCols(matrix_l);
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(matrix_l);
     IFX_MAT_BRK_VALID(matrix_r);
     IFX_MAT_BRK_VALID(result);
@@ -1407,13 +1445,11 @@ void ifx_mat_mul_c(const ifx_Matrix_C_t* matrix_l,
 
     /* result_{jk} = (matrix_l)_{jl} * (matrix_r)_{lk} */
 
-    for (uint32_t j = 0; j < mRows(matrix_l); j++)
+    for (uint32_t j = 0; j < rowsL; j++)
     {
-        for (uint32_t k = 0; k < mCols(matrix_r); k++)
+        for (uint32_t k = 0; k < colsR; k++)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-
-            for (uint32_t l = 0; l < mCols(matrix_l); l++)
+            for (uint32_t l = 0; l < colsL; l++)
             {
                 ifx_Complex_t a = IFX_MAT_AT(matrix_l, j, l);
                 ifx_Complex_t b = IFX_MAT_AT(matrix_r, l, k);
@@ -1431,6 +1467,10 @@ void ifx_mat_mul_cr(const ifx_Matrix_C_t* matrix_l,
                     const ifx_Matrix_R_t* matrix_r,
                     ifx_Matrix_C_t* result)
 {
+    uint32_t rowsL = mRows(matrix_l);
+    uint32_t colsR = mCols(matrix_r);
+    uint32_t colsL = mCols(matrix_l);
+    ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
     IFX_MAT_BRK_VALID(matrix_l);
     IFX_MAT_BRK_VALID(matrix_r);
     IFX_MAT_BRK_VALID(result);
@@ -1440,13 +1480,11 @@ void ifx_mat_mul_cr(const ifx_Matrix_C_t* matrix_l,
 
     /* result_{jk} = (matrix_l)_{jl} * (matrix_r)_{lk} */
 
-    for (uint32_t j = 0; j < mRows(matrix_l); j++)
+    for (uint32_t j = 0; j < rowsL; j++)
     {
-        for (uint32_t k = 0; k < mCols(matrix_r); k++)
+        for (uint32_t k = 0; k < colsR; k++)
         {
-            ifx_Complex_t sum = IFX_COMPLEX_DEF(0, 0);
-
-            for (uint32_t l = 0; l < mCols(matrix_l); l++)
+            for (uint32_t l = 0; l < colsL; l++)
             {
                 ifx_Complex_t a = IFX_MAT_AT(matrix_l, j, l);
                 ifx_Float_t b = IFX_MAT_AT(matrix_r, l, k);
