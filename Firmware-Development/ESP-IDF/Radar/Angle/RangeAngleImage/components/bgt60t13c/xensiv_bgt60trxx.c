@@ -27,11 +27,9 @@
 
 #include "xensiv_bgt60trxx.h"
 #include "xensiv_bgt60trxx_esp32.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
 #include "../debug/include/debug.h"
-
+// int64_t timeduration=0;
 #define XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES         (4U)
 #define XENSIV_BGT60TRXX_SOFT_RESET_DELAY_MS            (10U)
 
@@ -231,7 +229,7 @@ int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_add
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(data != NULL);
 
-    uint32_t temp;
+    uint32_t temp ;//= (uint32_t *)malloc(sizeof(uint32_t));
 
     temp = (reg_addr << XENSIV_BGT60TRXX_SPI_REGADR_POS) & XENSIV_BGT60TRXX_SPI_REGADR_MSK;
 
@@ -249,6 +247,8 @@ int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_add
         *data = xensiv_bgt60trxx_esp32_word_reverse(*data);
         *data &= XENSIV_BGT60TRXX_SPI_DATA_MSK;
     }
+
+    // free(temp);
     return status;
 }
 
@@ -312,12 +312,12 @@ int32_t xensiv_bgt60trxx_set_fifo_limit(const xensiv_bgt60trxx_t* dev, uint32_t 
 
     return retval;
 }
-
+uint32_t sTime=0;
+uint32_t sDur=0;
 
 int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* data,
                                        uint32_t num_samples)
 {
-
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(data != NULL);
     xensiv_bgt60trxx_esp32_assert((num_samples % 2U) == 0U);
@@ -330,13 +330,14 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
     reg_addr = xensiv_bgt60trxx_esp32_word_reverse(reg_addr);
     
     /* SPI read burst mode command */
-    xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
-    vTaskDelay(2 / portTICK_RATE_MS);
+    // xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
+    // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
+
     int32_t retval = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
                                                             (uint8_t*)&reg_addr,
                                                             (uint8_t*)&gsr0,
                                                             XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
-    ESP_LOGI("get_fifo","gsr0 = %X", gsr0);
+                                        
     
     if (XENSIV_BGT60TRXX_STATUS_OK == retval)
     {
@@ -344,15 +345,23 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
                      XENSIV_BGT60TRXX_REG_GSR0_SPI_BURST_ERR_MSK |
                      XENSIV_BGT60TRXX_REG_GSR0_CLK_NUM_ERR_MSK)) == 0U)
         {
-            retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface, data, num_samples);
+            // sTime = esp_timer_get_time();
+            retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface,
+                                                             data,
+                                                             num_samples);
+            // sDur =     esp_timer_get_time() - sTime;                                             
         }
         else
         {
             retval = XENSIV_BGT60TRXX_STATUS_GSR0_ERROR;
         }
     }    
-    vTaskDelay(2 / portTICK_RATE_MS);
-    xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
+
+    // xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
+    
+    // if (retval) {
+        // ESP_LOGI("1","GSR = 0x%x",gsr0);
+    // }
     return retval;
 }
 
@@ -448,7 +457,6 @@ int32_t xensiv_bgt60trxx_enable_data_test_mode(const xensiv_bgt60trxx_t* dev, bo
     int32_t status;
 
     status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, &tmp);
-    ESP_LOGI("SFCTL", "%x", tmp);
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
     {
         if (enable)
@@ -459,11 +467,8 @@ int32_t xensiv_bgt60trxx_enable_data_test_mode(const xensiv_bgt60trxx_t* dev, bo
         {
             tmp &= (uint32_t) ~XENSIV_BGT60TRXX_REG_SFCTL_LFSR_EN_MSK;
         }
-        ESP_LOGI("SFCTL", "%x", tmp);
-        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, tmp);
 
-        status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, &tmp);
-        ESP_LOGI("SFCTL", "%x", tmp);
+        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, tmp);
     }
 
     return status;

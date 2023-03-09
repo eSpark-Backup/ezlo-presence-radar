@@ -3,6 +3,6 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := presenceSensing-RangeExtended_64
+PROJECT_NAME := signal_capture_BGT60TR13C
 
 include $(IDF_PATH)/make/project.mk

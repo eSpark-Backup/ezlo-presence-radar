@@ -53,7 +53,28 @@ extern "C" {
 #ifndef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_SPI_HOST       SPI2_HOST
 #endif
+    #if 1
+#ifdef XNSIV_BGT60_SPI_HOST
+    #define     XNSIV_BGT60_RST_GPIO      36
+    #define     XNSIV_BGT60_MISO_GPIO     35
+    #define     XNSIV_BGT60_MOSI_GPIO     37
+    #define     XNSIV_BGT60_CLK_GPIO      13
+    #define     XNSIV_BGT60_CS_GPIO       14
+#endif
 
+#define     XNSIV_BGT60_CS_PIN_SEL       (1ULL << XNSIV_BGT60_CS_GPIO)
+#define     XNSIV_BGT60_RST_PIN_SEL      (1ULL << XNSIV_BGT60_RST_GPIO)
+
+#define     XNSIV_BGT60_LED_GREEN         17  
+#define     XNSIV_BGT60_LED_RED           18
+#define     XNSIV_BGT60_LEDS_PIN_SEL      ((1ULL << XNSIV_BGT60_LED_GREEN) | (1ULL << XNSIV_BGT60_LED_RED))
+
+#define     XNSIV_BGT60_BUTTON_GPIO       1
+#define     XNSIV_BGT60_BUTTON_PIN_SEL    (1ULL << XNSIV_BGT60_BUTTON_GPIO)
+
+#define     XNSIV_BGT60_IRQ_GPIO          38
+#define     XNSIV_BGT60_IRQ_PIN_SEL       (1ULL<<XNSIV_BGT60_IRQ_GPIO)
+#else
 #ifdef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_RST_GPIO      14
     #define     XNSIV_BGT60_MISO_GPIO     36
@@ -75,6 +96,7 @@ extern "C" {
 #define     XNSIV_BGT60_IRQ_GPIO          13
 #define     XNSIV_BGT60_IRQ_PIN_SEL       (1ULL<<XNSIV_BGT60_IRQ_GPIO)
 
+#endif
 
 #define     XNSIV_BGT60_SPI_CLK           (uint32_t)(50 * 1000 * 1000)
 

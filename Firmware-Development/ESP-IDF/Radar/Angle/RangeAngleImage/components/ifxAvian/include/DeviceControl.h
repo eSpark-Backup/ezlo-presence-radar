@@ -470,7 +470,7 @@ void ifx_avian_stop_acquisition(ifx_Avian_Device_t* handle);
  */
 IFX_DLL_PUBLIC
 ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
-    ifx_Cube_R_t* frame);
+    ifx_Cube_R_t* frame, uint16_t* samples);
 
 /**
  * @brief Retrieves the next frame of time domain data from a radar device (non-blocking).

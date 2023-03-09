@@ -88,7 +88,7 @@ void ifx_avian_get_config(ifx_Avian_Device_t* handle, ifx_Avian_Config_t* config
    config->rx_mask = 1;
    config->tx_mask =  1;
    config->tx_power_level = 31;
-   config->if_gain_dB = 50;
+   config->if_gain_dB = IF_DB_GAIN;
    config->start_frequency_Hz = XENSIV_BGT60TRXX_CONF_START_FREQ_HZ;
    config->end_frequency_Hz = XENSIV_BGT60TRXX_CONF_END_FREQ_HZ;
    config->num_samples_per_chirp = XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP;
@@ -97,6 +97,7 @@ void ifx_avian_get_config(ifx_Avian_Device_t* handle, ifx_Avian_Config_t* config
    config->frame_repetition_time_s = XENSIV_BGT60TRXX_CONF_FRAME_REPETITION_TIME_S;
    config->hp_cutoff_Hz = 80000;
    config->aaf_cutoff_Hz = 500000;  
+   config->mimo_mode = IFX_MIMO_OFF;
    // to be defined 
  
 }
@@ -136,59 +137,60 @@ void ifx_avian_stop_acquisition(ifx_Avian_Device_t* handle) {
 	IFX_ERR_BRK_INTERNAL((err != XENSIV_BGT60TRXX_STATUS_OK));
 }
 
+#define HEADER_OFFSET 6
+#define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP)
+#define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
+ifx_Avian_Config_t cfg;// = (ifx_Avian_Config_t *)malloc(sizeof(ifx_Avian_Config_t));
+
 ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
-    ifx_Cube_R_t* frame) {
+    ifx_Cube_R_t* frame, uint16_t* samples) {
 
-   ifx_Avian_Config_t * cfg = (ifx_Avian_Config_t *)malloc(sizeof(ifx_Avian_Config_t));
+   
 
-   ifx_avian_get_config(handle, cfg);
-   const uint32_t num_samples_per_frame = cfg->num_chirps_per_frame * cfg->num_samples_per_chirp;
-   const uint32_t num_total_fifo_data = num_samples_per_frame + (6 * cfg->num_chirps_per_frame);
-   uint16_t *samples = (uint16_t *)malloc(sizeof(uint16_t) * num_total_fifo_data);
+   ifx_avian_get_config(handle, &cfg);
+   // const uint32_t num_samples_per_frame = cfg->num_chirps_per_frame * cfg->num_samples_per_chirp;
+   // const uint32_t num_total_fifo_data = num_samples_per_frame + (6 * cfg->num_chirps_per_frame);
+   // = (uint16_t *)malloc(sizeof(uint16_t) * num_total_fifo_data);
 
-   frame->rows = cfg->rx_mask; // No of antennas
-   frame->cols = cfg->num_chirps_per_frame;
-   frame->slices = cfg->num_samples_per_chirp;
+   frame->rows = cfg.rx_mask; // No of antennas
+   frame->cols = cfg.num_chirps_per_frame;
+   frame->slices = cfg.num_samples_per_chirp;
    frame->stride[0] = 1;
    frame->stride[1] = frame->cols;
    
-   uint8_t err = xensiv_bgt60trxx_get_fifo_data(handle->m_xensiv_device_handle, samples, num_total_fifo_data);
-
-   if(XENSIV_BGT60TRXX_STATUS_OK != err) {
-      
-      TRACE_B("Error: %d", err);
-      free(samples);
-      ifx_error_set(IFX_ERROR_HOST);   
-      return frame;
-
-   }
-   
-   uint32_t chirp_index = 0;
-   uint32_t idx = 0;   
-   while(1) {
-      if(samples[idx] == 0) break;
-      idx++;
-   }
-
-   while(chirp_index < cfg->num_chirps_per_frame) {
-      if((samples[idx+1] == 0) && (samples[idx+2] == 0)) {
-         if(samples[idx+3] == chirp_index) {
-            if(samples[idx+4] == frame->slices) { // XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP
-                  idx += 6;
-                  uint32_t j = 0;
-                  for(uint32_t i = 0; i < frame->slices; i++) {
-                     frame->d[j] =  (ifx_Float_t)(samples[idx] * 1.0);
-                     printf("%d,",samples[idx]);
-                     j++;
-                     idx++;
-                  }
-                  chirp_index++;                          
-            }
-         }
+   uint32_t samp_no=0;
+   uint32_t frame_idx=0;
+   uint32_t samp_idx=0;
+   for (uint16_t chirp_index=0; chirp_index< cfg.num_chirps_per_frame; chirp_index++) {
+      if((samples[samp_no] != 0) && (samples[samp_no+1] != 0)) 
+      {
+         ESP_LOGI("FIFO","Sync Word Error");
+         return frame;
       }
+
+      if(samples[samp_no+3] != chirp_index) {
+         ESP_LOGI("FIFO","Chirp missing : %d , Received : %d",chirp_index,samples[3]);
+         return frame;
+      }
+
+      if(samples[samp_no+4] != frame->slices) // XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP
+      {
+         ESP_LOGI("FIFO","Chirp Samples Mismatched, Expected : %d , Received : %d", frame->slices, samples[4]);
+         return frame;
+      }
+
+      frame_idx = samp_no-(chirp_index*HEADER_OFFSET);
+      samp_idx = samp_no + HEADER_OFFSET;
+
+      for(uint32_t x = 0; x < frame->slices; x++) {
+         frame->d[frame_idx+x] =  (ifx_Float_t)(samples[samp_idx+x] * 1.0);
+      }           
+      
+      samp_no +=  (cfg.num_samples_per_chirp + HEADER_OFFSET);   
    }
-   printf("\n");
-   free(samples);
+
+   
+   
    return frame;
 
 }
