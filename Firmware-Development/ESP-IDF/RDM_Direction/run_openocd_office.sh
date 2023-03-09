@@ -1,1 +1,0 @@
-/home/lomas/.espressif/tools/openocd-esp32/v0.11.0-esp32-20220411/openocd-esp32/bin/openocd -f /home/lomas/.espressif/tools/openocd-esp32/v0.11.0-esp32-20220411/openocd-esp32/share/openocd/scripts/board/esp32s3-builtin.cfg

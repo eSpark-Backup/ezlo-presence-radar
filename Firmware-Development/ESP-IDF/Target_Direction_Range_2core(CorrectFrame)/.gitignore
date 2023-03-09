@@ -1,7 +1,0 @@
-.devcontainer/*
-build/
-debug.log
-EULA
-LICENSE
-sdkconfig.old
-sdkconfig.ci
