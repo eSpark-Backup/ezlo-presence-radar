@@ -260,8 +260,8 @@ ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian
 {
     ifx_Error_t ret = 0;
 
-    const uint32_t range_fft_size = dev_config->num_samples_per_chirp * 4;  // Zero padding of 4 gives good range resolution in Range spectrum
-    const uint32_t doppler_fft_size = dev_config->num_chirps_per_frame * 4; // Zero padding of 4 gives good range resolution in Doppler spectrum
+    const uint32_t range_fft_size = dev_config->num_samples_per_chirp * 2.134;  // Zero padding of 4 gives good range resolution in Range spectrum
+    const uint32_t doppler_fft_size = dev_config->num_chirps_per_frame * 2.134; // Zero padding of 4 gives good range resolution in Doppler spectrum
 
     ifx_PPFFT_Config_t range_fft_config = {
         .fft_type = IFX_FFT_TYPE_R2C,
@@ -364,7 +364,7 @@ void rdm_peak_search(const ifx_Matrix_R_t *matrix, uint32_t *rmax, uint32_t *cma
         }
     }
 }
-
+ifx_Float_t prevRange=0;
 ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
 {
     ifx_Error_t ret = 0;
@@ -391,7 +391,12 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
     // speed
     const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->rdm) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
 
-    printf("range_m:%g, speed_m_s:%g\n", range, speed);
+    if (abs(speed) < 4  && ((abs(prevRange-range))<1.0))
+    {
+        printf("range_m:%0.3f, speed_m_s:%0.2f\n", range, speed);
+        prevRange = range;
+    }
+    
     // if (abs(speed) < 7  )
     // {
     //     if (speed > 1.5)
@@ -427,6 +432,7 @@ int app_main(int argc, char* argv[])
 
     gpio_set_direction(XNSIV_BGT60_LED_RED, GPIO_MODE_OUTPUT);
     gpio_set_direction(XNSIV_BGT60_LED_GREEN, GPIO_MODE_OUTPUT);
+
 
     init_gpio();
     xTaskCreatePinnedToCore(radar,"radar", 2048*3, NULL, 10, &getFIFOHandle, 1);
@@ -474,15 +480,15 @@ void radar(void* pvParameter)
     ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
     ifx_avian_get_config(device_handle, dev_config);
 
-    // if (rdm_init(rdm_context) != IFX_OK)
-    // {
-    //     TRACE_B("Failed to Init RDM object!\n");
-    // }
+    if (rdm_init(rdm_context) != IFX_OK)
+    {
+        TRACE_B("Failed to Init RDM object!\n");
+    }
 
-    // if (rdm_config(rdm_context, device_handle, dev_config) != IFX_OK)
-    // {
-    //     TRACE_B("Failed to config rdm object!\n");
-    // }
+    if (rdm_config(rdm_context, device_handle, dev_config) != IFX_OK)
+    {
+        TRACE_B("Failed to config rdm object!\n");
+    }
     printf("%s\n",ifx_error_to_string(ifx_error_get()));
     
     xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, SAMP_PER_FRAME+200);
@@ -502,10 +508,12 @@ void radar(void* pvParameter)
     char str[100];
     while(1)
     {
-       processFrame(device_handle, rdm_context, frame);        
+        // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
+        // getFifoErr();
+        processFrame(device_handle, rdm_context, frame);        
         // vTaskGetRunTimeStats(str);
         // printf("%s\n",str);
-        // printf("time = %d us\n",(uint32_t)fillduration);  
+                        // printf("time = %d us\n",(uint32_t)fillduration);  
         // blinky();
         // vTaskDelay(100/portTICK_RATE_MS);
     }
@@ -526,19 +534,19 @@ void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cub
     if (frameProcFlag)
     {
         // uint32_t timeduration = esp_timer_get_time();
-        // frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
-        // if(rdm_process(rdm_context, frame) != IFX_OK) 
-        // {
-        //     TRACE_B("Failed rdm processing!\n");    
-        //     return;    
-        // }
-        // printf("from samp addr = %p\n",samples);
-        for (uint16_t i = 0; i < TOTAL_DATA; i++)
+        frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
+        if(rdm_process(rdm_context, frame) != IFX_OK) 
         {
-            printf("%d,",samples[i]);
-            /* code */
+            TRACE_B("Failed rdm processing!\n");    
+            return;    
         }
-        printf("\n");
+        // printf("from samp addr = %p\n",samples);
+        // for (uint16_t i = 0; i < TOTAL_DATA; i++)
+        // {
+        //     printf("%d,",samples[i]);
+        //     /* code */
+        // }
+        // printf("\n");
         frameProcFlag = 0;
         // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
     }
@@ -556,7 +564,7 @@ void blinky(void)
      else if(delayCounter < 2000){
         delayCounter++;
         gpio_set_level(XNSIV_BGT60_LED_GREEN, 0);
-        // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
+            // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
      }
      else
      {

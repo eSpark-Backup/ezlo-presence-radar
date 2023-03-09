@@ -53,7 +53,7 @@ extern "C" {
 #ifndef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_SPI_HOST       SPI2_HOST
 #endif
-    #if 0
+    #if 1
 #ifdef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_RST_GPIO      36
     #define     XNSIV_BGT60_MISO_GPIO     35
