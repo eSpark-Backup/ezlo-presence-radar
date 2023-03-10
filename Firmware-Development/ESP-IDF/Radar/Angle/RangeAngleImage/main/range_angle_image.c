@@ -33,7 +33,7 @@
 
 #include "RangeAngleImage.h"
 
-#define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP)
+#define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS) 
 #define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
 uint16_t* samples = NULL;
 static uint16_t samples1[TOTAL_DATA];
@@ -85,7 +85,7 @@ extern spi_transaction_t transaction;
 extern uint32_t sDur;
 // Functions
 void getFifoData(void);
-void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cube_R_t* frame);
+void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_Cube_R_t* frame);
 void blinky(void);
 void getFifoErr(void);
 void getArrData(uint16_t* dest,uint16_t* src);
@@ -192,7 +192,7 @@ void esp32_spi_init(void) {
         .sclk_io_num=XNSIV_BGT60_CLK_GPIO,
         .quadwp_io_num=-1,
         .quadhd_io_num=-1,
-        .max_transfer_sz = 12*4480,
+        .max_transfer_sz = 12 * TOTAL_DATA,
         .intr_flags = 1
     };
 
@@ -237,8 +237,8 @@ static void print_device_config(const ifx_Avian_Config_t* config)
 // ***************** Range Angle Image Configurations: *****************
 
 // * Range Doppler Map Config: * //
-#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 4// Zero padding of 4 gives good range resolution in Range spectrum
-#define DOPPLER_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * 4 // Zero padding of 4 gives good range resolution in Doppler spectrum
+#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 1// Zero padding of 4 gives good range resolution in Range spectrum
+#define DOPPLER_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * 1 // Zero padding of 4 gives good range resolution in Doppler spectrum
 
 const ifx_PPFFT_Config_t range_fft_config = {
       .fft_type = IFX_FFT_TYPE_R2C,
@@ -290,14 +290,13 @@ ifx_Error_t rai_init(ifx_RAI_Config_t* rai_config)
     return ifx_error_get();
 }
 
-ifx_Error_t rai_config(ifx_RAI_Config_t* rai_config, ifx_RAI_t* handle)
+ifx_Error_t rai_config(ifx_RAI_Config_t* rai_config, ifx_RAI_t** handle)
 {
-    handle =  ifx_rai_create(rai_config);
-    handle = handle;
+    *handle = ifx_rai_create(rai_config);
     return ifx_error_get();
 }
 
-ifx_Error_t rdm_process(ifx_RAI_t* handle, const ifx_Cube_R_t* input, ifx_Cube_R_t* output)
+ifx_Error_t rai_process(ifx_RAI_t* handle, const ifx_Cube_R_t* input, ifx_Cube_R_t* output)
 {
     ifx_rai_run_r(handle, input, output);
     return ifx_error_get();
@@ -363,21 +362,21 @@ void radar(void* pvParameter)
     print_device_config(&device_config);
 
     // rdm_t *rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
-    ifx_RAI_t* rai_handle = NULL; 
-    // ifx_RAI_Config_t* rai_config_t = (ifx_RAI_Config_t *)malloc(sizeof(ifx_RAI_Config_t));
+    ifx_RAI_t* rai_handle = NULL;
     ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
     ifx_avian_get_config(device_handle, dev_config);
 
-    if (rai_init(&raiConfig) != IFX_OK)
-    {
-        printf("Failed to Init RAI object!\n");
-    }
+    // if (rai_init(&raiConfig) != IFX_OK)
+    // {
+    //     printf("Failed to Init RAI object!\n");
+    // }
     printf("RAI init : %s\n",ifx_error_to_string(ifx_error_get()));
 
-    if (rai_config(&raiConfig, rai_handle) != IFX_OK)
+    if (rai_config(&raiConfig, &rai_handle) != IFX_OK)
     {
         printf("Failed to config rai object!\n");
     }
+    printf("%p\n", rai_handle);
     printf("RAI config : %s\n",ifx_error_to_string(ifx_error_get()));
     
     xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, SAMP_PER_FRAME+200);
@@ -390,16 +389,16 @@ void radar(void* pvParameter)
         TRACE_B("Frame started !!");
     }
     // fillStartTime = esp_timer_get_time();
-    ifx_Cube_R_t* frame = NULL;
+    ifx_Cube_R_t* frame = malloc;
     frame = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));      
     frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
   
-    char str[100];
+    // char str[100];
     while(1)
     {
         // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
-        getFifoErr();
-        // processFrame(device_handle, rdm_context, frame);        
+        // getFifoErr();
+        processFrame(device_handle, rai_handle, frame);        
         // vTaskGetRunTimeStats(str);
         // printf("%s\n",str);
                         // printf("time = %d us\n",(uint32_t)fillduration);  
@@ -418,17 +417,18 @@ void getFifoData(void)
     xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA);
 }
 
-void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cube_R_t* frame)
+void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_Cube_R_t* frame)
 {
     if (frameProcFlag)
     {
         // uint32_t timeduration = esp_timer_get_time();
-        // frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
-        // if(rdm_process(rdm_context, frame) != IFX_OK) 
+        ifx_Cube_R_t* output = (ifx_Cube_R_t*)malloc(sizeof(ifx_Cube_R_t));
+        frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
+        // if(rai_process(rai_handle, frame, output) != IFX_OK) 
         // {
-        //     TRACE_B("Failed rdm processing!\n");    
-        //     return;    
+        //     printf("Failed rai processing!\n"); 
         // }
+        // printf("RAI Processing : %s\n",ifx_error_to_string(ifx_error_get()));
         // printf("from samp addr = %p\n",samples);
         for (uint16_t i = 0; i < TOTAL_DATA; i++)
         {
@@ -436,8 +436,21 @@ void processFrame(ifx_Avian_Device_t* device_handle, rdm_t *rdm_context, ifx_Cub
             /* code */
         }
         printf("\n");
+
+        // Testing frame separtion of antennas 
+        for (uint16_t i = 0; i < SAMP_PER_FRAME; i+=128)
+        {
+            printf("0,0,0,0,0,0,");
+            for (uint16_t y = 0; y < XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP; y++)
+            {
+                printf("%d,%d,",(uint16_t)frame->d[y+i], (uint16_t)frame->d[(SAMP_PER_FRAME/2)+y+i]);
+            }
+        }
+        printf("\n");
         frameProcFlag = 0;
         // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
+        free(output);
+        output = NULL;
     }
 }
 

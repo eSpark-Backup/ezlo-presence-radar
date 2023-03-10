@@ -85,7 +85,7 @@ void ifx_avian_get_config(ifx_Avian_Device_t* handle, ifx_Avian_Config_t* config
 
 
    config->sample_rate_Hz = XENSIV_BGT60TRXX_CONF_SAMPLE_RATE;
-   config->rx_mask = 1;
+   config->rx_mask = 5;
    config->tx_mask =  1;
    config->tx_power_level = 31;
    config->if_gain_dB = IF_DB_GAIN;
@@ -138,7 +138,7 @@ void ifx_avian_stop_acquisition(ifx_Avian_Device_t* handle) {
 }
 
 #define HEADER_OFFSET 6
-#define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP)
+#define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS)
 #define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
 ifx_Avian_Config_t cfg;// = (ifx_Avian_Config_t *)malloc(sizeof(ifx_Avian_Config_t));
 
@@ -152,11 +152,12 @@ ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
    // const uint32_t num_total_fifo_data = num_samples_per_frame + (6 * cfg->num_chirps_per_frame);
    // = (uint16_t *)malloc(sizeof(uint16_t) * num_total_fifo_data);
 
-   frame->rows = cfg.rx_mask; // No of antennas
+   frame->rows = XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS; // No of antennas
    frame->cols = cfg.num_chirps_per_frame;
    frame->slices = cfg.num_samples_per_chirp;
    frame->stride[0] = 1;
-   frame->stride[1] = frame->cols;
+   frame->stride[1] = frame->slices;
+   // frame->stride[2] = frame->cols * frame->slices;
    
    uint32_t samp_no=0;
    uint32_t frame_idx=0;
@@ -182,11 +183,16 @@ ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
       frame_idx = samp_no-(chirp_index*HEADER_OFFSET);
       samp_idx = samp_no + HEADER_OFFSET;
 
+
       for(uint32_t x = 0; x < frame->slices; x++) {
-         frame->d[frame_idx+x] =  (ifx_Float_t)(samples[samp_idx+x] * 1.0);
-      }           
+         frame->d[frame_idx+x] =  (ifx_Float_t)(samples[samp_idx+(2*x)] * 1.0);
+      }
+
+      for(uint32_t x = 0; x < frame->slices; x++) {
+         frame->d[(SAMP_PER_FRAME/2) + frame_idx+x] =  (ifx_Float_t)(samples[samp_idx+((2*x)+1)] * 1.0);
+      }
       
-      samp_no +=  (cfg.num_samples_per_chirp + HEADER_OFFSET);   
+      samp_no +=  (cfg.num_samples_per_chirp*2 + HEADER_OFFSET);   
    }
 
    
