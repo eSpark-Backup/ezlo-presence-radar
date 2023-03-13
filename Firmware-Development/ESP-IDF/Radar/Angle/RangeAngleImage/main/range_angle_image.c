@@ -436,17 +436,38 @@ void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_
             /* code */
         }
         printf("\n");
-
+        vTaskDelay(100/portTICK_RATE_MS);
         // Testing frame separtion of antennas 
-        for (uint16_t i = 0; i < SAMP_PER_FRAME; i+=128)
+        // for (uint16_t i = 0; i < SAMP_PER_FRAME; i+=128)
+        // {
+        //     printf("0,0,0,0,0,0,");
+        //     for (uint16_t y = 0; y < XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP; y++)
+        //     {
+        //         printf("%d,%d,",(uint16_t)frame->d[y+i], (uint16_t)frame->d[(SAMP_PER_FRAME/2)+y+i]);
+        //     }
+        // }
+        for (uint16_t i = 0; i < SAMP_PER_FRAME/2; i+=64)
         {
             printf("0,0,0,0,0,0,");
             for (uint16_t y = 0; y < XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP; y++)
             {
-                printf("%d,%d,",(uint16_t)frame->d[y+i], (uint16_t)frame->d[(SAMP_PER_FRAME/2)+y+i]);
+                printf("%d,0,",(uint16_t)frame->d[y+i]);
             }
+            
         }
         printf("\n");
+        vTaskDelay(100/portTICK_RATE_MS);
+        for (uint16_t i = SAMP_PER_FRAME/2; i < SAMP_PER_FRAME; i+=64)
+        {
+            printf("0,0,0,0,0,0,");
+            for (uint16_t y = 0; y < XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP; y++)
+            {
+                printf("0,%d,",(uint16_t)frame->d[y+i]);
+            }
+            
+        }
+        printf("\n\n");
+        vTaskDelay(100/portTICK_RATE_MS);
         frameProcFlag = 0;
         // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
         free(output);

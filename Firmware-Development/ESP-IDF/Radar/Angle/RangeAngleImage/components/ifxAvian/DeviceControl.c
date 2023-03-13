@@ -162,6 +162,8 @@ ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
    uint32_t samp_no=0;
    uint32_t frame_idx=0;
    uint32_t samp_idx=0;
+   uint32_t fant1=0;
+   uint32_t fant2= SAMP_PER_FRAME/2;
    for (uint16_t chirp_index=0; chirp_index< cfg.num_chirps_per_frame; chirp_index++) {
       if((samples[samp_no] != 0) && (samples[samp_no+1] != 0)) 
       {
@@ -185,11 +187,13 @@ ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
 
 
       for(uint32_t x = 0; x < frame->slices; x++) {
-         frame->d[frame_idx+x] =  (ifx_Float_t)(samples[samp_idx+(2*x)] * 1.0);
+         frame->d[fant1] =  (ifx_Float_t)(samples[samp_idx+(2*x)] * 1.0);
+         fant1++;
       }
 
       for(uint32_t x = 0; x < frame->slices; x++) {
-         frame->d[(SAMP_PER_FRAME/2) + frame_idx+x] =  (ifx_Float_t)(samples[samp_idx+((2*x)+1)] * 1.0);
+         frame->d[fant2] =  (ifx_Float_t)(samples[samp_idx+((2*x)+1)] * 1.0);
+         fant2++;
       }
       
       samp_no +=  (cfg.num_samples_per_chirp*2 + HEADER_OFFSET);   
