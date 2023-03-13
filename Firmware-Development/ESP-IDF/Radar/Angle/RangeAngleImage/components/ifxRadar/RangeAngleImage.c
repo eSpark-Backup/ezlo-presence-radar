@@ -48,7 +48,6 @@
 #include "2DMTI.h"
 #include "RangeAngleImage.h"
 
-
 /*
 ==============================================================================
    2. LOCAL DEFINITIONS
@@ -341,7 +340,6 @@ void ifx_rai_destroy(ifx_RAI_t* handle)
 }
 
 //---------------------------------------------------------------------------
-#define ErrCheck printf("RAI pro : %s\n",ifx_error_to_string(ifx_error_get()));
 void ifx_rai_run_r(ifx_RAI_t* handle,
                    const ifx_Cube_R_t* input,
                    ifx_Cube_R_t* output)
@@ -362,13 +360,9 @@ void ifx_rai_run_r(ifx_RAI_t* handle,
         ifx_Matrix_C_t rx_spectrum_view = { 0 };
 
         ifx_cube_get_row_r(input, rx, &rawdata_view); // set view to the rx antenna for raw data matrix
-ErrCheck
         ifx_cube_get_slice_c(handle->rdm_cube, rx, &rdm_view);  // set view to the rx antenna for range doppler map
-ErrCheck
         ifx_cube_get_slice_c(handle->rx_spectrum_cube, rx, &rx_spectrum_view);
-ErrCheck
         ifx_rdm_run_rc(handle->rdm_handle, &rawdata_view, &rdm_view);
-ErrCheck
         ifx_2dmti_run_c(handle->mti_handle_array[rx], &rdm_view, &rx_spectrum_view);
     }
     

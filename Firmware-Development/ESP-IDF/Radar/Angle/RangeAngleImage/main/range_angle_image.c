@@ -389,15 +389,16 @@ void radar(void* pvParameter)
         TRACE_B("Frame started !!");
     }
     // fillStartTime = esp_timer_get_time();
-    ifx_Cube_R_t* frame = malloc;
-    frame = (ifx_Avian_Device_t *)malloc(sizeof(ifx_Avian_Device_t));      
-    frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
+    ifx_Cube_R_t* frame = NULL;
+    // frame = (ifx_Cube_R_t *)malloc(sizeof(ifx_Cube_R_t));
+    frame = ifx_cube_create_r(XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS, XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP);       
+    // frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
   
     // char str[100];
     while(1)
     {
         // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
-        // getFifoErr();
+        getFifoErr();
         processFrame(device_handle, rai_handle, frame);        
         // vTaskGetRunTimeStats(str);
         // printf("%s\n",str);
@@ -422,14 +423,15 @@ void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_
     if (frameProcFlag)
     {
         // uint32_t timeduration = esp_timer_get_time();
-        ifx_Cube_R_t* output = (ifx_Cube_R_t*)malloc(sizeof(ifx_Cube_R_t));
+        ifx_Cube_R_t* output = ifx_cube_create_r(raiConfig.num_of_images, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP, dbfConfig.num_beams);
         frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
-        // if(rai_process(rai_handle, frame, output) != IFX_OK) 
-        // {
-        //     printf("Failed rai processing!\n"); 
-        // }
-        // printf("RAI Processing : %s\n",ifx_error_to_string(ifx_error_get()));
+        if(rai_process(rai_handle, frame, output) != IFX_OK) 
+        {
+            printf("Failed rai processing!\n"); 
+        }
+        printf("RAI Processing : %s\n",ifx_error_to_string(ifx_error_get()));
         // printf("from samp addr = %p\n",samples);
+        #if 0
         for (uint16_t i = 0; i < TOTAL_DATA; i++)
         {
             printf("%d,",samples[i]);
@@ -468,8 +470,12 @@ void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_
         }
         printf("\n\n");
         vTaskDelay(100/portTICK_RATE_MS);
+        #endif
+        
         frameProcFlag = 0;
         // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
+        free(output->d);
+        output->d =NULL;
         free(output);
         output = NULL;
     }
