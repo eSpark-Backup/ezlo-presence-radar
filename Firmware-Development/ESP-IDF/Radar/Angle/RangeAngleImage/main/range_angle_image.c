@@ -266,7 +266,7 @@ const ifx_RDM_Config_t rdmConfig =
 // * Digital Beam Forming Config: * //
 const ifx_DBF_Config_t dbfConfig =
 {
-    .num_beams = 27,
+    .num_beams = 41,
     .num_antennas = 2,
     .min_angle = -40.0,
     .max_angle = 40.0,
@@ -279,7 +279,7 @@ ifx_RAI_Config_t raiConfig =
     .rdm_config = rdmConfig,
     .alpha_mti_filter = 0.8,
     .dbf_config = dbfConfig,
-    .num_of_images = 27,
+    .num_of_images = 32,
     .num_antenna_array = 2,
 };
 
@@ -481,15 +481,15 @@ void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_
         }
         // printf("RAI processing : %s\n",ifx_error_to_string(ifx_error_get()));
         
-        if(rdm_range_idx(rdm_context, frame, &range_idx) != IFX_OK) 
-        {
-            printf("Failed rdm processing!\n");
-        }
+        // if(rdm_range_idx(rdm_context, frame, &range_idx) != IFX_OK) 
+        // {
+        //     printf("Failed rdm processing!\n");
+        // }
         // printf("RDM processing : %s\n",ifx_error_to_string(ifx_error_get()));
 
-        if (range_idx < XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP) 
+        if (range_idx < ifx_rai_get_rx_spectrum(rai_handle)->cols) 
         {
-            if(angle_capon_process(angle_capon_handle, range_idx, ifx_rai_get_rx_spectrum(rai_handle)))
+            if(angle_capon_process(angle_capon_handle, 3, ifx_rai_get_rx_spectrum(rai_handle)))
             {
                 printf("Failed angle capon processing!\n"); 
             }

@@ -139,7 +139,7 @@ ifx_Error_t rdm_range_idx(rdm_t *rdm_context, ifx_Cube_R_t *frame, uint32_t* ran
 {
     ifx_Error_t ret = 0;
     ifx_Matrix_R_t antenna_data;
-    ifx_cube_get_row_r(frame, 1, &antenna_data);
+    ifx_cube_get_row_r(frame, 0, &antenna_data);
     ifx_rdm_run_r(rdm_context->rdm_handle, &antenna_data, rdm_context->rdm);
     if ((ret = ifx_error_get()))
     {
@@ -160,14 +160,15 @@ ifx_Error_t rdm_range_idx(rdm_t *rdm_context, ifx_Cube_R_t *frame, uint32_t* ran
     const ifx_Float_t range = rmax * rdm_context->range_spec.value_bin_per_step;
     // speed
     const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->rdm) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
-
     *range_idx = rmax;
-    if (abs(speed)>= 4) 
+
+    // printf("IDX : %d\n",rmax);
+    if ((abs(speed)>= 4) || range > 1) 
     {
         *range_idx = 100;
         return (ifx_error_get());
     }
 
-        printf("RangeIDX : %d, range_m:%0.3f, speed_m_s:%0.2f\n",rmax, range, speed);
+    // printf("range_m:%0.3f, speed_m_s:%0.2f\n", range, speed);
     return (ifx_error_get());
 }
