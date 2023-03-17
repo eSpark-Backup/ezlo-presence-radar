@@ -30,7 +30,7 @@ ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian
 {
     ifx_Error_t ret = 0;
 
-    const uint32_t range_fft_size = dev_config->num_samples_per_chirp * 1;  // Zero padding of 4 gives good range resolution in Range spectrum
+    const uint32_t range_fft_size = dev_config->num_samples_per_chirp * 1.067 * 1;  // Zero padding of 4 gives good range resolution in Range spectrum
     const uint32_t doppler_fft_size = dev_config->num_chirps_per_frame * 1; // Zero padding of 4 gives good range resolution in Doppler spectrum
 
     ifx_PPFFT_Config_t range_fft_config = {
@@ -64,6 +64,13 @@ ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian
     if ((ret = ifx_error_get()))
     {
         printf("Here 2\n");
+        return ret;
+    }
+
+    rdm_context->cfar_mat = ifx_mat_create_r(range_fft_size / 2, doppler_fft_size); // for real input, range dimension has info only in positive half
+    if ((ret = ifx_error_get()))
+    {
+        printf("Here cfar\n");
         return ret;
     }
 
@@ -151,24 +158,27 @@ ifx_Error_t rdm_range_idx(rdm_t *rdm_context, ifx_Cube_R_t *frame, uint32_t* ran
     {
         return ret;
     }
+    
+    ifx_oscfar_run(rdm_context->cfar_handle, rdm_context->rdm ,rdm_context->cfar_mat);
 
     // do peak search
     uint32_t rmax;
     uint32_t cmax;
-    rdm_peak_search(rdm_context->rdm, &rmax, &cmax);
+    rdm_peak_search(rdm_context->cfar_mat, &rmax, &cmax);
     // range
     const ifx_Float_t range = rmax * rdm_context->range_spec.value_bin_per_step;
     // speed
-    const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->rdm) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
+    const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->cfar_mat) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
     *range_idx = rmax;
 
-    // printf("IDX : %d\n",rmax);
-    if ((abs(speed)>= 4) || range > 1) 
-    {
-        *range_idx = 100;
-        return (ifx_error_get());
-    }
+    printf("IDX : %d\n",rmax);
+    // if ((abs(speed)>= 1) || range > 1) 
+    // {
+    //     *range_idx = 100;
+    //     return (ifx_error_get());
+    // }
 
     // printf("range_m:%0.3f, speed_m_s:%0.2f\n", range, speed);
+    printf("range_m:%0.3f, ", range);
     return (ifx_error_get());
 }

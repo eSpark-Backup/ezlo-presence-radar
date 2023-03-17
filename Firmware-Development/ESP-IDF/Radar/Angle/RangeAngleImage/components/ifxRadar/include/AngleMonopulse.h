@@ -28,7 +28,8 @@
 */
 
 /**
- * @file AngleMonopulse.h
+ * @file Angle
+ .h
  *
  * \brief \copybrief gr_anglemonopulse
  *

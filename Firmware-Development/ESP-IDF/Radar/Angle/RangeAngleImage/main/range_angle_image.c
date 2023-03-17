@@ -27,6 +27,7 @@
 #include "SpectrumAxis.h"
 #include "RadarSegmentation.h"
 #include "RangeDopplerMap.h"
+#include "Algo.h"
 
 // ***************** Angle Capon Headers ***************** //
 
@@ -236,7 +237,7 @@ static void print_device_config(const ifx_Avian_Config_t* config)
 // ***************** Range Angle Image Configurations: *****************
 
 // * Range Doppler Map Config: * //
-#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 1// Zero padding of 4 gives good range resolution in Range spectrum
+#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 1* 1.067// Zero padding of 4 gives good range resolution in Range spectrum
 #define DOPPLER_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * 1 // Zero padding of 4 gives good range resolution in Doppler spectrum
 
 const ifx_PPFFT_Config_t range_fft_config = {
@@ -266,10 +267,10 @@ const ifx_RDM_Config_t rdmConfig =
 // * Digital Beam Forming Config: * //
 const ifx_DBF_Config_t dbfConfig =
 {
-    .num_beams = 41,
+    .num_beams = 31,
     .num_antennas = 2,
-    .min_angle = -40.0,
-    .max_angle = 40.0,
+    .min_angle = -60.0,
+    .max_angle = 60.0,
     .d_by_lambda =  0.5
 };
 
@@ -329,7 +330,15 @@ ifx_Error_t angle_capon_process(const ifx_AngleCapon_t* handle, uint32_t range_b
     return ifx_error_get();
 }
 
-
+/* OS CFAR */
+ifx_OSCFAR_Config_t os_cfar_conf = 
+{
+    .win_rank = 5,       /**< Rank of CFAR reference window.*/
+    .guard_band = 4,     /**< Rank of CFAR guard band.*/
+    .sample = 0.05,         /**< Constant used for setting CFAR threshold.*/
+    .pfa = 0.001,            /**< Probability of false alarm.*/
+    .coarse_scalar = 0.3  /**< Used for coarse thresholding 2D feature map.*/
+};
 /*
 ==============================================================================
    7. MAIN METHOD
@@ -358,6 +367,9 @@ int app_main(int argc, char* argv[])
     
     return 0;
 }
+
+    ifx_OSCFAR_t* cfar_handle;
+    ifx_Matrix_R_t *cfar_mat;
 
 void radar(void* pvParameter)
 {
@@ -399,7 +411,7 @@ void radar(void* pvParameter)
     // {
     //     printf("Failed to Init RAI object!\n");
     // }
-    printf("RAI init : %s\n",ifx_error_to_string(ifx_error_get()));
+    // printf("RAI init : %s\n",ifx_error_to_string(ifx_error_get()));
 
     if (rai_config(&raiConfig, &rai_handle) != IFX_OK)
     {
@@ -415,17 +427,26 @@ void radar(void* pvParameter)
     printf("Angle Capon handle addr : %p\n", angle_capon_handle);
     printf("Angle Capon config : %s\n",ifx_error_to_string(ifx_error_get()));
 
-    rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
-    if (rdm_init(rdm_context) != IFX_OK)
+    cfar_handle = ifx_oscfar_create(&os_cfar_conf);
+    cfar_mat = ifx_mat_create_r(XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME/2, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP); // for real input, range dimension has info only in positive half
+    if (ifx_error_get())
     {
-        TRACE_B("Failed to Init RDM object!\n");
+        printf("Here cfar\n");
     }
 
-    if (rdm_config(rdm_context, device_handle, dev_config) != IFX_OK)
-    {
-        TRACE_B("Failed to config rdm object!\n");
-    }
-    printf("RDM config : %s\n",ifx_error_to_string(ifx_error_get()));
+    // rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
+    // if (rdm_init(rdm_context) != IFX_OK)
+    // {
+    //     TRACE_B("Failed to Init RDM object!\n");
+    // }
+
+    // if (rdm_config(rdm_context, device_handle, dev_config) != IFX_OK)
+    // {
+    //     TRACE_B("Failed to config rdm object!\n");
+    // }
+    // printf("RDM config : %s\n",ifx_error_to_string(ifx_error_get()));
+
+      
 
     xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, SAMP_PER_FRAME+200);
 
@@ -443,6 +464,7 @@ void radar(void* pvParameter)
     // frame->d = (ifx_Float_t *)malloc(sizeof(ifx_Float_t) * SAMP_PER_FRAME);
   
     // char str[100];
+    ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
     while(1)
     {
         // ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
@@ -479,6 +501,7 @@ void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_
         {
             printf("Failed rai processing!\n"); 
         }
+        // printf("rows : %d, cols : %d, slices : %d\n",output->rows, output->cols, output->slices); 
         // printf("RAI processing : %s\n",ifx_error_to_string(ifx_error_get()));
         
         // if(rdm_range_idx(rdm_context, frame, &range_idx) != IFX_OK) 
@@ -487,14 +510,32 @@ void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_
         // }
         // printf("RDM processing : %s\n",ifx_error_to_string(ifx_error_get()));
 
-        if (range_idx < ifx_rai_get_rx_spectrum(rai_handle)->cols) 
+        ifx_Matrix_R_t ridxMat;
+        ifx_cube_get_slice_r(output, 10 , &ridxMat);
+        // ifx_oscfar_run(cfar_handle, &ridxMat ,cfar_mat);
+        // printf("\nrows : %d, cols %d\n",ridxMat.rows, ridxMat.cols);
+        // ifx_oscfar_run(rdm_context->cfar_handle, rdm_context->rdm ,rdm_context->cfar_mat);
+        // // do peak search
+        uint32_t rmax;
+        uint32_t cmax;
+        rdm_peak_search(&ridxMat, &rmax, &cmax);
+        printf("idx : %d\n",cmax);
+        // printf("cols %d\n", ifx_rai_get_rx_spectrum(rai_handle)->cols);
+        // range_idx=6;
+        if (cmax < ifx_rai_get_rx_spectrum(rai_handle)->cols) 
         {
-            if(angle_capon_process(angle_capon_handle, 3, ifx_rai_get_rx_spectrum(rai_handle)))
+            if(angle_capon_process(angle_capon_handle, cmax, ifx_rai_get_rx_spectrum(rai_handle)))
             {
                 printf("Failed angle capon processing!\n"); 
             }
-            // printf("Angle capon processing : %s\n",ifx_error_to_string(ifx_error_get()));
+//             // printf("Angle capon processing : %s\n",ifx_error_to_string(ifx_error_get()));
         }
+        // for (uint16_t i = 0; i < SAMP_PER_FRAME; i++)
+        // {
+        //     printf("%d,",(uint16_t)frame->d[i]);
+        //     /* code */
+        // }
+        // printf("\n");
         // printf("from samp addr = %p\n",samples);
         #if 0
         for (uint16_t i = 0; i < TOTAL_DATA; i++)
