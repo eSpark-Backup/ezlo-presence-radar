@@ -273,3 +273,11 @@ esp_err_t led_strip_fill(led_strip_t *strip, size_t start, size_t len, rgb_t col
         CHECK(led_strip_set_pixel(strip, i, color));
     return ESP_OK;
 }
+
+esp_err_t led_strip_set_brightness(led_strip_t *strip, uint8_t brightness)
+{
+    strip->brightness = brightness;
+    led_strip_flush(strip);
+    return ESP_OK;
+}
+
