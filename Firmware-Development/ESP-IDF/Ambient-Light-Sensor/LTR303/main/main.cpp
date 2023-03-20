@@ -22,7 +22,7 @@ unsigned char measurementRate;  // Interval between DATA_REGISTERS update
 void app_main()
 {
     byte error;
-    vTaskDelay(1000/portTICK_RATE_MS);
+
     LTR303 light;
     light.begin();
     unsigned char ID;
@@ -34,23 +34,9 @@ void app_main()
         printf("Got Manuf Part ID: %02X\n", ID);
     }
 
-    gain = 3;
+    gain = 0;
     printf("Setting Gain...\n");
-    light.setControl(3, false, true);
-    
-
-    printf("gain = %d\n",light.getControl(gain, false, false));
-
-    // If integrationTime = 0, integrationTime will be 100ms (default)
-    // If integrationTime = 1, integrationTime will be 50ms
-    // If integrationTime = 2, integrationTime will be 200ms
-    // If integrationTime = 3, integrationTime will be 400ms
-    // If integrationTime = 4, integrationTime will be 150ms
-    // If integrationTime = 5, integrationTime will be 250ms
-    // If integrationTime = 6, integrationTime will be 300ms
-    // If integrationTime = 7, integrationTime will be 350ms
-
-    unsigned char time = 1;
+    light.setControl(gain, false, false);
 
     // If integrationTime = 0, integrationTime will be 100ms (default)
     // If integrationTime = 1, integrationTime will be 50ms
@@ -61,8 +47,9 @@ void app_main()
     // If integrationTime = 6, integrationTime will be 300ms
     // If integrationTime = 7, integrationTime will be 350ms
     
+    integrationTime = 1;
     printf("Set timing...\n");
-    light.setMeasurementRate(time,3);
+    light.setMeasurementRate(integrationTime,3);
 
     // To start taking measurements, power up the sensor:
     
@@ -72,11 +59,12 @@ void app_main()
     error = light.getError();
     if(error)
     {
-        printError(error);
+        light.printError(error);
     }
+    
     while (1)
     {
-        unsigned int data0, data1;
+        unsigned int data0 = 0, data1 = 0;
     
         if (light.getData(data0,data1)) {
             // getData() returned true, communication was successful
@@ -104,33 +92,7 @@ void app_main()
             printf(" lux: %f\n",lux);
             if (good) printf(" (good)\n"); else printf(" (BAD)\n");
         }
-        vTaskDelay(100/portTICK_RATE_MS);
+        vTaskDelay(1000/portTICK_RATE_MS);
     }  
 }
 
-void printError(byte error) {
-  // If there's an I2C error, this function will
-  // print out an explanation.
-
-  printf("I2C error: %d,", error);
-  
-  switch(error) {
-    case 0:
-      printf("success");
-      break;
-    case 1:
-      printf("data too long for transmit buffer\n");
-      break;
-    case 2:
-      printf("received NACK on address (disconnected?)\n");
-      break;
-    case 3:
-      printf("received NACK on data\n");
-      break;
-    case 4:
-      printf("other error\n");
-      break;
-    default:
-      printf("unknown error\n");
-  }
-}

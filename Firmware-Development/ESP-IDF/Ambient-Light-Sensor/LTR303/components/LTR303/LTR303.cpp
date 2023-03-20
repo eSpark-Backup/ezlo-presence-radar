@@ -38,7 +38,18 @@ boolean LTR303::begin(void) {
 	// Always returns true
 
 	_i2c_address = LTR303_ADDR;
-	i2c_master_init();
+
+	i2c_config_t conf = { };
+    conf.mode = I2C_MODE_MASTER,
+    conf.sda_io_num = I2C_MASTER_SDA_IO,
+    conf.scl_io_num = I2C_MASTER_SCL_IO,
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE,
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE,
+    conf.master.clk_speed = I2C_MASTER_FREQ_HZ,
+
+	i2c_param_config(I2C_MASTER_NUM, &conf);
+	ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, I2C_MODE_MASTER, 0, 0, 0));
+
 	return(true);
 }
 
@@ -47,8 +58,8 @@ boolean LTR303::setPowerUp(void) {
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 
-	// Write 0x03 (reset = 1 & mode = 1) to command byte (power on)
-	return(writeByte(LTR303_CONTR,0x03));
+	// Write 0x01 (reset = 0 & mode = 1) to command byte (power on)
+	return(writeByte(LTR303_CONTR,0x01));
 }
 
 boolean LTR303::setPowerDown(void) {
@@ -421,7 +432,7 @@ boolean LTR303::getIntrPersist(byte &persist) {
 }
 
 // Get the right lux algorithm
-boolean LTR303::getLux(byte gain, byte integrationTime, unsigned int CH0, unsigned int CH1, double &lux) {
+boolean LTR303::getLux(byte gain, byte IntTime, unsigned int CH0, unsigned int CH1, double &lux) {
 	// Convert raw data to lux
 	// gain: 0 (1X) or 7 (96X), see getControl()
 	// integrationTime: integration time in ms, from getMeasurementRate()
@@ -430,8 +441,9 @@ boolean LTR303::getLux(byte gain, byte integrationTime, unsigned int CH0, unsign
 	// returns true (1) if calculation was successful
 	// returns false (0) AND lux = 0.0 IF EITHER SENSOR WAS SATURATED (0XFFFF)
 
-	double ratio, d0, d1;
-
+	double ratio, ALS_INT;
+	int ALS_GAIN;
+	
 	// Determine if either sensor saturated (0xFFFF)
 	// If so, abandon ship (calculation will not be accurate)
 	if ((CH0 == 0xFFFF) || (CH1 == 0xFFFF)) {
@@ -439,46 +451,91 @@ boolean LTR303::getLux(byte gain, byte integrationTime, unsigned int CH0, unsign
 		return(false);
 	}
 
-	// Convert from unsigned integer to floating point
-	d0 = CH0; d1 = CH1;
+
 
 	// We will need the ratio for subsequent calculations
-	ratio = d1 / d0;
+	ratio = double(CH1) / (double(CH0) + double(CH1));
 
-	// Normalize for integration time
-	d0 *= (402.0/integrationTime);
-	d1 *= (402.0/integrationTime);
 
-	// Normalize for gain
-	if (!gain) {
-		d0 *= 16;
-		d1 *= 16;
-	}
+  // Gain can take any value from 0-7, except 4 & 5
+  // If gain = 4, invalid
+  // If gain = 5, invalid
+switch(gain){
+		case 0:			   // If gain = 0, device is set to 1X gain (default)
+			ALS_GAIN = 1;
+			break;
+		case 1:			   // If gain = 1, device is set to 2X gain
+			ALS_GAIN = 2;
+			break;
+		case 2:			  // If gain = 2, device is set to 4X gain	 
+			ALS_GAIN = 4;
+			break;
+		case 3:			  // If gain = 3, device is set to 8X gain	  
+			ALS_GAIN = 8;
+			break;
+		case 6:		     // If gain = 6, device is set to 48X gain
+			ALS_GAIN = 48;
+			break;	
+		case 7:			  // If gain = 7, device is set to 96X gain  
+			ALS_GAIN = 96;
+			break;
+		default:		  // If gain = 0, device is set to 1X gain (default)	 	 
+			ALS_GAIN = 1;
+			break;
+}
+
+
+switch(IntTime){
+		case 0:				 // If integrationTime = 0, integrationTime will be 100ms (default)
+			ALS_INT = 1;
+			break;
+		case 1:			 	 // If integrationTime = 1, integrationTime will be 50ms
+			ALS_INT = 0.5;
+			break;
+		case 2:				 // If integrationTime = 2, integrationTime will be 200ms
+			ALS_INT = 2;
+			break;
+		case 3:				  // If integrationTime = 3, integrationTime will be 400ms
+			ALS_INT = 4;
+			break;
+		case 4:				  // If integrationTime = 4, integrationTime will be 150ms
+			ALS_INT = 1.5;
+			break;
+		case 5:				  // If integrationTime = 5, integrationTime will be 250ms
+			ALS_INT = 2.5;
+			break;
+		case 6:				  // If integrationTime = 6, integrationTime will be 300ms
+			ALS_INT = 3;
+			break;	
+		case 7:				  // If integrationTime = 7, integrationTime will be 350ms
+			ALS_INT = 3.5;
+			break;
+		default:		 	 // If integrationTime = 0, integrationTime will be 100ms (default)
+			ALS_INT = 1;
+			break;
+}
 
 	// Determine lux per datasheet equations:
-	if (ratio < 0.5) {
-		lux = 0.0304 * d0 - 0.062 * d0 * pow(ratio,1.4);
+	if (ratio < 0.45) {
+		lux = ((1.7743 * CH0) + (1.1059 * CH1))/ALS_GAIN/ALS_INT;
 		return(true);
 	}
 
-	if (ratio < 0.61) {
-		lux = 0.0224 * d0 - 0.031 * d1;
+	else if ((ratio < 0.64) && (ratio >= 0.45)){
+		lux = ((4.2785 * CH0) - (1.9548 * CH1))/ALS_GAIN/ALS_INT;
 		return(true);
 	}
 
-	if (ratio < 0.80) {
-		lux = 0.0128 * d0 - 0.0153 * d1;
+	else if ((ratio < 0.85) && (ratio >= 0.64)){
+		lux = ((0.5926 * CH0) + (0.1185 * CH1))/ALS_GAIN/ALS_INT;
 		return(true);
 	}
 
-	if (ratio < 1.30) {
-		lux = 0.00146 * d0 - 0.00112 * d1;
+	// if (ratio >= 0.85)
+	else {	
+		lux = 0.0;
 		return(true);
-	}
-
-	// if (ratio > 1.30)
-	lux = 0.0;
-	return(true);
+	}	
 }
 
 byte LTR303::getError(void) {
@@ -559,34 +616,30 @@ boolean LTR303::writeUInt(byte address, unsigned int value) {
 	return(false);
 }
 
-void i2c_master_init()
-{
-    i2c_config_t conf = { };
-    conf.mode = I2C_MODE_MASTER,
-    conf.sda_io_num = I2C_MASTER_SDA_IO,
-    conf.scl_io_num = I2C_MASTER_SCL_IO,
-    conf.sda_pullup_en = GPIO_PULLUP_ENABLE,
-    conf.scl_pullup_en = GPIO_PULLUP_ENABLE,
-    conf.master.clk_speed = 400000,
+void LTR303::printError(byte error) {
+  // If there's an I2C error, this function will
+  // print out an explanation.
 
-	i2c_param_config(I2C_NUM_0, &conf);
-	ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
+  printf("I2C error: %d,", error);
+  
+  switch(error) {
+    case 0:
+      printf("success");
+      break;
+    case 1:
+      printf("data too long for transmit buffer\n");
+      break;
+    case 2:
+      printf("received NACK on address (disconnected?)\n");
+      break;
+    case 3:
+      printf("received NACK on data\n");
+      break;
+    case 4:
+      printf("other error\n");
+      break;
+    default:
+      printf("unknown error\n");
+  }
 }
-esp_err_t i2c_write_byte(uint8_t addr, uint8_t reg, uint8_t data)
-{
-    int ret;
-    uint8_t write_buf[2] = {reg, data};
-
-    ret = i2c_master_write_to_device(I2C_MASTER_NUM, LTR303_ADDR, write_buf, sizeof(write_buf), 1000 / portTICK_PERIOD_MS);
-
-    return ret;
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "i2c_master_cmd_begin() failed: %d", ret);
-    }
-    return ret;
-}
-
-esp_err_t ltr303_write_byte(uint8_t reg, uint8_t value)
-{
-    return i2c_write_byte(LTR303_ADDR, reg, value);
-}
+	

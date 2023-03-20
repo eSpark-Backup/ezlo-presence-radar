@@ -46,13 +46,6 @@ typedef bool boolean;
 #define I2C_MASTER_SDA_IO 18
 #define I2C_MASTER_NUM I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ 400000
-
-#define LTR303_REG_PART_ID 0x86
-#define LTR303_MANUFAC_ID    0x87
-
-void i2c_master_init();
-esp_err_t i2c_write_byte(uint8_t addr, uint8_t reg, uint8_t data);
-esp_err_t ltr303_write_byte(uint8_t reg, uint8_t value);
 // Edited
 
 #define LTR303_ADDR   0x29 // default address
@@ -324,6 +317,9 @@ class LTR303 {
 			// 2 = Received NACK on transmit of address
 			// 3 = Received NACK on transmit of data
 			// 4 = Other error
+			
+		void printError(byte error);
+			// Print Errors
 
 	private:
 
@@ -354,7 +350,7 @@ class LTR303 {
 			// Value: unsigned int to write to address
 			// Returns true (1) if successful, false (0) if there was an I2C error
 			// (Also see getError() above)
-			
+
 		byte _i2c_address;
 		
 		byte _error;
