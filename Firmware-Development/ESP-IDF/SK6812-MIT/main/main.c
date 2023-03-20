@@ -41,7 +41,7 @@ void rgbTest(void *pvParameters)
         }
         vTaskDelay(pdMS_TO_TICKS(500));
 
-        if (++c >= COLORS_TOTAL)
+        if (++c >= totalColor)
             c = 0;
     }
 }
