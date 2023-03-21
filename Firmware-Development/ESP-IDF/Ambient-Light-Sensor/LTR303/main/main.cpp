@@ -16,10 +16,13 @@ void app_main()
     Light = new ALS_LTR303;
     Light->setup();
 
+    double lux;
     while (1)
     { 
-        if(Light->loop() == ESP_OK) 
-            printf(" lux: %f\n",Light->getLux());
+        if(Light->getLux(&lux) == ESP_OK)
+        { 
+            printf(" lux: %f\n",lux);
+        }
     }  
 }
 

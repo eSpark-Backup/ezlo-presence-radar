@@ -1,5 +1,4 @@
 #include "ALS_LTR303.hpp"
-static const char *TAG_MAIN = "LTR303";
 
 esp_err_t ALS_LTR303::setup(void)
 {  
@@ -14,10 +13,10 @@ esp_err_t ALS_LTR303::setup(void)
     }
 
     printf("Setting Gain...\n");
-    light.setControl(LTR3XX_GAIN_1, false, false);
+    light.setControl(gain, false, false);
     
     printf("Set timing...\n");
-    light.setMeasurementRate(LTR3XX_INTEGTIME_200,LTR3XX_MEASRATE_200);
+    light.setMeasurementRate(integrationTime, measurementRate);
     
     printf("Powerup...\n");
     light.setPowerUp();
@@ -27,8 +26,13 @@ esp_err_t ALS_LTR303::setup(void)
 
 esp_err_t ALS_LTR303::loop(void)
 {
-    light.getStatus(valid, gain, intrstatus, dataStatus);  
-    if (dataStatus)
+    
+    return ESP_OK;
+}
+
+esp_err_t ALS_LTR303::getLux(double* ALSLux)
+{
+    if (isDataAvailable())
     {        
         unsigned int data0, data1;
         if (light.getData(data0,data1)) {
@@ -49,15 +53,13 @@ esp_err_t ALS_LTR303::loop(void)
             double lux;    // Resulting lux value
 
             // Perform lux calculation:
-            light.getLux(gain,integrationTime,data0,data1,lux);
-            ALSLux = lux;
-            return ESP_OK;
+            if (light.getLux(gain,integrationTime,data0,data1,lux))
+            {
+                *ALSLux = lux;
+                return ESP_OK;
+            }
+            
         }
     }
     return ESP_FAIL;
-}
-
-double ALS_LTR303::getLux(void)
-{
-    return ALSLux;
 }

@@ -8,5 +8,5 @@ class LightSensor
     public:
         virtual esp_err_t setup(void) { return ESP_OK; }
         virtual esp_err_t loop(void) { return ESP_OK; }
-        virtual double getLux(void) { return 0; }
+        virtual esp_err_t getLux(double* ALSLux) { return 0; }
 };
