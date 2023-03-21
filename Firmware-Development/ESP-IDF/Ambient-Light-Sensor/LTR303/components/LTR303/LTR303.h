@@ -36,7 +36,6 @@ version 0.1
 #include "esp_log.h"
 #include "driver/i2c.h"
 
-static const char *TAG = "LTR303";
 typedef uint8_t byte;
 typedef bool boolean;
 #define lowByte(word) ((uint8_t)(word & 0xFF))
@@ -44,6 +43,7 @@ typedef bool boolean;
 
 #define I2C_MASTER_SCL_IO 17
 #define I2C_MASTER_SDA_IO 18
+#define INT_ALS_PIN (gpio_num_t)16
 #define I2C_MASTER_NUM I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ 400000
 // Edited
@@ -66,6 +66,38 @@ typedef bool boolean;
 #define LTR303_THRES_LOW_0   0x99
 #define LTR303_THRES_LOW_1   0x9A
 #define LTR303_INTR_PERS     0x9E
+
+typedef enum {
+  LTR3XX_GAIN_1 = 0,
+  LTR3XX_GAIN_2 = 1,
+  LTR3XX_GAIN_4 = 2,
+  LTR3XX_GAIN_8 = 3,
+  // 4 & 5 unused!
+  LTR3XX_GAIN_48 = 6,
+  LTR3XX_GAIN_96 = 7,
+} ltr329_gain_t;
+
+/*!    @brief Integration times, in milliseconds */
+typedef enum {
+  LTR3XX_INTEGTIME_100,
+  LTR3XX_INTEGTIME_50,
+  LTR3XX_INTEGTIME_200,
+  LTR3XX_INTEGTIME_400,
+  LTR3XX_INTEGTIME_150,
+  LTR3XX_INTEGTIME_250,
+  LTR3XX_INTEGTIME_300,
+  LTR3XX_INTEGTIME_350,
+} ltr329_integrationtime_t;
+
+/*!    @brief Measurement rates, in milliseconds */
+typedef enum {
+  LTR3XX_MEASRATE_50,
+  LTR3XX_MEASRATE_100,
+  LTR3XX_MEASRATE_200,
+  LTR3XX_MEASRATE_500,
+  LTR3XX_MEASRATE_1000,
+  LTR3XX_MEASRATE_2000,
+} ltr329_measurerate_t;
 
 class LTR303 {
 	public:
@@ -194,7 +226,7 @@ class LTR303 {
 			// Returns true (1) if successful, false (0) if there was an I2C error
 			// (Also see getError() below)
 		
-		boolean getStatus(boolean valid, byte &gain, boolean intrStatus, boolean dataStatus);
+		boolean getStatus(boolean &valid, byte &gain, boolean &intrStatus, boolean &dataStatus);
 			// Gets the status information of LTR303
 			// Default value is 0x00
 			// If valid = false(0), Sensor data is valid (default)

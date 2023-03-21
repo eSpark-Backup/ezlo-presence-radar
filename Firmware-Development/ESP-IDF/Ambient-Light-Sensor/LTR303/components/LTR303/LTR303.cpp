@@ -38,7 +38,7 @@ boolean LTR303::begin(void) {
 	// Always returns true
 
 	_i2c_address = LTR303_ADDR;
-
+	vTaskDelay(100/portTICK_RATE_MS);
 	i2c_config_t conf = { };
     conf.mode = I2C_MODE_MASTER,
     conf.sda_io_num = I2C_MASTER_SDA_IO,
@@ -258,11 +258,13 @@ boolean LTR303::getData(unsigned int &CH0, unsigned int &CH1) {
 	// Default value of both channels is 0x00
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
-	
-	return(readUInt(LTR303_DATA_CH0_0,CH0) && readUInt(LTR303_DATA_CH1_0,CH1));
+	byte status=0;
+	status = readUInt(LTR303_DATA_CH1_0,CH1);
+	status &= readUInt(LTR303_DATA_CH0_0,CH0);
+	return(status);
 }
 
-boolean LTR303::getStatus(boolean valid, byte &gain, boolean intrStatus, boolean dataStatus) {
+boolean LTR303::getStatus(boolean &valid, byte &gain, boolean &intrStatus, boolean &dataStatus) {
 	// Gets the status information of LTR303
 	// Default value is 0x00
 	// If valid = false(0), Sensor data is valid (default)
@@ -323,7 +325,7 @@ boolean LTR303::setInterruptControl(boolean intrMode, boolean polarity = false) 
 	
 	intrControl |= polarity << 2;
 	intrControl |= intrMode << 1;
-	
+
 	return(writeByte(LTR303_INTERRUPT, intrControl));
 }
 
@@ -350,6 +352,7 @@ boolean LTR303::getInterruptControl(boolean polarity, boolean intrMode) {
 		intrMode = (intrControl & 0x02) ? true : false;
 	
 		// return if successful
+		printf("Interrupt Mode = %d, Interrupt Polarity %d\n",intrMode,polarity);
 		return(true);
 	}
 	return(false);
