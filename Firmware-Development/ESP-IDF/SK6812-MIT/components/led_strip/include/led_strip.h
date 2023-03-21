@@ -69,14 +69,12 @@ typedef struct
 {
     led_strip_type_t type; ///< LED type
     bool is_rgbw;          ///< true for RGBW strips
-#ifdef LED_STRIP_BRIGHTNESS
-    uint8_t brightness;    ///< Brightness 0..255, call ::led_strip_flush() after change.
-                           ///< Supported only for ESP-IDF version >= 4.3
-#endif
     size_t length;         ///< Number of LEDs in strip
     gpio_num_t gpio;       ///< Data GPIO pin
     rmt_channel_t channel; ///< RMT channel
     uint8_t *buf;
+    uint8_t brightness;    ///< Brightness 0..255, call ::led_strip_flush() after change.
+                           ///< Supported only for ESP-IDF version >= 4.3
 } led_strip_t;
 
 /**
