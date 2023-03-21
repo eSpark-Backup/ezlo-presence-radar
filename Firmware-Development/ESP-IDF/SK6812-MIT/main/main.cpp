@@ -1,16 +1,17 @@
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "RGBLED.hpp"
+#include "SK6812.hpp"
+
+SK6812 *rgb;
 
 extern "C" void app_main()
 {
-    RGBLED SK6812; /* SK6812 RGB LED Configuration */
-    SK6812.setup(); /* Initialize SK6812 */
+    rgb = new SK6812; /* SK6812 RGB LED Configuration */
+    rgb->setup(); /* Initialize SK6812 */
 
     while (1)
     {
-       SK6812.test();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        rgb->test();
     }
 }
