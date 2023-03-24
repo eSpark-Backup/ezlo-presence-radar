@@ -12,7 +12,14 @@
  */
 #ifndef ld2410_h
 #define ld2410_h
-#include <Arduino.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "Stream.hpp"
+
+typedef unsigned char byte;
+#define delay(x) vTaskDelay(x/portTICK_RATE_MS)
+#define millis() esp_timer_get_time()/1000
 
 #define LD2410_MAX_FRAME_LENGTH 40
 //#define LD2410_DEBUG_DATA
