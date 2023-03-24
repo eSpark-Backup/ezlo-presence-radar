@@ -44,12 +44,17 @@ void PMS5003::setup()
     gpio_set_level(config.resetPin, 1);
 }
 
+pmsData PMS5003::getData()
+{
+    makeMeasurement();
+    return readings;
+}
 void PMS5003::makeMeasurement()
 {
     uint8_t* data = (uint8_t*) malloc(config.uartBuffSize);
 
     gpio_set_level(config.setPin, 1);
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // Wait for a second...
+    // vTaskDelay(1000 / portTICK_PERIOD_MS); // Wait for a second...
     uart_flush(config.uartInstance);
 
     pmsData currentReading;
@@ -92,7 +97,7 @@ int PMS5003::processData(int len, uint8_t* data, pmsData* newReading)
     // Reading data
     newReading->stdPM1_0   = (data[4] << 8) + data[5];
     newReading->stdPM2_5   = (data[6] << 8) + data[7];
-    newReading->stdpm10    = (data[8] << 8) + data[9];
+    newReading->stdPM10    = (data[8] << 8) + data[9];
     newReading->atmPM1_0   = (data[10] << 8) + data[11];
     newReading->atmPM2_5   = (data[12] << 8) + data[13];
     newReading->atmPM10    = (data[14] << 8) + data[15];
@@ -104,7 +109,7 @@ void PMS5003::printData()
 {
     printf("PM1.0 concentration in standard material:       %d ug/m^3\r\n", readings.stdPM1_0);
     printf("PM2.5 concentration in standard material:       %d ug/m^3\r\n", readings.stdPM2_5);
-    printf("PM10  concentration in standard material:       %d ug/m^3\r\n", readings.stdpm10);
+    printf("PM10  concentration in standard material:       %d ug/m^3\r\n", readings.stdPM10);
     printf("PM1.0 concentration in atmospheric environment: %d ug/m^3\r\n", readings.atmPM1_0);
     printf("PM2.5 concentration in atmospheric environment: %d ug/m^3\r\n", readings.atmPM2_5);
     printf("PM10  concentration in atmospheric environment: %d ug/m^3\r\n", readings.atmPM10);
@@ -115,7 +120,7 @@ void PMS5003::clearData()
 {
     readings.stdPM1_0 = 0;
     readings.stdPM2_5 = 0;
-    readings.stdpm10 = 0;
+    readings.stdPM10 = 0;
     readings.atmPM1_0 = 0;
     readings.atmPM2_5 = 0;
     readings.atmPM10 = 0;
@@ -125,7 +130,7 @@ void PMS5003::addMeasurements(pmsData* newReadings)
 {
     readings.stdPM1_0   += newReadings->stdPM1_0;
     readings.stdPM2_5   += newReadings->stdPM2_5;
-    readings.stdpm10    += newReadings->stdpm10;
+    readings.stdPM10    += newReadings->stdPM10;
     readings.atmPM1_0   += newReadings->atmPM1_0;
     readings.atmPM2_5   += newReadings->atmPM2_5;
     readings.atmPM10    += newReadings->atmPM10;
@@ -135,7 +140,7 @@ void PMS5003::divMeasurement()
 {
     readings.stdPM1_0  /= 10;
     readings.stdPM2_5  /= 10;
-    readings.stdpm10   /= 10;
+    readings.stdPM10   /= 10;
     readings.atmPM1_0  /= 10;
     readings.atmPM2_5  /= 10;
     readings.atmPM10   /= 10;

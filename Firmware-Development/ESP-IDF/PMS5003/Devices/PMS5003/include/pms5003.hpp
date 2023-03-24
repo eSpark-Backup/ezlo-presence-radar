@@ -17,7 +17,7 @@ typedef struct {
 typedef struct {
     int stdPM1_0;
     int stdPM2_5;
-    int stdpm10;
+    int stdPM10;
     int atmPM1_0;
     int atmPM2_5;
     int atmPM10;
@@ -28,10 +28,12 @@ class PMS5003
     private:
     pmsConfig config;
     pmsData readings;
+    
     public:
     PMS5003();
     PMS5003(pmsConfig * pConfig);
     void setup();
+    pmsData getData();
     void makeMeasurement();
     int processData(int len, uint8_t* data, pmsData* reading);
     void printData();
