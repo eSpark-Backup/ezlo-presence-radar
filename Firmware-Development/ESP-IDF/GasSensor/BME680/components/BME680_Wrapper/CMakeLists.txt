@@ -1,3 +1,3 @@
-idf_component_register(SRCS "Sensor_BME680/BME680.cpp"
-                        INCLUDE_DIRS "." "Sensor_BME680"
-                        REQUIRES Adafruit_BME680)
+idf_component_register(SRCS "BME680_Wrapper/BME680.cpp"
+                        INCLUDE_DIRS "." "BME680_Wrapper"
+                        REQUIRES Adafruit_BME680_Driver)
