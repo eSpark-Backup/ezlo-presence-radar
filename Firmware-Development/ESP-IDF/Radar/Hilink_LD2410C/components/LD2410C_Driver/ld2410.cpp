@@ -23,8 +23,10 @@ ld2410::~ld2410()	//Destructor function
 {
 }
 
-bool ld2410::begin(Stream &radarStream, bool waitForRadar)	{
-	radar_uart_ = &radarStream;		//Set the stream used for the LD2410
+bool ld2410::begin(Stream* radarStream, bool waitForRadar)	{
+	radar_uart_ = radarStream;		//Set the stream used for the LD2410
+	radar_uart_->setup();
+	
 	if(debug_uart_ != nullptr)
 	{
 		debug_uart_->println(F("ld2410 started"));

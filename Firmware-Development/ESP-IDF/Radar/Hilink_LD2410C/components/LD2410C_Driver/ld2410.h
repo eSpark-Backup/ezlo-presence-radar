@@ -31,7 +31,7 @@ class ld2410	{
 	public:
 		ld2410();														//Constructor function
 		~ld2410();														//Destructor function
-		bool begin(Stream &, bool waitForRadar = true);					//Start the ld2410
+		bool begin(Stream* , bool waitForRadar = true);					//Start the ld2410
 		void debug(Stream &);											//Start debugging on a stream
 		bool isConnected();
 		bool read();
