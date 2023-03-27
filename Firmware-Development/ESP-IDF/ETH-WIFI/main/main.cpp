@@ -12,14 +12,10 @@
 #include "wifinetwork.hpp"
 
 WIFINETWORK WIFI(WIFI_SSID, WIFI_PW);
-uint8_t ETH_EVENT_FLAG = 2;
+eth_event_t ETH_EVENT_FLAG;
+uint64_t ethStartTime;
 
-// ************** WEBSERVER ************** 
-#include <esp_http_server.h>
-esp_err_t test_handler(httpd_req_t *req);
-// ************** WEBSERVER **************
-
-static const char *TAG = "eth_example";
+static const char *TAG = "eth_wifi";
 
 #define INIT_SPI_ETH_MODULE_CONFIG(eth_module_config, num)                                      \
     do {                                                                                        \
@@ -46,17 +42,19 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base,
 
     switch (event_id) {
     case ETHERNET_EVENT_CONNECTED:
-        ETH_EVENT_FLAG = 1;
+        ETH_EVENT_FLAG = ETHERNET_EVENT_CONNECTED;
         esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
         ESP_LOGI(TAG, "Ethernet Link Up");
         ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
                  mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
         break;
     case ETHERNET_EVENT_DISCONNECTED:
-        ETH_EVENT_FLAG = 0;
+        ETH_EVENT_FLAG = ETHERNET_EVENT_DISCONNECTED;
         ESP_LOGI(TAG, "Ethernet Link Down");
         break;
     case ETHERNET_EVENT_START:
+        ETH_EVENT_FLAG = ETHERNET_EVENT_START;
+        ethStartTime = esp_timer_get_time();
         ESP_LOGI(TAG, "Ethernet Started");
         break;
     case ETHERNET_EVENT_STOP:
@@ -240,26 +238,28 @@ extern "C" void app_main(void)
 
     while(1)
     {
-        if(ETH_EVENT_FLAG == 0)
+        if(ETH_EVENT_FLAG == ETHERNET_EVENT_START)
         {
-            ETH_EVENT_FLAG = 2;
+            uint32_t timeout = esp_timer_get_time() - ethStartTime; 
+            if( timeout > 3 * 1000000)
+            {
+                ETH_EVENT_FLAG = (eth_event_t)-1;
+                ESP_LOGE(TAG, "timeout = %d", timeout);
+                WIFI.connect();
+            }
+        }
+        else if(ETH_EVENT_FLAG == ETHERNET_EVENT_DISCONNECTED)
+        {
+            ETH_EVENT_FLAG = (eth_event_t)-1;
             WIFI.connect();
         }
-        else if(ETH_EVENT_FLAG == 1)
+        else if(ETH_EVENT_FLAG == ETHERNET_EVENT_CONNECTED)
         {
-            ETH_EVENT_FLAG = 2;
+            ETH_EVENT_FLAG = (eth_event_t)-1;
             WIFI.disconnect();
         }
-        else{}
 
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
-}
-
-esp_err_t test_handler(httpd_req_t *req)
-{
-    const char resp[] = "<h1>Hello World</h1>";
-    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
 }
