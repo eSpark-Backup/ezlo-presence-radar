@@ -2,7 +2,7 @@
 
 Adafruit_BME680 bme(I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO);
 
-esp_err_t BME680::setup(void)
+esp_err_t BME680::setup(Precision precision)
 {  
     printf("BME680 Starting\n");
 
@@ -11,12 +11,19 @@ esp_err_t BME680::setup(void)
         while (1);
     }
 
-    // Set up oversampling and filter initialization
-    bme.setTemperatureOversampling(BME680_OS_8X);
-    bme.setHumidityOversampling(BME680_OS_2X);
-    bme.setPressureOversampling(BME680_OS_4X);
-    bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
+    setPrecision(precision);
     bme.setGasHeater(320, 150); // 320*C for 150 ms
+    return ESP_OK;
+}
+
+esp_err_t BME680::setPrecision(Precision precision)
+{
+    // Set up oversampling and filter initialization
+    bme.setTemperatureOversampling( (precision) ? BME680_OS_16X : BME680_OS_8X);
+    bme.setHumidityOversampling( (precision) ? BME680_OS_16X : BME680_OS_2X);
+    bme.setPressureOversampling( (precision) ? BME680_OS_16X : BME680_OS_4X);
+    bme.setIIRFilterSize( (precision) ? BME680_FILTER_SIZE_127 : BME680_FILTER_SIZE_3);
+    
     return ESP_OK;
 }
 
@@ -38,18 +45,18 @@ esp_err_t BME680::test(void)
     return ESP_OK;
 }
 
-esp_err_t BME680::read(GasSensorOut* GasSensorOut)
+esp_err_t BME680::read(Fields* fields)
 {
     if (! bme.performReading()) {
         printf("Failed to perform reading :(\n");
         return ESP_FAIL;
     }
 
-    GasSensorOut->temperature = bme.temperature;
-    GasSensorOut->pressure = bme.pressure / 100.0;
-    GasSensorOut->humidity = bme.humidity;
-    GasSensorOut->gas_resistance = bme.gas_resistance / 1000.0;
-    GasSensorOut->altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    fields->temperature = bme.temperature;
+    fields->pressure = bme.pressure / 100.0;
+    fields->humidity = bme.humidity;
+    fields->gas_resistance = bme.gas_resistance / 1000.0;
+    fields->altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
 
     return ESP_OK;
 }

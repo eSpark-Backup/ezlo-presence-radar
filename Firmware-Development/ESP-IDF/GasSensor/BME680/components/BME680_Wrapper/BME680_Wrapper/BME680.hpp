@@ -11,7 +11,9 @@
 class BME680 : public GasSensor
 {
     public:
-        esp_err_t setup(void) override; 
+        Fields fields;
+        esp_err_t setup(Precision precision) override; 
         esp_err_t test(void) override;
-        esp_err_t read(GasSensorOut*) override;  
+        esp_err_t read(Fields*) override;  
+        esp_err_t setPrecision(Precision precision) override;
 };
