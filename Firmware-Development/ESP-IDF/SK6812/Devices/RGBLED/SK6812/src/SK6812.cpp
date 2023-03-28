@@ -29,7 +29,7 @@ void SK6812::show()
 void SK6812::setColor(uint32_t colorCode)
 {
     rgb_t color = (rgb_t)rgb_from_code(colorCode);
-    led_strip_fill(&strip, 0, strip.length, color);
+    setColor(color.r, color.g, color.b);
 }
 
 /*  @func setColor
@@ -55,12 +55,7 @@ void SK6812::setColor(uint8_t r, uint8_t g, uint8_t b)
 */
 void SK6812::setColor(uint8_t* rgb)
 {
-    rgb_t color = {
-        .r = rgb[0],
-        .g = rgb[1],
-        .b = rgb[2],
-    };
-    led_strip_fill(&strip, 0, strip.length, color);
+    setColor(rgb[0], rgb[1], rgb[2]);
 }
 
 /*  @func setBrightness
@@ -74,8 +69,7 @@ void SK6812::setBrigtness(uint8_t brigtness)
 
 void SK6812::test()
 {
-    uint8_t rgb[3] = { 0xFF, 0x00, 0x00 };
-    setColor(rgb);
+    setColor(MAGENTA);
     setBrigtness(10);
     show();
 }
