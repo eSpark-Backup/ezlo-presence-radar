@@ -10,6 +10,8 @@ public:
     virtual void setup(){}
     virtual void show(){}
     virtual void setColor(uint32_t colorCode){}
+    virtual void setColor(uint8_t r, uint8_t g, uint8_t b){}
+    virtual void setColor(uint8_t* rgb){}
     virtual void setBrigtness(uint8_t brigtness){}
     virtual void test(){}
 };

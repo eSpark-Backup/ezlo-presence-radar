@@ -31,6 +31,38 @@ void SK6812::setColor(uint32_t colorCode)
     rgb_t color = (rgb_t)rgb_from_code(colorCode);
     led_strip_fill(&strip, 0, strip.length, color);
 }
+
+/*  @func setColor
+            It sets the color for the RGB-LED in the strip struct. 
+    @params  
+    uint8_t r (Red) , uint8_t g (Green), uint8_t b (Blue). 
+        Takes individual rgb values and set the color accordingly.
+*/
+void SK6812::setColor(uint8_t r, uint8_t g, uint8_t b)
+{
+    rgb_t color = {
+        .r = r,
+        .g = g,
+        .b = b,
+    };
+    led_strip_fill(&strip, 0, strip.length, color);
+}
+
+/*  @func setColor
+            It sets the color for the RGB-LED in the strip struct. 
+    @params  
+        uint8_t rgb[3] - takes an address of array which contains rgb values.
+*/
+void SK6812::setColor(uint8_t* rgb)
+{
+    rgb_t color = {
+        .r = rgb[0],
+        .g = rgb[1],
+        .b = rgb[2],
+    };
+    led_strip_fill(&strip, 0, strip.length, color);
+}
+
 /*  @func setBrightness
             It sets the brightness for the RGB-LED in the strip struct. 
     @param : brightness ( the level of brightness between 0 - 255 )
@@ -42,7 +74,8 @@ void SK6812::setBrigtness(uint8_t brigtness)
 
 void SK6812::test()
 {
-   setColor(RED);
-   setBrigtness(10);
-   show();
+    uint8_t rgb[3] = { 0xFF, 0x00, 0x00 };
+    setColor(rgb);
+    setBrigtness(10);
+    show();
 }

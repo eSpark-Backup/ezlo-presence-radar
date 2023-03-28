@@ -19,6 +19,8 @@ public:
     void setup() override;
     void show() override;
     void setColor(uint32_t colorCode) override;
+    void setColor(uint8_t r, uint8_t g, uint8_t b) override;
+    void setColor(uint8_t* rgb) override;
     void setBrigtness(uint8_t brigtness) override;
     void test() override;
 };
