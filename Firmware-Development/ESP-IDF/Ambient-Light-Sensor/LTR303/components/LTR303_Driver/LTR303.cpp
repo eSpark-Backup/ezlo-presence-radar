@@ -562,10 +562,12 @@ boolean LTR303::readByte(byte address, byte &value) {
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() above)
 	// Check if sensor present for read
-	_error = i2c_master_write_read_device(I2C_MASTER_NUM, _i2c_address, &address, 1, &value, 1, 1000 / portTICK_PERIOD_MS);
+	uint8_t data;
+	_error = i2c_master_write_read_device(I2C_MASTER_NUM, _i2c_address, &address, 1, &data, 1, 1000 / portTICK_PERIOD_MS);
 
 	if (_error == ESP_OK)
 	{
+		value = data;
 		return(true);
 	}
 	return(false);
@@ -595,10 +597,12 @@ boolean LTR303::readUInt(byte address, unsigned int &value) {
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() above)
 
-	_error = i2c_master_write_read_device(I2C_MASTER_NUM, _i2c_address, &address, 1, (uint8_t*)&value, 2, 1000 / portTICK_PERIOD_MS);
+	uint16_t data;
+	_error = i2c_master_write_read_device(I2C_MASTER_NUM, _i2c_address, &address, 1, (uint8_t*)&data, 2, 1000 / portTICK_PERIOD_MS);
 
 	if (_error == ESP_OK)
 	{
+		value = data;
 		return(true);
 	}	
 	return(false);
