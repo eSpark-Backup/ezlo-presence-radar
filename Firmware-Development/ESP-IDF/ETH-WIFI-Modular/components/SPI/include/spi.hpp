@@ -23,12 +23,16 @@ class SPI
     gpio_num_t rst;
     uint8_t clkSpeed; //MHZ
     spi_host_device_t host;
-    spi_device_handle_t spi_handle = NULL;
 
     public:
+    spi_device_interface_config_t devcfg;
+    spi_device_handle_t spi_handle = NULL;
+
     void setPins(gpio_num_t cs, gpio_num_t miso, gpio_num_t mosi, gpio_num_t sclk, gpio_num_t intr = SPI_NC_PIN, gpio_num_t rst = SPI_NC_PIN);
     void setSpeed(uint8_t clkSpeed);
     void setHost(spi_host_device_t host);
+    void setDeviceConfig(uint8_t commandBits = 0, uint8_t addressBits = 0);
     void initBus();
+    void busAddDevice();
 
 };

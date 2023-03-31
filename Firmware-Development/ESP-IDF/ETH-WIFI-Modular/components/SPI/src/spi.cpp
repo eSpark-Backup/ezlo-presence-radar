@@ -31,3 +31,29 @@ void SPI::initBus()
     };
     ESP_ERROR_CHECK(spi_bus_initialize(this->host, &buscfg, SPI_DMA_CH_AUTO));
 }
+
+/*
+    Sets configuration for a SPI slave device that is connected to one of the SPI buses.
+*/
+
+void SPI::setDeviceConfig(uint8_t commandBits, uint8_t addressBits)
+{ 
+    this->devcfg = (spi_device_interface_config_t){
+        .command_bits = commandBits, 
+        .address_bits = addressBits,  
+        .mode = 0,
+        .clock_speed_hz = this->clkSpeed * 1000 * 1000,
+        .queue_size = 20
+    };
+}
+
+/*
+    Allocate a device on a SPI bus.
+*/
+void SPI::busAddDevice()
+{
+    // Set SPI module Chip Select GPIO
+    this->devcfg.spics_io_num = this->cs;   
+    ESP_ERROR_CHECK(spi_bus_add_device(this->host, &devcfg, &spi_handle));   
+}
+

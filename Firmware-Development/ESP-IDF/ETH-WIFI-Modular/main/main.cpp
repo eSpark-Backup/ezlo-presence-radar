@@ -46,9 +46,6 @@ extern "C" void app_main(void)
     eth_netif_spi = netif.getInstance();
     ESP_LOGI(TAG,"netif done");
 
-    // // Init MAC and PHY configs to default
-    // eth_mac_config_t mac_config_spi = ETH_MAC_DEFAULT_CONFIG();
-    // eth_phy_config_t phy_config_spi = ETH_PHY_DEFAULT_CONFIG();
     w5500.configMAC();
     w5500.configPHY();
 
@@ -56,7 +53,7 @@ extern "C" void app_main(void)
     gpio_install_isr_service(0);
 
     // Init SPI bus
-    spi_device_handle_t spi_handle[CONFIG_EXAMPLE_SPI_ETHERNETS_NUM] = { NULL };
+    spi_device_handle_t spi_handle = NULL;
     spi.initBus();
 
     // Init specific SPI Ethernet module configuration from Kconfig (CS GPIO, Interrupt GPIO, etc.)
@@ -68,22 +65,13 @@ extern "C" void app_main(void)
     esp_eth_phy_t *phy_spi[CONFIG_EXAMPLE_SPI_ETHERNETS_NUM];
     esp_eth_handle_t eth_handle_spi[CONFIG_EXAMPLE_SPI_ETHERNETS_NUM] = { NULL };
 
-    spi_device_interface_config_t devcfg = {
-        .command_bits = 16, // Actually it's the address phase in W5500 SPI frame
-        .address_bits = 8,  // Actually it's the control phase in W5500 SPI frame
-        .mode = 0,
-        .clock_speed_hz = CONFIG_EXAMPLE_ETH_SPI_CLOCK_MHZ * 1000 * 1000,
-        .queue_size = 20
-    };
+    spi.setDeviceConfig(w5500.spi_command_bits, w5500.spi_address_bits);
 
     for (int i = 0; i < CONFIG_EXAMPLE_SPI_ETHERNETS_NUM; i++) 
     {
-        // Set SPI module Chip Select GPIO
-        devcfg.spics_io_num = spi_eth_module_config[i].spi_cs_gpio;
+        spi.busAddDevice();
 
-        ESP_ERROR_CHECK(spi_bus_add_device((spi_host_device_t)CONFIG_EXAMPLE_ETH_SPI_HOST, &devcfg, &spi_handle[i]));
-        // w5500 ethernet driver is based on spi driver
-        eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(spi_handle[i]);
+        eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(spi.spi_handle);
 
         // Set remaining GPIO numbers and configuration used by the SPI module
         w5500_config.int_gpio_num = spi_eth_module_config[i].int_gpio;
@@ -117,34 +105,8 @@ extern "C" void app_main(void)
         ESP_ERROR_CHECK(esp_eth_start(eth_handle_spi[i]));
     }
 
-    // ************** WEBSERVER ************** 
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    httpd_handle_t server = NULL;
-    if (httpd_start(&server, &config) == ESP_OK) {
-        ESP_LOGI("HTTP", "HTTP_START Successful.");
-    }
-    else
-    {
-        ESP_LOGI("HTTP", "HTTP_START Failed.");
-    }
-
-    httpd_uri_t test_uri = {
-    .uri      = "/test",
-    .method   = HTTP_GET,
-    .handler  = test_handler,
-    .user_ctx = NULL
-    };
-
-    httpd_register_uri_handler(server, &test_uri);
-
 }
 
-esp_err_t test_handler(httpd_req_t *req)
-{
-    const char resp[] = "<h1>Hello World</h1>";
-    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-    return ESP_OK;
-}
 
 void resetSeq()
 {

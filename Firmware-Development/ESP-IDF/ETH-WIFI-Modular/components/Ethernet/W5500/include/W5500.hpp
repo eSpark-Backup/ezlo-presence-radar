@@ -23,6 +23,9 @@ class W5500 : public Ethernet
     eth_w5500_config_t w5500_config;
 
     public:
+    uint8_t spi_command_bits = 16;  /* Actually it's the address phase in W5500 SPI frame */
+    uint8_t spi_address_bits = 8;   /* Actually it's the control phase in W5500 SPI frame */
+
     W5500(){}
     ~W5500(){}
 };
