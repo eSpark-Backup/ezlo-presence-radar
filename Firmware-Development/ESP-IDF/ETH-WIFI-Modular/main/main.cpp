@@ -22,6 +22,7 @@ typedef struct {
 
 NETIF netif;
 SPI spi;
+W5500 w5500;
 static const char* TAG = "MAIN-APP";
 
 void resetSeq();
@@ -45,9 +46,11 @@ extern "C" void app_main(void)
     eth_netif_spi = netif.getInstance();
     ESP_LOGI(TAG,"netif done");
 
-    // Init MAC and PHY configs to default
-    eth_mac_config_t mac_config_spi = ETH_MAC_DEFAULT_CONFIG();
-    eth_phy_config_t phy_config_spi = ETH_PHY_DEFAULT_CONFIG();
+    // // Init MAC and PHY configs to default
+    // eth_mac_config_t mac_config_spi = ETH_MAC_DEFAULT_CONFIG();
+    // eth_phy_config_t phy_config_spi = ETH_PHY_DEFAULT_CONFIG();
+    w5500.configMAC();
+    w5500.configPHY();
 
     // Install GPIO ISR handler to be able to service SPI Eth modlues interrupts
     gpio_install_isr_service(0);
@@ -84,11 +87,11 @@ extern "C" void app_main(void)
 
         // Set remaining GPIO numbers and configuration used by the SPI module
         w5500_config.int_gpio_num = spi_eth_module_config[i].int_gpio;
-        phy_config_spi.phy_addr = spi_eth_module_config[i].phy_addr;
-        phy_config_spi.reset_gpio_num = spi_eth_module_config[i].phy_reset_gpio;
+        w5500.phy_config_spi.phy_addr = spi_eth_module_config[i].phy_addr;
+        w5500.phy_config_spi.reset_gpio_num = spi_eth_module_config[i].phy_reset_gpio;
 
-        mac_spi[i] = esp_eth_mac_new_w5500(&w5500_config, &mac_config_spi);
-        phy_spi[i] = esp_eth_phy_new_w5500(&phy_config_spi);
+        mac_spi[i] = esp_eth_mac_new_w5500(&w5500_config, &w5500.mac_config_spi);
+        phy_spi[i] = esp_eth_phy_new_w5500(&w5500.phy_config_spi);
     }
 
     for (int i = 0; i < CONFIG_EXAMPLE_SPI_ETHERNETS_NUM; i++) {

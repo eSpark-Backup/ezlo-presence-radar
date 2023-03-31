@@ -22,7 +22,12 @@ class Ethernet
     // uint8_t phyAddr;
 
     public:
+    eth_mac_config_t mac_config_spi;
+    eth_phy_config_t phy_config_spi;
+    
     Ethernet(){}
     ~Ethernet(){}
     void setup();
+    void configMAC();
+    void configPHY();
 };
