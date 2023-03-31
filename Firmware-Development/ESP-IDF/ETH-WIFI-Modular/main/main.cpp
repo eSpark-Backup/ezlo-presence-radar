@@ -1,25 +1,5 @@
 #include "W5500.hpp"
 
-// ************** WEBSERVER ************** 
-#include <esp_http_server.h>
-esp_err_t test_handler(httpd_req_t *req);
-// ************** WEBSERVER **************
-
-#define INIT_SPI_ETH_MODULE_CONFIG(eth_module_config, num)                                      \
-    do {                                                                                        \
-        eth_module_config[num].spi_cs_gpio = CONFIG_EXAMPLE_ETH_SPI_CS ##num## _GPIO;           \
-        eth_module_config[num].int_gpio = CONFIG_EXAMPLE_ETH_SPI_INT ##num## _GPIO;             \
-        eth_module_config[num].phy_reset_gpio = CONFIG_EXAMPLE_ETH_SPI_PHY_RST ##num## _GPIO;   \
-        eth_module_config[num].phy_addr = CONFIG_EXAMPLE_ETH_SPI_PHY_ADDR ##num;                \
-    } while(0)
-
-typedef struct {
-    uint8_t spi_cs_gpio;
-    uint8_t int_gpio;
-    int8_t phy_reset_gpio;
-    uint8_t phy_addr;
-}spi_eth_module_config_t;
-
 NETIF netif;
 SPI spi;
 W5500 w5500;
@@ -56,54 +36,39 @@ extern "C" void app_main(void)
     spi_device_handle_t spi_handle = NULL;
     spi.initBus();
 
-    // Init specific SPI Ethernet module configuration from Kconfig (CS GPIO, Interrupt GPIO, etc.)
-    spi_eth_module_config_t spi_eth_module_config[CONFIG_EXAMPLE_SPI_ETHERNETS_NUM];
-    INIT_SPI_ETH_MODULE_CONFIG(spi_eth_module_config, 0);
-
     // Configure SPI interface and Ethernet driver for specific SPI module
-    esp_eth_mac_t *mac_spi[CONFIG_EXAMPLE_SPI_ETHERNETS_NUM];
-    esp_eth_phy_t *phy_spi[CONFIG_EXAMPLE_SPI_ETHERNETS_NUM];
-    esp_eth_handle_t eth_handle_spi[CONFIG_EXAMPLE_SPI_ETHERNETS_NUM] = { NULL };
+    esp_eth_mac_t *mac_spi = NULL;
+    esp_eth_phy_t *phy_spi = NULL;
+    esp_eth_handle_t eth_handle_spi = NULL;
 
     spi.setDeviceConfig(w5500.spi_command_bits, w5500.spi_address_bits);
+    spi.busAddDevice();
 
-    for (int i = 0; i < CONFIG_EXAMPLE_SPI_ETHERNETS_NUM; i++) 
-    {
-        spi.busAddDevice();
+    w5500.setPHYConfig(W5500_ETH_SPI_PHY_ADDR, W5500_ETH_SPI_PHY_RST);
+    w5500.setConfig(spi.spi_handle, W5500_ETH_SPI_INT);
 
-        eth_w5500_config_t w5500_config = ETH_W5500_DEFAULT_CONFIG(spi.spi_handle);
+    mac_spi = esp_eth_mac_new_w5500(&w5500.w5500_config, &w5500.mac_config_spi);
+    phy_spi = esp_eth_phy_new_w5500(&w5500.phy_config_spi);
 
-        // Set remaining GPIO numbers and configuration used by the SPI module
-        w5500_config.int_gpio_num = spi_eth_module_config[i].int_gpio;
-        w5500.phy_config_spi.phy_addr = spi_eth_module_config[i].phy_addr;
-        w5500.phy_config_spi.reset_gpio_num = spi_eth_module_config[i].phy_reset_gpio;
+    esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(mac_spi, phy_spi);
+    ESP_ERROR_CHECK(esp_eth_driver_install(&eth_config_spi, &eth_handle_spi));
 
-        mac_spi[i] = esp_eth_mac_new_w5500(&w5500_config, &w5500.mac_config_spi);
-        phy_spi[i] = esp_eth_phy_new_w5500(&w5500.phy_config_spi);
-    }
+    /* 
+        The SPI Ethernet module might not have a burned factory MAC address, we cat to set it manually.
+        02:00:00 is a Locally Administered OUI range so should not be used except when testing on a LAN under your control.
+    */
+    uint8_t macAddr[6] = {0x02, 0x00, 0x00, 0x12, 0x34, 0x56 + 0x00};
+    ESP_ERROR_CHECK(esp_eth_ioctl(eth_handle_spi, ETH_CMD_S_MAC_ADDR, macAddr));
 
-    for (int i = 0; i < CONFIG_EXAMPLE_SPI_ETHERNETS_NUM; i++) {
-        esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(mac_spi[i], phy_spi[i]);
-        ESP_ERROR_CHECK(esp_eth_driver_install(&eth_config_spi, &eth_handle_spi[i]));
-
-        /* The SPI Ethernet module might not have a burned factory MAC address, we cat to set it manually.
-       02:00:00 is a Locally Administered OUI range so should not be used except when testing on a LAN under your control.
-        */
-       uint8_t macAddr[6] = {0x02, 0x00, 0x00, 0x12, 0x34, 0x56 + i};
-        ESP_ERROR_CHECK(esp_eth_ioctl(eth_handle_spi[i], ETH_CMD_S_MAC_ADDR, macAddr));
-
-        // attach Ethernet driver to TCP/IP stack
-        ESP_ERROR_CHECK(esp_netif_attach(eth_netif_spi, esp_eth_new_netif_glue(eth_handle_spi[i])));
-    }
+    // attach Ethernet driver to TCP/IP stack
+    ESP_ERROR_CHECK(esp_netif_attach(eth_netif_spi, esp_eth_new_netif_glue(eth_handle_spi)));
 
     // Register user defined event handers
     ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
 
     /* start Ethernet driver state machine */
-    for (int i = 0; i < CONFIG_EXAMPLE_SPI_ETHERNETS_NUM; i++) {
-        ESP_ERROR_CHECK(esp_eth_start(eth_handle_spi[i]));
-    }
+    ESP_ERROR_CHECK(esp_eth_start(eth_handle_spi));
 
 }
 

@@ -20,12 +20,15 @@ class W5500 : public Ethernet
     private:
     esp_eth_mac_t *mac_spi = NULL;
     esp_eth_phy_t *phy_spi = NULL;
-    eth_w5500_config_t w5500_config;
 
     public:
     uint8_t spi_command_bits = 16;  /* Actually it's the address phase in W5500 SPI frame */
     uint8_t spi_address_bits = 8;   /* Actually it's the control phase in W5500 SPI frame */
+    eth_w5500_config_t w5500_config;
 
     W5500(){}
     ~W5500(){}
+    void setConfig(void* spiHandle, gpio_num_t intr);
+    void createObjMAC();
+    void createObjPHY();
 };
