@@ -6,8 +6,6 @@ W5500 w5500;
 static const char* TAG = "MAIN-APP";
 
 void resetSeq();
-static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
-static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 
 #define PWR_EN  GPIO_NUM_13
 #define RST_PIN GPIO_NUM_11
@@ -15,60 +13,41 @@ static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t
 extern "C" void app_main(void)
 {
     resetSeq();
+    // Install GPIO ISR handler to be able to service SPI Eth modlues interrupts
+    gpio_install_isr_service(0);
 
     netif.setup();
 
     spi.setPins(W5500_ETH_SPI_CS, W5500_ETH_SPI_MISO, W5500_ETH_SPI_MOSI, W5500_ETH_SPI_SCLK, W5500_ETH_SPI_INT, W5500_ETH_SPI_PHY_RST);
     spi.setHost(W5500_ETH_SPI_HOST);
     spi.setSpeed(W5500_ETH_SPI_CLOCK_MHZ);
-
-    esp_netif_t *eth_netif_spi = NULL;
-    eth_netif_spi = netif.getInstance();
-    ESP_LOGI(TAG,"netif done");
-
-    w5500.configMAC();
-    w5500.configPHY();
-
-    // Install GPIO ISR handler to be able to service SPI Eth modlues interrupts
-    gpio_install_isr_service(0);
-
-    // Init SPI bus
-    spi_device_handle_t spi_handle = NULL;
+    // Initiallize SPI Bus and Add Device.
     spi.initBus();
-
-    // Configure SPI interface and Ethernet driver for specific SPI module
-    esp_eth_mac_t *mac_spi = NULL;
-    esp_eth_phy_t *phy_spi = NULL;
-    esp_eth_handle_t eth_handle_spi = NULL;
-
     spi.setDeviceConfig(w5500.spi_command_bits, w5500.spi_address_bits);
     spi.busAddDevice();
 
+    w5500.configMAC();
+    w5500.configPHY();
     w5500.setPHYConfig(W5500_ETH_SPI_PHY_ADDR, W5500_ETH_SPI_PHY_RST);
     w5500.setConfig(spi.spi_handle, W5500_ETH_SPI_INT);
 
-    mac_spi = esp_eth_mac_new_w5500(&w5500.w5500_config, &w5500.mac_config_spi);
-    phy_spi = esp_eth_phy_new_w5500(&w5500.phy_config_spi);
+    w5500.mac_spi = esp_eth_mac_new_w5500(&w5500.w5500_config, &w5500.mac_config_spi);
+    w5500.phy_spi = esp_eth_phy_new_w5500(&w5500.phy_config_spi);
 
-    esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(mac_spi, phy_spi);
-    ESP_ERROR_CHECK(esp_eth_driver_install(&eth_config_spi, &eth_handle_spi));
+    w5500.eth_config_spi = ETH_DEFAULT_CONFIG(w5500.mac_spi, w5500.phy_spi);
+    ESP_ERROR_CHECK(esp_eth_driver_install(&w5500.eth_config_spi, &w5500.eth_handle_spi));
 
     /* 
         The SPI Ethernet module might not have a burned factory MAC address, we cat to set it manually.
         02:00:00 is a Locally Administered OUI range so should not be used except when testing on a LAN under your control.
     */
     uint8_t macAddr[6] = {0x02, 0x00, 0x00, 0x12, 0x34, 0x56 + 0x00};
-    ESP_ERROR_CHECK(esp_eth_ioctl(eth_handle_spi, ETH_CMD_S_MAC_ADDR, macAddr));
+    ESP_ERROR_CHECK(esp_eth_ioctl(w5500.eth_handle_spi, ETH_CMD_S_MAC_ADDR, macAddr));
 
-    // attach Ethernet driver to TCP/IP stack
-    ESP_ERROR_CHECK(esp_netif_attach(eth_netif_spi, esp_eth_new_netif_glue(eth_handle_spi)));
+    netif.setETHGlue(w5500.eth_handle_spi);
 
-    // Register user defined event handers
-    ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &got_ip_event_handler, NULL));
-
-    /* start Ethernet driver state machine */
-    ESP_ERROR_CHECK(esp_eth_start(eth_handle_spi));
+    w5500.registerCallBacks();
+    w5500.start();
 
 }
 
@@ -114,48 +93,4 @@ void resetSeq()
     // 4. pull reset high, wait 10mS
     gpio_set_level(RST_PIN, 1);
     vTaskDelay(10 / portTICK_RATE_MS);
-}
-
-/** Event handler for IP_EVENT_ETH_GOT_IP */
-static void got_ip_event_handler(void *arg, esp_event_base_t event_base,
-                                 int32_t event_id, void *event_data)
-{
-    ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
-    const esp_netif_ip_info_t *ip_info = &event->ip_info;
-
-    ESP_LOGI(TAG, "Ethernet Got IP Address");
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
-    ESP_LOGI(TAG, "ETHIP:" IPSTR, IP2STR(&ip_info->ip));
-    ESP_LOGI(TAG, "ETHMASK:" IPSTR, IP2STR(&ip_info->netmask));
-    ESP_LOGI(TAG, "ETHGW:" IPSTR, IP2STR(&ip_info->gw));
-    ESP_LOGI(TAG, "~~~~~~~~~~~");
-}
-
-/** Event handler for Ethernet events */
-static void eth_event_handler(void *arg, esp_event_base_t event_base,
-                              int32_t event_id, void *event_data)
-{
-    uint8_t mac_addr[6] = {0};
-    /* we can get the ethernet driver handle from event data */
-    esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
-
-    switch (event_id) {
-    case ETHERNET_EVENT_CONNECTED:
-        esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
-        ESP_LOGI(TAG, "Ethernet Link Up");
-        ESP_LOGI(TAG, "Ethernet HW Addr %02x:%02x:%02x:%02x:%02x:%02x",
-                 mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-        break;
-    case ETHERNET_EVENT_DISCONNECTED:
-        ESP_LOGI(TAG, "Ethernet Link Down");
-        break;
-    case ETHERNET_EVENT_START:
-        ESP_LOGI(TAG, "Ethernet Started");
-        break;
-    case ETHERNET_EVENT_STOP:
-        ESP_LOGI(TAG, "Ethernet Stopped");
-        break;
-    default:
-        break;
-    }
 }

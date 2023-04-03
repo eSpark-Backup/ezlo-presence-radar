@@ -18,3 +18,11 @@ void W5500::createObjPHY()
 {
     this->phy_spi = esp_eth_phy_new_w5500(&this->phy_config_spi);
 }
+
+/* 
+    Start Ethernet driver state machine. 
+*/
+void W5500::start()
+{
+    ESP_ERROR_CHECK(esp_eth_start(this->eth_handle_spi));
+}

@@ -18,5 +18,6 @@ class NETIF
     void begin();
     void createSpiInstance();
     esp_netif_t* getInstance();
+    void setETHGlue(esp_eth_handle_t eth_handler);
 
 };

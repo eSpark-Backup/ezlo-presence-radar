@@ -37,7 +37,26 @@ void NETIF::createSpiInstance()
     eth_netif_spi = esp_netif_new(&cfg_spi); 
 }
 
+/*
+    Return instance of esp-netif for SPI Ethernet(s)
+*/
+
 esp_netif_t* NETIF::getInstance()
 {
     return eth_netif_spi;
 }
+
+/*
+    Create a netif glue for Ethernet driver.
+    - netif glue is used to attach io driver to TCP/IP netif.
+    - Glue IO layer: Adapts the input/output functions to use ESP-NETIF transmit, receive and free receive buffer.
+
+    @params :
+        eth_handler - Ethernet driver handle
+*/
+void NETIF::setETHGlue(esp_eth_handle_t eth_handler)
+{
+    // attach Ethernet driver to TCP/IP stack
+    ESP_ERROR_CHECK(esp_netif_attach(eth_netif_spi, esp_eth_new_netif_glue(eth_handler)));
+}
+

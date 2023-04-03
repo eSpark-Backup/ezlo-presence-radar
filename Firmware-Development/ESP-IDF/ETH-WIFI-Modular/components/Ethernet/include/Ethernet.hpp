@@ -20,12 +20,12 @@ class Ethernet
     // NETIF netif;
     // SPI spi;
     // uint8_t phyAddr;
-    esp_eth_mac_t *mac_spi = NULL;
-    esp_eth_phy_t *phy_spi = NULL;
 
     public:
     eth_mac_config_t mac_config_spi;
     eth_phy_config_t phy_config_spi;
+    esp_eth_mac_t *mac_spi = NULL;
+    esp_eth_phy_t *phy_spi = NULL;
     esp_eth_handle_t eth_handle_spi;
     esp_eth_config_t eth_config_spi;
     
@@ -39,5 +39,13 @@ class Ethernet
     void installDriver();
     void setMacAddress();
     void attachToNetif(esp_netif_t* eth_netif_spi);
-    
+    void registerCallBacks();
 };
+
+// *** CALLBACK FUNCTIONS ***
+
+/** Event handler for IP_EVENT_ETH_GOT_IP */
+static void got_ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+
+/** Event handler for Ethernet events */
+static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
