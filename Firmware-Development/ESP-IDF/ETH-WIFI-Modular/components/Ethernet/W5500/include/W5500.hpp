@@ -14,10 +14,14 @@
 #define W5500_ETH_SPI_HOST         (spi_host_device_t)2
 #define W5500_ETH_SPI_CLOCK_MHZ    12
 
+#define PWR_EN  GPIO_NUM_13
+#define RST_PIN GPIO_NUM_11
 
 class W5500 : public Ethernet
 {
     private:
+    NETIF netif;
+    SPI spi;
 
     public:
     uint8_t spi_command_bits = 16;  /* Actually it's the address phase in W5500 SPI frame */
@@ -31,7 +35,14 @@ class W5500 : public Ethernet
     W5500(){}
     ~W5500(){}
     void setConfig(void* spiHandle, gpio_num_t intr);
+    void setConfig(gpio_num_t intr);
     void createObjMAC();
     void createObjPHY();
+    void setMacAddress();
+    void setETHDriver();
+    void setIOLayer(); 
+    void spiBegin();
+    void reset();
+    void setup();
     void start();
 };

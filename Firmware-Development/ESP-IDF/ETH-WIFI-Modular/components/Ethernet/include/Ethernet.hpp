@@ -31,13 +31,10 @@ class Ethernet
     
     Ethernet(){}
     ~Ethernet(){}
-    void setup();
-    void configMAC();
-    void configPHY();
+    void setDefaultMAC();
+    void setDefaultPHY();
     void setPHYConfig(uint8_t phy_addr, gpio_num_t resetPin);
     void setEthConfigSPI();
-    void installDriver();
-    void setMacAddress();
     void attachToNetif(esp_netif_t* eth_netif_spi);
     void registerCallBacks();
 };
