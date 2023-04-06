@@ -3,15 +3,20 @@
 #include <freertos/task.h>
 #include "SK6812.hpp"
 
-SK6812 *rgb;
+led_strip_t sk6812;
 
 extern "C" void app_main()
 {
-    rgb = new SK6812; /* SK6812 RGB LED Configuration */
-    rgb->setup(); /* Initialize SK6812 */
+    sk6812_setup(&sk6812); 
+    sk6812_set_color(&sk6812, CYAN);
 
     while (1)
     {
-        rgb->test();
+       for(uint8_t brightness = 0; brightness <= 255; brightness++)
+       {
+            sk6812_set_brightness(&sk6812, brightness);
+            sk6812_show(&sk6812);
+            vTaskDelay(50 / portTICK_RATE_MS);
+       }
     }
 }
