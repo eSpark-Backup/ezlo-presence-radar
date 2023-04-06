@@ -3,23 +3,16 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
-#include "ALS_LTR303.hpp"
+#include "ALS_LTR303.h"
 
-extern "C" 
-{ 
-	void app_main(); 
-} 
-
-LightSensor* Light;
 void app_main()
 {
-    Light = new ALS_LTR303;
-    Light->setup();
+    ltr303_setup();
 
     double lux;
     while (1)
     { 
-        if(Light->getLux(&lux) == ESP_OK)
+        if(ltr303_get_val(&lux) == ESP_OK)
         { 
             printf(" lux: %f\n",lux);
         }

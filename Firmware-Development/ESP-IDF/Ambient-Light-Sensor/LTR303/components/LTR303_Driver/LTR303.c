@@ -27,18 +27,17 @@ THE SOFTWARE.
 version 0.1
 */
 
-#include <LTR303.h>
+#include "LTR303.h"
 
-LTR303::LTR303(void) {
-	// LTR303 object
-}
+byte _i2c_address;
 
-boolean LTR303::begin(void) {
+byte _error;
+
+boolean ltr303_begin(void) {
 	// Initialize LTR303 library with default address (0x39)
 	// Always returns true
 
 	_i2c_address = LTR303_ADDR;
-	vTaskDelay(100/portTICK_RATE_MS);
 	i2c_config_t conf = { };
     conf.mode = I2C_MODE_MASTER,
     conf.sda_io_num = I2C_MASTER_SDA_IO,
@@ -53,25 +52,25 @@ boolean LTR303::begin(void) {
 	return(true);
 }
 
-boolean LTR303::setPowerUp(void) {
+boolean ltr303_set_powerup(void) {
 	// Turn on LTR303, begin integrations
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 
 	// Write 0x01 (reset = 0 & mode = 1) to command byte (power on)
-	return(writeByte(LTR303_CONTR,0x01));
+	return(ltr303_write_byte(LTR303_CONTR,0x01));
 }
 
-boolean LTR303::setPowerDown(void) {
+boolean ltr303_set_powerdown(void) {
 	// Turn off LTR303
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 
 	// Clear command byte (reset = 0 & mode = 0)(power off)
-	return(writeByte(LTR303_CONTR,0x00));
+	return(ltr303_write_byte(LTR303_CONTR,0x00));
 }
 
-boolean LTR303::setControl(byte gain, boolean reset = false, boolean mode = false) {
+boolean ltr303_set_control(byte gain, boolean reset, boolean mode) {
 	// Sets the gain, SW reset and mode of LTR303
 	// Default value is 0x00
 	// If gain = 0, device is set to 1X gain (default)
@@ -109,10 +108,10 @@ boolean LTR303::setControl(byte gain, boolean reset = false, boolean mode = fals
 		control |= 0x01;
 	}
 	
-	return(writeByte(LTR303_CONTR,control));
+	return(ltr303_write_byte(LTR303_CONTR,control));
 }			
 			
-boolean LTR303::getControl(byte &gain, boolean reset, boolean mode) {
+boolean ltr303_get_control(byte* gain, boolean* reset, boolean* mode) {
 	// Gets the control register values
 	// Default value is 0x00
 	// If gain = 0, device is set to 1X gain (default)
@@ -135,15 +134,15 @@ boolean LTR303::getControl(byte &gain, boolean reset, boolean mode) {
 	byte control;
 	
 	// Reading the control byte
-	if(readByte(LTR303_CONTR, control)) {
+	if(ltr303_read_byte(LTR303_CONTR, &control)) {
 		// Extract gain
-		gain = (control & 0x1C) >> 2;
+		*gain = (control & 0x1C) >> 2;
 		
 		// Extract reset
-		reset = (control & 0x02) ? true : false; 
+		*reset = (control & 0x02) ? true : false; 
 		
 		// Extract mode
-		mode = (control & 0x01) ? true : false;
+		*mode = (control & 0x01) ? true : false;
 		
 		// return if successful
 		return(true);
@@ -151,81 +150,81 @@ boolean LTR303::getControl(byte &gain, boolean reset, boolean mode) {
 	return(false);
 }
 
-boolean LTR303::setMeasurementRate(byte integrationTime, byte measurementRate = 3) {
+boolean ltr303_set_measurement_rate(byte integration_time, byte measurement_rate) {
 	// Sets the integration time and measurement rate of the sensor
-	// integrationTime is the measurement time for each ALs cycle
-	// measurementRate is the interval between DATA_REGISTERS update
-	// measurementRate must be set to be equal or greater than integrationTime
+	// integration_time is the measurement time for each ALs cycle
+	// measurement_rate is the interval between DATA_REGISTERS update
+	// measurement_rate must be set to be equal or greater than integration_time
 	// Default value is 0x03
-	// If integrationTime = 0, integrationTime will be 100ms (default)
-	// If integrationTime = 1, integrationTime will be 50ms
-	// If integrationTime = 2, integrationTime will be 200ms
-	// If integrationTime = 3, integrationTime will be 400ms
-	// If integrationTime = 4, integrationTime will be 150ms
-	// If integrationTime = 5, integrationTime will be 250ms
-	// If integrationTime = 6, integrationTime will be 300ms
-	// If integrationTime = 7, integrationTime will be 350ms
+	// If integration_time = 0, integration_time will be 100ms (default)
+	// If integration_time = 1, integration_time will be 50ms
+	// If integration_time = 2, integration_time will be 200ms
+	// If integration_time = 3, integration_time will be 400ms
+	// If integration_time = 4, integration_time will be 150ms
+	// If integration_time = 5, integration_time will be 250ms
+	// If integration_time = 6, integration_time will be 300ms
+	// If integration_time = 7, integration_time will be 350ms
 	//------------------------------------------------------
-	// If measurementRate = 0, measurementRate will be 50ms
-	// If measurementRate = 1, measurementRate will be 100ms
-	// If measurementRate = 2, measurementRate will be 200ms
-	// If measurementRate = 3, measurementRate will be 500ms (default)
-	// If measurementRate = 4, measurementRate will be 1000ms
-	// If measurementRate = 5, measurementRate will be 2000ms
-	// If measurementRate = 6, measurementRate will be 2000ms
-	// If measurementRate = 7, measurementRate will be 2000ms
+	// If measurement_rate = 0, measurement_rate will be 50ms
+	// If measurement_rate = 1, measurement_rate will be 100ms
+	// If measurement_rate = 2, measurement_rate will be 200ms
+	// If measurement_rate = 3, measurement_rate will be 500ms (default)
+	// If measurement_rate = 4, measurement_rate will be 1000ms
+	// If measurement_rate = 5, measurement_rate will be 2000ms
+	// If measurement_rate = 6, measurement_rate will be 2000ms
+	// If measurement_rate = 7, measurement_rate will be 2000ms
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	
 	byte measurement = 0x00;
 	
 	// Perform sanity checks
-	if(integrationTime >= 0x07) {
-		integrationTime = 0x00;
+	if(integration_time >= 0x07) {
+		integration_time = 0x00;
 	}
 	
-	if(measurementRate >= 0x07) {
-		measurementRate = 0x00;
+	if(measurement_rate >= 0x07) {
+		measurement_rate = 0x00;
 	}
 	
-	measurement |= integrationTime << 3;
-	measurement |= measurementRate;
+	measurement |= integration_time << 3;
+	measurement |= measurement_rate;
 	
-	return(writeByte(LTR303_MEAS_RATE, measurement));
+	return(ltr303_write_byte(LTR303_MEAS_RATE, measurement));
 }
 
-boolean LTR303::getMeasurementRate(byte &integrationTime, byte &measurementRate) {
+boolean ltr303_get_measurement_rate(byte* integration_time, byte* measurement_rate) {
 	// Gets the value of Measurement Rate register
 	// Default value is 0x03
-	// If integrationTime = 0, integrationTime will be 100ms (default)
-	// If integrationTime = 1, integrationTime will be 50ms
-	// If integrationTime = 2, integrationTime will be 200ms
-	// If integrationTime = 3, integrationTime will be 400ms
-	// If integrationTime = 4, integrationTime will be 150ms
-	// If integrationTime = 5, integrationTime will be 250ms
-	// If integrationTime = 6, integrationTime will be 300ms
-	// If integrationTime = 7, integrationTime will be 350ms
+	// If integration_time = 0, integration_time will be 100ms (default)
+	// If integration_time = 1, integration_time will be 50ms
+	// If integration_time = 2, integration_time will be 200ms
+	// If integration_time = 3, integration_time will be 400ms
+	// If integration_time = 4, integration_time will be 150ms
+	// If integration_time = 5, integration_time will be 250ms
+	// If integration_time = 6, integration_time will be 300ms
+	// If integration_time = 7, integration_time will be 350ms
 	//------------------------------------------------------
-	// If measurementRate = 0, measurementRate will be 50ms
-	// If measurementRate = 1, measurementRate will be 100ms
-	// If measurementRate = 2, measurementRate will be 200ms
-	// If measurementRate = 3, measurementRate will be 500ms (default)
-	// If measurementRate = 4, measurementRate will be 1000ms
-	// If measurementRate = 5, measurementRate will be 2000ms
-	// If measurementRate = 6, measurementRate will be 2000ms
-	// If measurementRate = 7, measurementRate will be 2000ms
+	// If measurement_rate = 0, measurement_rate will be 50ms
+	// If measurement_rate = 1, measurement_rate will be 100ms
+	// If measurement_rate = 2, measurement_rate will be 200ms
+	// If measurement_rate = 3, measurement_rate will be 500ms (default)
+	// If measurement_rate = 4, measurement_rate will be 1000ms
+	// If measurement_rate = 5, measurement_rate will be 2000ms
+	// If measurement_rate = 6, measurement_rate will be 2000ms
+	// If measurement_rate = 7, measurement_rate will be 2000ms
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 			
 	byte measurement = 0x00;
 	
 	// Reading the measurement byte
-	if(readByte(LTR303_MEAS_RATE, measurement)) {
+	if(ltr303_read_byte(LTR303_MEAS_RATE, &measurement)) {
 		// Extract integration Time
-		integrationTime = (measurement & 0x38) >> 3;
+		*integration_time = (measurement & 0x38) >> 3;
 		
 		// Extract measurement Rate
-		measurementRate = measurement & 0x07; 
+		*measurement_rate = measurement & 0x07; 
 		
 		// return if successful
 		return(true);
@@ -233,7 +232,7 @@ boolean LTR303::getMeasurementRate(byte &integrationTime, byte &measurementRate)
 	return(false);		
 }
 
-boolean LTR303::getPartID(byte &partID) {
+boolean ltr303_get_part_id(byte* part_id) {
 	// Gets the part number ID and revision ID of the chip
 	// Default value is 0x0A
 	// part number ID = 0x0A (default)
@@ -241,30 +240,30 @@ boolean LTR303::getPartID(byte &partID) {
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 			
-	return(readByte(LTR303_PART_ID, partID));
+	return(ltr303_read_byte(LTR303_PART_ID, part_id));
 }
 
-boolean LTR303::getManufacID(byte &manufacID) {
+boolean ltr303_get_manufac_id(byte* manufac_id) {
 	// Gets the Manufacturers ID
 	// Default value is 0x05
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	
-	return(readByte(LTR303_MANUFAC_ID, manufacID));
+	return(ltr303_read_byte(LTR303_MANUFAC_ID, manufac_id));
 }
 
-boolean LTR303::getData(unsigned int &CH0, unsigned int &CH1) {
+boolean ltr303_get_data(unsigned int* ch0, unsigned int* ch1) {
 	// Gets the 16-bit channel 0 and channel 1 data
 	// Default value of both channels is 0x00
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	byte status=0;
-	status = readUInt(LTR303_DATA_CH1_0,CH1);
-	status &= readUInt(LTR303_DATA_CH0_0,CH0);
+	status = ltr303_read_uint(LTR303_DATA_CH1_0,ch1);
+	status &= ltr303_read_uint(LTR303_DATA_CH0_0,ch0);
 	return(status);
 }
 
-boolean LTR303::getStatus(boolean &valid, byte &gain, boolean &intrStatus, boolean &dataStatus) {
+boolean ltr303_get_status(boolean* valid, byte* gain, boolean* intr_status, boolean* data_status) {
 	// Gets the status information of LTR303
 	// Default value is 0x00
 	// If valid = false(0), Sensor data is valid (default)
@@ -279,29 +278,29 @@ boolean LTR303::getStatus(boolean &valid, byte &gain, boolean &intrStatus, boole
 	// If gain = 6, device is set to 48X gain
 	// If gain = 7, device is set to 96X gain
 	//---------------------------------------------
-	// If intrStatus = false(0), INTR in inactive (default)
-	// If intrStatus = true(1), INTR in active
+	// If intr_status = false(0), INTR in inactive (default)
+	// If intr_status = true(1), INTR in active
 	//---------------------------------------------
-	// If dataStatus = false(0), OLD data (already read) (default)
-	// If dataStatus = true(1), NEW data
+	// If data_status = false(0), OLD data (already read) (default)
+	// If data_status = true(1), NEW data
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	
 	byte status = 0x00;
 	
 	// Reading the status byte
-	if(readByte(LTR303_STATUS, status)) {
+	if(ltr303_read_byte(LTR303_STATUS, &status)) {
 		// Extract validity
-		valid = (status & 0x80) ? true : false;
+		*valid = (status & 0x80) ? true : false;
 	
 		// Extract gain
-		gain = (status & 0x70) >> 4;
+		*gain = (status & 0x70) >> 4;
 	
 		// Extract interrupt status
-		intrStatus = (status & 0x08) ? true : false;
+		*intr_status = (status & 0x08) ? true : false;
 	
 		// Extract data status
-		dataStatus = (status & 0x04) ? true : false;
+		*data_status = (status & 0x04) ? true : false;
 		
 		// return if successful
 		return(true);
@@ -309,11 +308,11 @@ boolean LTR303::getStatus(boolean &valid, byte &gain, boolean &intrStatus, boole
 	return(false);
 }
 
-boolean LTR303::setInterruptControl(boolean intrMode, boolean polarity = false) {
+boolean ltr303_set_interrupt_control(boolean intr_mode, boolean polarity) {
 	// Sets up interrupt operations
 	// Default value is 0x08
-	// If intrMode = false(0), INT pin is inactive (default)
-	// If intrMode = true(1), INT pin is active
+	// If intr_mode = false(0), INT pin is inactive (default)
+	// If intr_mode = true(1), INT pin is active
 	//------------------------------------------------------
 	// If polarity = false(0), INT pin is active at logic 0 (default)
 	// If polarity = true(1), INT pin is active at logic 1
@@ -321,64 +320,64 @@ boolean LTR303::setInterruptControl(boolean intrMode, boolean polarity = false) 
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	
-	byte intrControl = 0x00;
+	byte intr_control = 0x00;
 	
-	intrControl |= polarity << 2;
-	intrControl |= intrMode << 1;
+	intr_control |= polarity << 2;
+	intr_control |= intr_mode << 1;
 
-	return(writeByte(LTR303_INTERRUPT, intrControl));
+	return(ltr303_write_byte(LTR303_INTERRUPT, intr_control));
 }
 
-boolean LTR303::getInterruptControl(boolean polarity, boolean intrMode) {
+boolean ltr303_get_interrupt_control(boolean* polarity, boolean* intr_mode) {
 	// Sets up interrupt operations
 	// Default value is 0x08
 	// If polarity = false(0), INT pin is active at logic 0 (default)
 	// If polarity = true(1), INT pin is active at logic 1
 	//------------------------------------------------------
-	// If intrMode = false(0), INT pin is inactive (default)
-	// If intrMode = true(1), INT pin is active
+	// If intr_mode = false(0), INT pin is inactive (default)
+	// If intr_mode = true(1), INT pin is active
 	//------------------------------------------------------
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	
-	byte intrControl = 0x00;
+	byte intr_control = 0x00;
 	
 	// Reading the interrupt byte
-	if(readByte(LTR303_INTERRUPT, intrControl)) {
+	if(ltr303_read_byte(LTR303_INTERRUPT, &intr_control)) {
 		// Extract polarity
-		polarity = (intrControl & 0x04) ? true : false;
+		*polarity = (intr_control & 0x04) ? true : false;
 	
 		// Extract mode
-		intrMode = (intrControl & 0x02) ? true : false;
+		*intr_mode = (intr_control & 0x02) ? true : false;
 	
 		// return if successful
-		printf("Interrupt Mode = %d, Interrupt Polarity %d\n",intrMode,polarity);
+		printf("Interrupt Mode = %d, Interrupt Polarity %d\n",*intr_mode, *polarity);
 		return(true);
 	}
 	return(false);
 }
 
-boolean LTR303::setThreshold(unsigned int upperLimit, unsigned int lowerLimit) {
+boolean ltr303_set_threshold(unsigned int upper_limit, unsigned int lower_limit) {
 	// Sets the upper limit and lower limit of the threshold
 	// Default value of upper threshold is 0xFF and lower threshold is 0x00
 	// Both the threshold are 16-bit integer values
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	
-	return(writeUInt(LTR303_THRES_UP_0,upperLimit) && writeUInt(LTR303_THRES_LOW_0,lowerLimit));
+	return(ltr303_write_uint(LTR303_THRES_UP_0,upper_limit) && ltr303_write_uint(LTR303_THRES_LOW_0,lower_limit));
 }
 
-boolean LTR303::getThreshold(unsigned int &upperLimit, unsigned int &lowerLimit) {
+boolean ltr303_get_threshold(unsigned int* upper_limit, unsigned int* lower_limit) {
 	// Gets the upper limit and lower limit of the threshold
 	// Default value of upper threshold is 0xFF and lower threshold is 0x00
 	// Both the threshold are 16-bit integer values
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 			
-	return(readUInt(LTR303_THRES_UP_0,upperLimit) && readUInt(LTR303_THRES_LOW_0,lowerLimit));		
+	return(ltr303_read_uint(LTR303_THRES_UP_0,upper_limit) && ltr303_read_uint(LTR303_THRES_LOW_0,lower_limit));		
 }
 
-boolean LTR303::setIntrPersist(byte persist) {
+boolean ltr303_set_intr_persist(byte persist) {
 	// Sets the interrupt persistance i.e. controls the N number of times the 
 	// measurement data is outside the range defined by upper and lower threshold
 	// Default value is 0x00
@@ -406,10 +405,10 @@ boolean LTR303::setIntrPersist(byte persist) {
 		persist = 0x00;
 	}
 			
-	return(writeByte(LTR303_INTR_PERS,persist));
+	return(ltr303_write_byte(LTR303_INTR_PERS,persist));
 }
 
-boolean LTR303::getIntrPersist(byte &persist) {
+boolean ltr303_get_intr_persist(byte* persist) {
 	// Gets the interrupt persistance i.e. controls the N number of times the measurement data is outside the range defined by upper and lower threshold
 	// Default value is 0x00
 	// If persist = 0, every sensor value out of threshold range (default)
@@ -431,15 +430,15 @@ boolean LTR303::getIntrPersist(byte &persist) {
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() below)
 	
-	return(readByte(LTR303_INTR_PERS,persist));
+	return(ltr303_read_byte(LTR303_INTR_PERS,persist));
 }
 
 // Get the right lux algorithm
-boolean LTR303::getLux(byte gain, byte IntTime, unsigned int CH0, unsigned int CH1, double &lux) {
+boolean ltr303_get_lux(byte gain, byte integration_time, unsigned int ch0, unsigned int ch1, double* lux) {
 	// Convert raw data to lux
 	// gain: 0 (1X) or 7 (96X), see getControl()
-	// integrationTime: integration time in ms, from getMeasurementRate()
-	// CH0, CH1: results from getData()
+	// integration_time: integration time in ms, from getmeasurement_rate()
+	// ch0, ch1: results from getData()
 	// lux will be set to resulting lux calculation
 	// returns true (1) if calculation was successful
 	// returns false (0) AND lux = 0.0 IF EITHER SENSOR WAS SATURATED (0XFFFF)
@@ -449,21 +448,19 @@ boolean LTR303::getLux(byte gain, byte IntTime, unsigned int CH0, unsigned int C
 	
 	// Determine if either sensor saturated (0xFFFF)
 	// If so, abandon ship (calculation will not be accurate)
-	if ((CH0 == 0xFFFF) || (CH1 == 0xFFFF)) {
-		lux = 0.0;
+	if ((ch0 == 0xFFFF) || (ch1 == 0xFFFF)) {
+		*lux = 0.0;
 		return(false);
 	}
 
-
-
 	// We will need the ratio for subsequent calculations
-	ratio = double(CH1) / (double(CH0) + double(CH1));
+	ratio = ((double)ch1) / (((double)ch0) + ((double)ch1));
 
 
-  // Gain can take any value from 0-7, except 4 & 5
-  // If gain = 4, invalid
-  // If gain = 5, invalid
-switch(gain){
+	// Gain can take any value from 0-7, except 4 & 5
+	// If gain = 4, invalid
+	// If gain = 5, invalid
+	switch(gain){
 		case 0:			   // If gain = 0, device is set to 1X gain (default)
 			ALS_GAIN = 1;
 			break;
@@ -485,63 +482,63 @@ switch(gain){
 		default:		  // If gain = 0, device is set to 1X gain (default)	 	 
 			ALS_GAIN = 1;
 			break;
-}
+	}
 
 
-switch(IntTime){
-		case 0:				 // If integrationTime = 0, integrationTime will be 100ms (default)
+	switch(integration_time){
+		case 0:				 // If integration_time = 0, integration_time will be 100ms (default)
 			ALS_INT = 1;
 			break;
-		case 1:			 	 // If integrationTime = 1, integrationTime will be 50ms
+		case 1:			 	 // If integration_time = 1, integration_time will be 50ms
 			ALS_INT = 0.5;
 			break;
-		case 2:				 // If integrationTime = 2, integrationTime will be 200ms
+		case 2:				 // If integration_time = 2, integration_time will be 200ms
 			ALS_INT = 2;
 			break;
-		case 3:				  // If integrationTime = 3, integrationTime will be 400ms
+		case 3:				  // If integration_time = 3, integration_time will be 400ms
 			ALS_INT = 4;
 			break;
-		case 4:				  // If integrationTime = 4, integrationTime will be 150ms
+		case 4:				  // If integration_time = 4, integration_time will be 150ms
 			ALS_INT = 1.5;
 			break;
-		case 5:				  // If integrationTime = 5, integrationTime will be 250ms
+		case 5:				  // If integration_time = 5, integration_time will be 250ms
 			ALS_INT = 2.5;
 			break;
-		case 6:				  // If integrationTime = 6, integrationTime will be 300ms
+		case 6:				  // If integration_time = 6, integration_time will be 300ms
 			ALS_INT = 3;
 			break;	
-		case 7:				  // If integrationTime = 7, integrationTime will be 350ms
+		case 7:				  // If integration_time = 7, integration_time will be 350ms
 			ALS_INT = 3.5;
 			break;
-		default:		 	 // If integrationTime = 0, integrationTime will be 100ms (default)
+		default:		 	 // If integration_time = 0, integration_time will be 100ms (default)
 			ALS_INT = 1;
 			break;
-}
+	}
 
 	// Determine lux per datasheet equations:
 	if (ratio < 0.45) {
-		lux = ((1.7743 * CH0) + (1.1059 * CH1))/ALS_GAIN/ALS_INT;
+		*lux = ((1.7743 * ch0) + (1.1059 * ch1))/ALS_GAIN/ALS_INT;
 		return(true);
 	}
 
 	else if ((ratio < 0.64) && (ratio >= 0.45)){
-		lux = ((4.2785 * CH0) - (1.9548 * CH1))/ALS_GAIN/ALS_INT;
+		*lux = ((4.2785 * ch0) - (1.9548 * ch1))/ALS_GAIN/ALS_INT;
 		return(true);
 	}
 
 	else if ((ratio < 0.85) && (ratio >= 0.64)){
-		lux = ((0.5926 * CH0) + (0.1185 * CH1))/ALS_GAIN/ALS_INT;
+		*lux = ((0.5926 * ch0) + (0.1185 * ch1))/ALS_GAIN/ALS_INT;
 		return(true);
 	}
 
 	// if (ratio >= 0.85)
-	else {	
-		lux = 0.0;
+	else {
+		*lux = 0.0;
 		return(true);
 	}	
 }
 
-byte LTR303::getError(void) {
+byte ltr303_get_error(void) {
 	// If any library command fails, you can retrieve an extended
 	// error code using this command. Errors are from the wire library: 
 	// 0 = Success
@@ -555,7 +552,7 @@ byte LTR303::getError(void) {
 
 // Private functions:
 
-boolean LTR303::readByte(byte address, byte &value) {
+boolean ltr303_read_byte(byte address, byte* value) {
 	// Reads a byte from a LTR303 address
 	// Address: LTR303 address (0 to 15)
 	// Value will be set to stored byte
@@ -567,13 +564,13 @@ boolean LTR303::readByte(byte address, byte &value) {
 
 	if (_error == ESP_OK)
 	{
-		value = data;
+		*value = data;
 		return(true);
 	}
 	return(false);
 }
 
-boolean LTR303::writeByte(byte address, byte value) {
+boolean ltr303_write_byte(byte address, byte value) {
 	// Write a byte to a LTR303 address
 	// Address: LTR303 address (0 to 15)
 	// Value: byte to write to address
@@ -590,25 +587,24 @@ boolean LTR303::writeByte(byte address, byte value) {
 	return(false);
 }
 
-boolean LTR303::readUInt(byte address, unsigned int &value) {
+boolean ltr303_read_uint(byte address, unsigned int* value) {
 	// Reads an unsigned integer (16 bits) from a LTR303 address (low byte first)
 	// Address: LTR303 address (0 to 15), low byte first
 	// Value will be set to stored unsigned integer
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() above)
-
 	uint16_t data;
 	_error = i2c_master_write_read_device(I2C_MASTER_NUM, _i2c_address, &address, 1, (uint8_t*)&data, 2, 1000 / portTICK_PERIOD_MS);
 
 	if (_error == ESP_OK)
 	{
-		value = data;
+		*value = data;
 		return(true);
 	}	
 	return(false);
 }
 
-boolean LTR303::writeUInt(byte address, unsigned int value) {
+boolean ltr303_write_uint(byte address, unsigned int value) {
 	// Write an unsigned integer (16 bits) to a LTR303 address (low byte first)
 	// Address: LTR303 address (0 to 15), low byte first
 	// Value: unsigned int to write to address
@@ -616,14 +612,14 @@ boolean LTR303::writeUInt(byte address, unsigned int value) {
 	// (Also see getError() above)
 
 	// Split int into lower and upper bytes, write each byte
-	if (writeByte(address,lowByte(value)) 
-		&& writeByte(address + 1,highByte(value)))
+	if (ltr303_write_byte(address,lowByte(value)) 
+		&& ltr303_write_byte(address + 1,highByte(value)))
 		return(true);
 
 	return(false);
 }
 
-void LTR303::printError(byte error) {
+void ltr303_print_error(byte error) {
   // If there's an I2C error, this function will
   // print out an explanation.
 
