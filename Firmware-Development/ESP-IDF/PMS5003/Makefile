@@ -3,6 +3,6 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := PMS5003
+PROJECT_NAME := sample_project
 
 include $(IDF_PATH)/make/project.mk

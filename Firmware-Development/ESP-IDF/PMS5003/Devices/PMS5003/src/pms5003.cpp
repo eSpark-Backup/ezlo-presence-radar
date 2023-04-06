@@ -1,5 +1,47 @@
 #include "pms5003.hpp"
 
+void pms_init()
+{
+    pms_uart_setup();
+    pms_gpio_config();
+}
+
+/*
+    Initializing UART interface
+*/ 
+void pms_uart_setup()
+{
+    uart_config_t uartConfig = 
+    {
+            .baud_rate = 9600,
+            .data_bits = UART_DATA_8_BITS,
+            .parity = UART_PARITY_DISABLE,
+            .stop_bits = UART_STOP_BITS_1,
+            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+
+    uart_param_config(PMS_UART_PORT, &uartConfig);
+    uart_set_pin(PMS_UART_PORT, PMS_TX_PIN, PMS_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_driver_install(PMS_UART_PORT, PMS_UART_BUF_SIZE * 2, 0, 0, NULL, 0);
+}
+
+/*
+    Initializing GPIO pins
+*/
+void pms_gpio_config()
+{
+    gpio_config_t io_conf;
+    io_conf.intr_type = (gpio_int_type_t)GPIO_PIN_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = (1ULL << PMS_SET_PIN) | (1ULL << PMS_RESET_PIN);
+    io_conf.pull_down_en = (gpio_pulldown_t)0;
+    io_conf.pull_up_en = (gpio_pullup_t)0;
+    gpio_config(&io_conf);
+
+    gpio_set_level(PMS_SET_PIN, 0);
+    gpio_set_level(PMS_RESET_PIN, 1);
+}
+
 PMS5003::PMS5003()
 {
     config.setPin = GPIO_NUM_39;
