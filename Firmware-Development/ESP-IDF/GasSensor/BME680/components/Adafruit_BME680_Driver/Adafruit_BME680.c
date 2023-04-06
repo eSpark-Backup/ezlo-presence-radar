@@ -1,33 +1,62 @@
-/*!
- * @file Adafruit_BME680.cpp
- *
- * @mainpage Adafruit BME680 temperature, humidity, barometric pressure and gas
- * sensor driver
- *
- * @section intro_sec Introduction
- *
- * This is the documentation for Adafruit's BME680 driver for the
- * Arduino platform.  It is designed specifically to work with the
- * Adafruit BME680 breakout: https://www.adafruit.com/products/3660
- *
- * These sensors use I2C to communicate, 2 pins (SCL+SDA) are required
- * to interface with the breakout.
- *
- * Adafruit invests time and resources providing this open source code,
- * please support Adafruit and open-source hardware by purchasing
- * products from Adafruit!
- *
- * @section author Author
- *
- * Written by Ladyada for Adafruit Industries.
- *
- * @section license License
- *
- * BSD license, all text here must be included in any redistribution.
- *
- */
+// /*!
+//  * @file Adafruit_BME680.cpp
+//  *
+//  * @mainpage Adafruit BME680 temperature, humidity, barometric pressure and gas
+//  * sensor driver
+//  *
+//  * @section intro_sec Introduction
+//  *
+//  * This is the documentation for Adafruit's BME680 driver for the
+//  * Arduino platform.  It is designed specifically to work with the
+//  * Adafruit BME680 breakout: https://www.adafruit.com/products/3660
+//  *
+//  * These sensors use I2C to communicate, 2 pins (SCL+SDA) are required
+//  * to interface with the breakout.
+//  *
+//  * Adafruit invests time and resources providing this open source code,
+//  * please support Adafruit and open-source hardware by purchasing
+//  * products from Adafruit!
+//  *
+//  * @section author Author
+//  *
+//  * Written by Ladyada for Adafruit Industries.
+//  *
+//  * @section license License
+//  *
+//  * BSD license, all text here must be included in any redistribution.
+//  *
+//  */
 
 #include "Adafruit_BME680.h"
+
+  /** Value returned by remainingReadingMillis indicating no asynchronous
+   * reading has been initiated by beginReading. **/
+  static int reading_not_started = -1;
+  /** Value returned by remainingReadingMillis indicating asynchronous reading
+   * is complete and calling endReading will not block. **/
+  static int reading_complete = 0;
+
+    /** Temperature (Celsius) assigned after calling bme680_perform_reading() or
+   * endReading() **/
+  float temperature;
+  /** Pressure (Pascals) assigned after calling bme680_perform_reading() or endReading()
+   * **/
+  uint32_t pressure;
+  /** Humidity (RH %) assigned after calling bme680_perform_reading() or endReading()
+   * **/
+  float humidity;
+  /** Gas resistor (ohms) assigned after calling bme680_perform_reading() or
+   * endReading() **/
+  uint32_t gas_resistance;
+
+
+  int32_t _sensorID;
+  uint32_t _meas_start = 0;
+  uint16_t _meas_period = 0;
+
+  struct bme68x_dev gas_sensor;
+  struct bme68x_conf gas_conf;
+  struct bme68x_heatr_conf gas_heatr_conf;
 
 //#define BME680_DEBUG
 
@@ -45,11 +74,11 @@ static void delay_usec(uint32_t us, void *intf_ptr);
  *  @param  *theWire
  *          optional Wire object
  */
-Adafruit_BME680::Adafruit_BME680(gpio_num_t sda, gpio_num_t scl)
-    : _meas_start(0), _meas_period(0) {
-  bmeSDA = sda;
-  bmeSCL = scl;
-}
+// Adafruit_BME680::Adafruit_BME680(gpio_num_t sda, gpio_num_t scl)
+//     : _meas_start(0), _meas_period(0) {
+//   bmeSDA = sda;
+//   bmeSCL = scl;
+// }
 
 /*!
  *  @brief  Initializes the sensor
@@ -57,19 +86,19 @@ Adafruit_BME680::Adafruit_BME680(gpio_num_t sda, gpio_num_t scl)
  * reads calibration data in preparation for sensor reads.
  *  @param  addr
  *          Optional parameter for the I2C address of BME680. Default is 0x77
- *  @param  initSettings
+ *  @param  init_settings
  *          Optional parameter for initializing the sensor settings.
  *          Default is true.
  *  @return True on sensor initialization success. False on failure.
  */
 #define check(x) printf("failed %d",x);
-bool Adafruit_BME680::begin(uint8_t addr, bool initSettings) {
+bool bme680_begin(gpio_num_t sda, gpio_num_t scl, uint8_t addr, bool init_settings) {
   int8_t rslt;
 
 	i2c_config_t conf = { };
     conf.mode = I2C_MODE_MASTER,
-    conf.sda_io_num = bmeSDA,
-    conf.scl_io_num = bmeSCL,
+    conf.sda_io_num = sda,
+    conf.scl_io_num = scl,
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE,
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE,
     conf.master.clk_speed = I2C_MASTER_FREQ_HZ,
@@ -157,15 +186,15 @@ bool Adafruit_BME680::begin(uint8_t addr, bool initSettings) {
   Serial.println(gas_sensor.calib.range_sw_err);
 #endif
 
-  if (initSettings) {
-    setIIRFilterSize(BME68X_FILTER_SIZE_3);
-    setODR(BME68X_ODR_NONE);
-    setHumidityOversampling(BME68X_OS_2X);
-    setPressureOversampling(BME68X_OS_4X);
-    setTemperatureOversampling(BME68X_OS_8X);
-    setGasHeater(320, 150); // 320*C for 150 ms
+  if (init_settings) {
+    bme680_set_iir_filter_size(BME68X_FILTER_SIZE_3);
+    bme680_set_odr(BME68X_ODR_NONE);
+    bme680_set_humidity_oversampling(BME68X_OS_2X);
+    bme680_set_pressure_oversampling(BME68X_OS_4X);
+    bme680_set_temperature_oversampling(BME68X_OS_8X);
+    bme680_set_gas_heater(320, 150); // 320*C for 150 ms
   } else {
-    setGasHeater(0, 0);
+    bme680_set_gas_heater(0, 0);
   }
   // don't do anything till we request a reading
   rslt = bme68x_set_op_mode(BME68X_FORCED_MODE, &gas_sensor);
@@ -185,8 +214,8 @@ bool Adafruit_BME680::begin(uint8_t addr, bool initSettings) {
  *  @brief  Performs a reading and returns the ambient temperature.
  *  @return Temperature in degrees Centigrade
  */
-float Adafruit_BME680::readTemperature(void) {
-  performReading();
+float bme680_read_temperature(void) {
+  bme680_perform_reading();
   return temperature;
 }
 
@@ -194,8 +223,8 @@ float Adafruit_BME680::readTemperature(void) {
  *  @brief Performs a reading and returns the barometric pressure.
  *  @return Barometic pressure in Pascals
  */
-float Adafruit_BME680::readPressure(void) {
-  performReading();
+float bme680_read_pressure(void) {
+  bme680_perform_reading();
   return pressure;
 }
 
@@ -203,8 +232,8 @@ float Adafruit_BME680::readPressure(void) {
  *  @brief  Performs a reading and returns the relative humidity.
  *  @return Relative humidity as floating point
  */
-float Adafruit_BME680::readHumidity(void) {
-  performReading();
+float bme680_read_humidity(void) {
+  bme680_perform_reading();
   return humidity;
 }
 
@@ -212,8 +241,8 @@ float Adafruit_BME680::readHumidity(void) {
  *  @brief Calculates the resistance of the MOX gas sensor.
  *  @return Resistance in Ohms
  */
-uint32_t Adafruit_BME680::readGas(void) {
-  performReading();
+uint32_t bme680_read_gas(void) {
+  bme680_perform_reading();
   return gas_resistance;
 }
 
@@ -221,11 +250,11 @@ uint32_t Adafruit_BME680::readGas(void) {
  *  @brief  Calculates the altitude (in meters).
  *          Reads the current atmostpheric pressure (in hPa) from the sensor and
  * calculates via the provided sea-level pressure (in hPa).
- *  @param  seaLevel
+ *  @param  sea_level
  *          Sea-level pressure in hPa
  *  @return Altitude in meters
  */
-float Adafruit_BME680::readAltitude(float seaLevel) {
+float bme680_read_altitude(float sea_level) {
   // Equation taken from BMP180 datasheet (page 16):
   //  http://www.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
 
@@ -233,8 +262,8 @@ float Adafruit_BME680::readAltitude(float seaLevel) {
   // at high altitude. See this thread for more information:
   //  http://forums.adafruit.com/viewtopic.php?f=22&t=58064
 
-  float atmospheric = readPressure() / 100.0F;
-  return 44330.0 * (1.0 - pow(atmospheric / seaLevel, 0.1903));
+  float atmospheric = bme680_read_pressure() / 100.0F;
+  return 44330.0 * (1.0 - pow(atmospheric / sea_level, 0.1903));
 }
 
 /*!
@@ -244,12 +273,15 @@ float Adafruit_BME680::readAltitude(float seaLevel) {
  * Adafruit_BME680#gas_resistance member variables
  *  @return True on success, False on failure
  */
-bool Adafruit_BME680::performReading(void) { return endReading(); }
+bool bme680_perform_reading(void) 
+{ 
+  return bme680_end_reading(); 
+}
 
 /*! @brief Begin an asynchronous reading.
  *  @return When the reading would be ready as absolute time in millis().
  */
-uint32_t Adafruit_BME680::beginReading(void) {
+uint32_t bme680_begin_reading(void) {
   if (_meas_start != 0) {
     /* A measurement is already in progress */
     return _meas_start + _meas_period;
@@ -281,24 +313,24 @@ uint32_t Adafruit_BME680::beginReading(void) {
 /*! @brief  End an asynchronous reading.
  *          If the asynchronous reading is still in progress, block until it
  * ends. If no asynchronous reading has started, this is equivalent to
- * performReading().
+ * bme680_perform_reading().
  *  @return Whether success.
  */
-bool Adafruit_BME680::endReading(void) {
-  uint32_t meas_end = beginReading();
+bool bme680_end_reading(void) {
+  uint32_t meas_end = bme680_begin_reading();
 
   if (meas_end == 0) {
     return false;
   }
 
-  int remaining_millis = remainingReadingMillis();
+  int remaining_millis = bme680_remaining_reading_millis();
 
   if (remaining_millis > 0) {
 #ifdef BME680_DEBUG
     Serial.print(F("Waiting (ms) "));
     Serial.println(remaining_millis);
 #endif
-    vTaskDelay((static_cast<unsigned int>(remaining_millis) * 2) / portTICK_PERIOD_MS); /* Delay till the measurement is ready */
+    vTaskDelay(((float)((remaining_millis) * 2)) / portTICK_PERIOD_MS); /* Delay till the measurement is ready */
   }
   _meas_start = 0; /* Allow new measurement to begin */
   _meas_period = 0;
@@ -352,7 +384,7 @@ bool Adafruit_BME680::endReading(void) {
  * Adafruit_BME680::reading_not_started. Does not block.
  *  @return Remaining millis until endReading will not block if invoked.
  */
-int Adafruit_BME680::remainingReadingMillis(void) {
+int bme680_remaining_reading_millis(void) {
   if (_meas_start != 0) {
     /* A measurement is already in progress */
     int remaining_time = (int)_meas_period - (millis() - _meas_start);
@@ -363,20 +395,20 @@ int Adafruit_BME680::remainingReadingMillis(void) {
 
 /*!
  *  @brief  Enable and configure gas reading + heater
- *  @param  heaterTemp
+ *  @param  heater_temp
  *          Desired temperature in degrees Centigrade
- *  @param  heaterTime
+ *  @param  heater_time
  *          Time to keep heater on in milliseconds
  *  @return True on success, False on failure
  */
-bool Adafruit_BME680::setGasHeater(uint16_t heaterTemp, uint16_t heaterTime) {
+bool bme680_set_gas_heater(uint16_t heater_temp, uint16_t heater_time) {
 
-  if ((heaterTemp == 0) || (heaterTime == 0)) {
+  if ((heater_temp == 0) || (heater_time == 0)) {
     gas_heatr_conf.enable = BME68X_DISABLE;
   } else {
     gas_heatr_conf.enable = BME68X_ENABLE;
-    gas_heatr_conf.heatr_temp = heaterTemp;
-    gas_heatr_conf.heatr_dur = heaterTime;
+    gas_heatr_conf.heatr_temp = heater_temp;
+    gas_heatr_conf.heatr_dur = heater_time;
   }
 
   int8_t rslt =
@@ -397,7 +429,7 @@ bool Adafruit_BME680::setGasHeater(uint16_t heaterTemp, uint16_t heaterTime) {
  *  @return True on success, False on failure
  */
 
-bool Adafruit_BME680::setODR(uint8_t odr) {
+bool bme680_set_odr(uint8_t odr) {
   if (odr > BME68X_ODR_NONE)
     return false;
 
@@ -420,7 +452,7 @@ bool Adafruit_BME680::setODR(uint8_t odr) {
  *  @return True on success, False on failure
  */
 
-bool Adafruit_BME680::setTemperatureOversampling(uint8_t oversample) {
+bool bme680_set_temperature_oversampling(uint8_t oversample) {
   if (oversample > BME68X_OS_16X)
     return false;
 
@@ -442,7 +474,7 @@ bool Adafruit_BME680::setTemperatureOversampling(uint8_t oversample) {
  * BME68X_OS_16X
  *  @return True on success, False on failure
  */
-bool Adafruit_BME680::setHumidityOversampling(uint8_t oversample) {
+bool bme680_set_humidity_oversampling(uint8_t oversample) {
   if (oversample > BME68X_OS_16X)
     return false;
 
@@ -464,7 +496,7 @@ bool Adafruit_BME680::setHumidityOversampling(uint8_t oversample) {
  * BME68X_OS_16X
  *  @return True on success, False on failure
  */
-bool Adafruit_BME680::setPressureOversampling(uint8_t oversample) {
+bool bme680_set_pressure_oversampling(uint8_t oversample) {
   if (oversample > BME68X_OS_16X)
     return false;
 
@@ -487,7 +519,7 @@ bool Adafruit_BME680::setPressureOversampling(uint8_t oversample) {
  * BME68X_FILTER_SIZE_31, BME68X_FILTER_SIZE_63, BME68X_FILTER_SIZE_127
  *  @return True on success, False on failure
  */
-bool Adafruit_BME680::setIIRFilterSize(uint8_t filtersize) {
+bool bme680_set_iir_filter_size(uint8_t filtersize) {
   if (filtersize > BME68X_FILTER_SIZE_127)
     return false;
   gas_conf.filter = filtersize;
@@ -542,12 +574,12 @@ int8_t i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len,
 
 static void delay_usec(uint32_t us, void *intf_ptr) {
   (void)intf_ptr; // Unused parameter
-  delayMicroseconds(us);
+  delay_microseconds(us);
 }
 
 #define NOP() asm volatile ("nop")
 
-void IRAM_ATTR delayMicroseconds(uint32_t us)
+void IRAM_ATTR delay_microseconds(uint32_t us)
 {
   uint64_t m = (uint64_t)esp_timer_get_time();
   if(us){

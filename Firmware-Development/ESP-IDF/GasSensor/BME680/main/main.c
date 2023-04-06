@@ -3,26 +3,18 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
-#include "BME680.hpp"
+#include "BME680.h"
 
 #define GAS_SENSOR_TEST 1
 
-extern "C" 
-{ 
-	void app_main(); 
-} 
-
-GasSensor* gasSensor;
-
 void app_main()
 {
-  gasSensor = new BME680;
-  gasSensor->fields.precision = disabled;
-  gasSensor->setup(gasSensor->fields.precision);
+  // gasSensor->fields.precision = disabled;
+  // gasSensor->setup(gasSensor->fields.precision);
   while (1)
   {
     #if GAS_SENSOR_TEST
-      gasSensor->test();
+      // gasSensor->test();
     #else
       if(gasSensor->read(&(gasSensor->fields)) == ESP_OK)
       {
