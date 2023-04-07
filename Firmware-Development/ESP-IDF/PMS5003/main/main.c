@@ -4,15 +4,15 @@
 #include "esp_log.h"
 #include "pms5003.hpp"
 
-extern "C" void app_main()
+void app_main()
 {    
     pms_init();
     PM25_AQI_Data data;
 
     while(1)
     {
-        pms_read(&data);
-        pms_print_data(&data);
+        if(ESP_OK == pms_read(&data) )
+            pms_print_data(&data);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
