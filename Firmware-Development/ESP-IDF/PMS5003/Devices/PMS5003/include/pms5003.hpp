@@ -38,3 +38,7 @@ void pms_uart_setup();
 void pms_gpio_config();
 esp_err_t pms_read(PM25_AQI_Data *data);
 void pms_print_data(PM25_AQI_Data* data);
+void pms_sleep_mode(gpio_num_t set_pin);
+void pms_active_mode(gpio_num_t set_pin);
+void pms_create_sleep_timer();
+static void pms_timer_callback(void* arg);

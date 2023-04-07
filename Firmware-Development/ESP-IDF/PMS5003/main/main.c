@@ -8,6 +8,8 @@ void app_main()
 {    
     pms_init();
     PM25_AQI_Data data;
+    memset(&data, 0, sizeof(PM25_AQI_Data));
+    pms_create_sleep_timer();
 
     while(1)
     {

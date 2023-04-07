@@ -1,6 +1,7 @@
 #include "pms5003.hpp"
 
 static const char* TAG = "PMS";
+bool volatile active_mode = false;
 
 /*
      @brief  Setups the hardware and detects a valid UART PM2.5
@@ -43,9 +44,59 @@ void pms_gpio_config()
     io_conf.pull_up_en = (gpio_pullup_t)0;
     gpio_config(&io_conf);
 
-    gpio_set_level(PMS_SET_PIN, 1);
+    pms_sleep_mode(PMS_SET_PIN);
+    // pms_active_mode(PMS_SET_PIN);
     gpio_set_level(PMS_RESET_PIN, 1);
 }
+
+/*!
+ *  @brief  Setup timer for PMS5003 Sleep Mode.
+            [Purpose: To extend the life span of the PMS5003 sensor.] 
+            [Approach: Activate the sensor for 30s after every 2-Mintues, do the reading and then let’s it go back to sleep.]
+            [source : https://forum.airgradient.com/t/extending-the-life-span-of-the-pms5003-sensor/114/9]
+
+ *  @return ESP_OK on success, ESP_FAIL if failed to create the timer.
+ */
+
+void pms_create_sleep_timer()
+{
+    const esp_timer_create_args_t pms_sleep_timer_args = {
+            .callback = &pms_timer_callback,
+            .name = "pms_sleep_mode_timer"
+    };
+
+    esp_timer_handle_t pms_sleep_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&pms_sleep_timer_args, &pms_sleep_timer));
+    /* The timer has been created but is not running yet */
+
+    /* Start the timer of 1-Microseconds*/
+    ESP_ERROR_CHECK(esp_timer_start_periodic(pms_sleep_timer, 1000000));
+}
+
+static void pms_timer_callback(void* arg)
+{
+    static int sec;
+    sec++;
+
+    if(sec == 110)
+    {
+      pms_active_mode(PMS_SET_PIN);
+    }
+    else if(sec == 120)
+    {
+      active_mode = true;
+    }
+    else if(sec == 150)
+    {
+      active_mode = false;
+      pms_sleep_mode(PMS_SET_PIN);
+    }
+    else if(sec > 150)
+      sec = 0;
+
+    //ESP_LOGI("pms_timer_callback", "sec = %d , active_mode = %d", sec, active_mode);
+}
+
 /*!
  *  @brief  Setups the hardware and detects a valid UART PM2.5
  *  @param  data
@@ -54,48 +105,53 @@ void pms_gpio_config()
  */
 esp_err_t pms_read(PM25_AQI_Data *data) 
 {
-  
-  uint8_t buffer[128];
-  uint16_t sum = 0;
-  memset(data, 0, sizeof(PM25_AQI_Data));
+  if(active_mode)
+  {
+    uint8_t buffer[128];
+    uint16_t sum = 0;
+    memset(data, 0, sizeof(PM25_AQI_Data));
 
-  if (!data) {
-    return ESP_FAIL;
-  }
-
-  int length = 0;
-  length = uart_read_bytes(PMS_UART_PORT, buffer, 128, 1); 
-
-  // Length test
-  if (length < 32)
+    if (!data) {
       return ESP_FAIL;
+    }
 
-  // Check that start byte is correct!
-  if (buffer[0] != 0x42) {
-    return false;
+    int length = 0;
+    length = uart_read_bytes(PMS_UART_PORT, buffer, 128, 1); 
+
+    // Length test
+    if (length < 32)
+        return ESP_FAIL;
+
+    // Check that start byte is correct!
+    if (buffer[0] != 0x42) {
+      return false;
+    }
+
+    // get checksum ready
+    for (uint8_t i = 0; i < 30; i++) {
+      sum += buffer[i];
+    }
+
+    // The data comes in endian'd, this solves it so it works on all platforms
+    uint16_t buffer_u16[15];
+    for (uint8_t i = 0; i < 15; i++) {
+      buffer_u16[i] = buffer[2 + i * 2 + 1];
+      buffer_u16[i] += (buffer[2 + i * 2] << 8);
+    }
+
+    // put it into a nice struct :)
+    memcpy((void *)data, (void *)buffer_u16, 30);
+
+    if (sum != data->checksum) {
+      return ESP_FAIL;
+    }
+    // success!
+    return ESP_OK;
   }
-
-  // get checksum ready
-  for (uint8_t i = 0; i < 30; i++) {
-    sum += buffer[i];
-  }
-
-  // The data comes in endian'd, this solves it so it works on all platforms
-  uint16_t buffer_u16[15];
-  for (uint8_t i = 0; i < 15; i++) {
-    buffer_u16[i] = buffer[2 + i * 2 + 1];
-    buffer_u16[i] += (buffer[2 + i * 2] << 8);
-  }
-
-  // put it into a nice struct :)
-  memcpy((void *)data, (void *)buffer_u16, 30);
-
-  if (sum != data->checksum) {
+  else
+  {
     return ESP_FAIL;
   }
-
-  // success!
-  return ESP_OK;
 }
 
 /*!
@@ -130,4 +186,14 @@ void pms_print_data(PM25_AQI_Data* data)
   ESP_LOGI(TAG,"Particles > 5.0um / 0.1L air: %d", data->particles_50um); 
   ESP_LOGI(TAG,"Particles > 10 um / 0.1L air: %d", data->particles_100um); 
   ESP_LOGI(TAG,"---------------------------------------");
+}
+
+void pms_sleep_mode(gpio_num_t set_pin)
+{
+  gpio_set_level(set_pin, 0);
+}
+void pms_active_mode(gpio_num_t set_pin)
+{
+  gpio_set_level(set_pin, 1);
+  // vTaskDelay(6000 / portTICK_RATE_MS);
 }
