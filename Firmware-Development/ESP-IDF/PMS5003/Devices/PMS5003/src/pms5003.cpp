@@ -1,5 +1,10 @@
 #include "pms5003.hpp"
 
+static const char* TAG = "PMS";
+
+/*
+     @brief  Setups the hardware and detects a valid UART PM2.5
+*/ 
 void pms_init()
 {
     pms_uart_setup();
@@ -7,7 +12,7 @@ void pms_init()
 }
 
 /*
-    Initializing UART interface
+    Install UART Driver
 */ 
 void pms_uart_setup()
 {
@@ -38,152 +43,91 @@ void pms_gpio_config()
     io_conf.pull_up_en = (gpio_pullup_t)0;
     gpio_config(&io_conf);
 
-    gpio_set_level(PMS_SET_PIN, 0);
+    gpio_set_level(PMS_SET_PIN, 1);
     gpio_set_level(PMS_RESET_PIN, 1);
 }
-
-PMS5003::PMS5003()
+/*!
+ *  @brief  Setups the hardware and detects a valid UART PM2.5
+ *  @param  data
+ *          Pointer to PM25_AQI_Data that will be filled by read()ing
+ *  @return ESP_OK on successful read, ESP_FAIL if timed out or bad data
+ */
+esp_err_t pms_read(PM25_AQI_Data *data) 
 {
-    config.setPin = GPIO_NUM_39;
-    config.resetPin = GPIO_NUM_42;
-    config.rxdPin = GPIO_NUM_41;
-    config.txdPin = GPIO_NUM_40;
-    config.uartInstance = UART_NUM_1;
-    config.uartBuffSize = 128;
+  
+  uint8_t buffer[128];
+  uint16_t sum = 0;
+  memset(data, 0, sizeof(PM25_AQI_Data));
+
+  if (!data) {
+    return ESP_FAIL;
+  }
+
+  int length = 0;
+  length = uart_read_bytes(PMS_UART_PORT, buffer, 128, 1); 
+
+  // Length test
+  if (length < 32)
+      return ESP_FAIL;
+
+  // Check that start byte is correct!
+  if (buffer[0] != 0x42) {
+    return false;
+  }
+
+  // get checksum ready
+  for (uint8_t i = 0; i < 30; i++) {
+    sum += buffer[i];
+  }
+
+  // The data comes in endian'd, this solves it so it works on all platforms
+  uint16_t buffer_u16[15];
+  for (uint8_t i = 0; i < 15; i++) {
+    buffer_u16[i] = buffer[2 + i * 2 + 1];
+    buffer_u16[i] += (buffer[2 + i * 2] << 8);
+  }
+
+  // put it into a nice struct :)
+  memcpy((void *)data, (void *)buffer_u16, 30);
+
+  if (sum != data->checksum) {
+    return ESP_FAIL;
+  }
+
+  // success!
+  return ESP_OK;
 }
 
-PMS5003::PMS5003(pmsConfig * pConfig)
+/*!
+ *  @brief  Prints the PMS Sensor Data
+ *  @param  data
+ *          Pointer to PM25_AQI_Data that was filled by pms_read()
+ */
+
+void pms_print_data(PM25_AQI_Data* data)
 {
-    memcpy(&config, pConfig, sizeof(pmsConfig));
-}
+  ESP_LOGI(TAG ,"AQI reading success");
 
-void PMS5003::setup()
-{
-    // Initializing UART interface
-    uart_config_t uartConfig = 
-    {
-            .baud_rate = 9600,
-            .data_bits = UART_DATA_8_BITS,
-            .parity = UART_PARITY_DISABLE,
-            .stop_bits = UART_STOP_BITS_1,
-            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
-    };
+  ESP_LOGI(TAG,"---------------------------------------");
+  ESP_LOGI(TAG,"Concentration Units (standard)");
+  ESP_LOGI(TAG,"---------------------------------------");
+  ESP_LOGI(TAG,"PM 1.0: %d", data->pm10_standard); 
+  ESP_LOGI(TAG,"PM 2.5: %d", data->pm25_standard); 
+  ESP_LOGI(TAG,"PM 10:  %d", data->pm100_standard); 
 
-    uart_param_config(config.uartInstance, &uartConfig);
-    uart_set_pin(config.uartInstance, config.txdPin, config.rxdPin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_driver_install(config.uartInstance, config.uartBuffSize * 2, 0, 0, NULL, 0);
+  ESP_LOGI(TAG,"---------------------------------------");
+  ESP_LOGI(TAG,"Concentration Units (environmental)");
+  ESP_LOGI(TAG,"---------------------------------------");
+  ESP_LOGI(TAG,"PM 1.0: %d", data->pm10_env); 
+  ESP_LOGI(TAG,"PM 2.5: %d", data->pm25_env); 
+  ESP_LOGI(TAG,"PM 10:  %d", data->pm100_env); 
 
-    // Initializing GPIO pins
-    gpio_config_t io_conf;
-    io_conf.intr_type = (gpio_int_type_t)GPIO_PIN_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << config.setPin) | (1ULL << config.resetPin);
-    io_conf.pull_down_en = (gpio_pulldown_t)0;
-    io_conf.pull_up_en = (gpio_pullup_t)0;
-    gpio_config(&io_conf);
-
-    gpio_set_level(config.setPin, 0);
-    gpio_set_level(config.resetPin, 1);
-}
-
-pmsData PMS5003::getData()
-{
-    makeMeasurement();
-    return readings;
-}
-void PMS5003::makeMeasurement()
-{
-    uint8_t* data = (uint8_t*) malloc(config.uartBuffSize);
-
-    gpio_set_level(config.setPin, 1);
-    // vTaskDelay(1000 / portTICK_PERIOD_MS); // Wait for a second...
-    uart_flush(config.uartInstance);
-
-    pmsData currentReading;
-    clearData();
-
-    int measurementsNumber = 0;
-    while (measurementsNumber < 10)
-    {
-        int len = uart_read_bytes(config.uartInstance, data, config.uartBuffSize, 1);
-        if (len > 0 && processData(len, data, &currentReading))
-        {
-            addMeasurements(&currentReading);
-            measurementsNumber++;
-        }
-    }
-    divMeasurement(); 
-
-    gpio_set_level(config.setPin, 0);
-}
-
-int PMS5003::processData(int len, uint8_t* data, pmsData* newReading)
-{
-    // Length test
-    if (len != 32)
-        return 0;
-
-    // Start of frame delimiter test
-    if (data[0] != 0x42 || data[1] != 0x4D || data[2] != 0x00 || data[3] != 0x1C)
-        return 0;
-
-    // Checksum test
-    int checkSum = 0, checkSumH, checkSumL;
-    for (int i = 0; i < 30; i++)
-        checkSum += data[i];
-    checkSumH = (checkSum >> 8) & 0xFF;
-    checkSumL = checkSum & 0xFF;
-    if (data[30] != checkSumH || data[31] != checkSumL)
-        return 0;
-
-    // Reading data
-    newReading->stdPM1_0   = (data[4] << 8) + data[5];
-    newReading->stdPM2_5   = (data[6] << 8) + data[7];
-    newReading->stdPM10    = (data[8] << 8) + data[9];
-    newReading->atmPM1_0   = (data[10] << 8) + data[11];
-    newReading->atmPM2_5   = (data[12] << 8) + data[13];
-    newReading->atmPM10    = (data[14] << 8) + data[15];
-
-    return 1;
-}
-
-void PMS5003::printData()
-{
-    printf("PM1.0 concentration in standard material:       %d ug/m^3\r\n", readings.stdPM1_0);
-    printf("PM2.5 concentration in standard material:       %d ug/m^3\r\n", readings.stdPM2_5);
-    printf("PM10  concentration in standard material:       %d ug/m^3\r\n", readings.stdPM10);
-    printf("PM1.0 concentration in atmospheric environment: %d ug/m^3\r\n", readings.atmPM1_0);
-    printf("PM2.5 concentration in atmospheric environment: %d ug/m^3\r\n", readings.atmPM2_5);
-    printf("PM10  concentration in atmospheric environment: %d ug/m^3\r\n", readings.atmPM10);
-    printf("\r\n");
-}
-
-void PMS5003::clearData()
-{
-    readings.stdPM1_0 = 0;
-    readings.stdPM2_5 = 0;
-    readings.stdPM10 = 0;
-    readings.atmPM1_0 = 0;
-    readings.atmPM2_5 = 0;
-    readings.atmPM10 = 0;
-}
-
-void PMS5003::addMeasurements(pmsData* newReadings)
-{
-    readings.stdPM1_0   += newReadings->stdPM1_0;
-    readings.stdPM2_5   += newReadings->stdPM2_5;
-    readings.stdPM10    += newReadings->stdPM10;
-    readings.atmPM1_0   += newReadings->atmPM1_0;
-    readings.atmPM2_5   += newReadings->atmPM2_5;
-    readings.atmPM10    += newReadings->atmPM10;
-}
-
-void PMS5003::divMeasurement()
-{
-    readings.stdPM1_0  /= 10;
-    readings.stdPM2_5  /= 10;
-    readings.stdPM10   /= 10;
-    readings.atmPM1_0  /= 10;
-    readings.atmPM2_5  /= 10;
-    readings.atmPM10   /= 10;
+  ESP_LOGI(TAG,"---------------------------------------");
+  ESP_LOGI(TAG,"Particles > 0.3um / 0.1L air: %d", data->particles_03um); 
+  ESP_LOGI(TAG,"Particles > 0.5um / 0.1L air: %d", data->particles_05um); 
+  ESP_LOGI(TAG,"Particles > 1.0um / 0.1L air: %d", data->particles_10um); 
+  ESP_LOGI(TAG,"Particles > 2.5um / 0.1L air: %d", data->particles_25um); 
+  ESP_LOGI(TAG,"Particles > 5.0um / 0.1L air: %d", data->particles_50um); 
+  ESP_LOGI(TAG,"Particles > 10 um / 0.1L air: %d", data->particles_100um); 
+  ESP_LOGI(TAG,"---------------------------------------");
 }
