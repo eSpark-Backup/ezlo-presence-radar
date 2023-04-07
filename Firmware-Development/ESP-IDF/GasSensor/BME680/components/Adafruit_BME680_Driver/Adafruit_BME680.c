@@ -38,17 +38,18 @@
 
     /** Temperature (Celsius) assigned after calling bme680_perform_reading() or
    * endReading() **/
-  float temperature;
+  static float temperature;
   /** Pressure (Pascals) assigned after calling bme680_perform_reading() or endReading()
    * **/
-  uint32_t pressure;
+  static uint32_t pressure;
   /** Humidity (RH %) assigned after calling bme680_perform_reading() or endReading()
    * **/
-  float humidity;
+  static float humidity;
   /** Gas resistor (ohms) assigned after calling bme680_perform_reading() or
    * endReading() **/
-  uint32_t gas_resistance;
+  static uint32_t gas_resistance;
 
+  static i2c_port_t i2c_master_num;
 
   int32_t _sensorID;
   uint32_t _meas_start = 0;
@@ -92,9 +93,10 @@ static void delay_usec(uint32_t us, void *intf_ptr);
  *  @return True on sensor initialization success. False on failure.
  */
 #define check(x) printf("failed %d",x);
-bool bme680_begin(gpio_num_t sda, gpio_num_t scl, uint8_t addr, bool init_settings) {
+bool bme680_begin(gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t addr, bool init_settings) {
   int8_t rslt;
 
+  i2c_master_num = i2c_num;
 	i2c_config_t conf = { };
     conf.mode = I2C_MODE_MASTER,
     conf.sda_io_num = sda,
@@ -103,8 +105,8 @@ bool bme680_begin(gpio_num_t sda, gpio_num_t scl, uint8_t addr, bool init_settin
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE,
     conf.master.clk_speed = I2C_MASTER_FREQ_HZ,
 
-	i2c_param_config(I2C_MASTER_NUM, &conf);
-	ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, I2C_MODE_MASTER, 0, 0, 0));
+	i2c_param_config(i2c_master_num, &conf);
+	ESP_ERROR_CHECK(i2c_driver_install(i2c_master_num, I2C_MODE_MASTER, 0, 0, 0));
 
   gas_sensor.chip_id = addr;
   gas_sensor.intf = BME68X_I2C_INTF;
@@ -538,7 +540,7 @@ bool bme680_set_iir_filter_size(uint8_t filtersize) {
 int8_t i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf) {
 
   esp_err_t _error;
-  _error = i2c_master_write_read_device(I2C_MASTER_NUM, BME68X_DEFAULT_ADDRESS, &reg_addr, 1, reg_data, len, 1000 / portTICK_PERIOD_MS);
+  _error = i2c_master_write_read_device(i2c_master_num, BME68X_DEFAULT_ADDRESS, &reg_addr, 1, reg_data, len, 1000 / portTICK_PERIOD_MS);
 
 	if (_error != ESP_OK)
 	{
@@ -562,7 +564,7 @@ int8_t i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len,
     write_buf[i+1] = reg_data[i];
   }
   
-	_error = i2c_master_write_to_device(I2C_MASTER_NUM, BME68X_DEFAULT_ADDRESS, write_buf, len+1, 1000 / portTICK_PERIOD_MS);
+	_error = i2c_master_write_to_device(i2c_master_num, BME68X_DEFAULT_ADDRESS, write_buf, len+1, 1000 / portTICK_PERIOD_MS);
 
 	if (_error != ESP_OK)
 	{
@@ -593,4 +595,24 @@ void IRAM_ATTR delay_microseconds(uint32_t us)
           NOP();
       }
   }
+}
+
+float bme680_get_temperature(void)
+{
+  return temperature;
+}
+
+uint32_t bme680_get_pressure(void)
+{
+  return pressure;
+}
+
+float bme680_get_humidity(void)
+{
+  return humidity;
+}
+
+uint32_t bme680_get_resistance(void)
+{
+  return gas_resistance;
 }

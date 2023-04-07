@@ -30,7 +30,6 @@
 #include "freertos/timers.h"
 
 #define millis() esp_timer_get_time()/1000
-#define I2C_MASTER_NUM I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ 400000
 void delay_microseconds(uint32_t us);
 
@@ -61,7 +60,7 @@ void delay_microseconds(uint32_t us);
 #define BME680_FILTER_SIZE_0                                                   \
   BME68X_FILTER_OFF ///< Alias for BME680 existing examples
 
-bool bme680_begin(gpio_num_t sda, gpio_num_t scl, uint8_t addr, bool init_settings); // BME_address , true
+bool bme680_begin(gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t addr, bool init_settings);
 float bme680_read_temperature();
 float bme680_read_pressure();
 float bme680_read_humidity();
@@ -84,4 +83,8 @@ bool bme680_end_reading();
 
 int bme680_remaining_reading_millis();
 
+float bme680_get_temperature(void);
+uint32_t bme680_get_pressure(void);
+float bme680_get_humidity(void);
+uint32_t bme680_get_resistance(void);
 #endif
