@@ -13,6 +13,12 @@
 #define PMS_TX_PIN      GPIO_NUM_40
 #define PMS_UART_PORT   UART_NUM_1
 #define PMS_UART_BUF_SIZE 128
+#define PMS_UART_BUAD_RATE 9600
+
+#define PMS_TOTAL_ACTIVE_TIME   20
+#define PMS_TOTAL_SLEEP_TIME    120  
+#define PMS_STABILITY_TIME      10      // Here  
+#define PMS_TOTAL_TIME          (PMS_TOTAL_ACTIVE_TIME + PMS_TOTAL_SLEEP_TIME)
 
 /**! Structure holding Plantower's standard packet **/
 typedef struct PMSAQIdata {
@@ -36,6 +42,7 @@ typedef struct PMSAQIdata {
 void pms_init();
 void pms_uart_setup();
 void pms_gpio_config();
+void pms_startup();
 esp_err_t pms_read(PM25_AQI_Data *data);
 void pms_print_data(PM25_AQI_Data* data);
 void pms_sleep_mode(gpio_num_t set_pin);

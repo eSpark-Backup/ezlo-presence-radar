@@ -1,7 +1,12 @@
 #include "pms5003.hpp"
 
 static const char* TAG = "PMS";
-bool volatile active_mode = false;
+uint8_t volatile pmsStatusReg = 0x00; 
+/*
+  * pmsStatusReg =  | X | X | X | X | X | EN_READ | SLEEP_MODE | ACTIVE_MODE |
+  *                 | 7 | 6 | 5 | 4 | 3 |   2     |      1     |      0     |
+*/                
+
 
 /*
      @brief  Setups the hardware and detects a valid UART PM2.5
@@ -10,16 +15,17 @@ void pms_init()
 {
     pms_uart_setup();
     pms_gpio_config();
+    pms_startup();
 }
 
 /*
-    Install UART Driver
+    @brief Install UART Driver for PMS5003.
 */ 
 void pms_uart_setup()
 {
     uart_config_t uartConfig = 
     {
-            .baud_rate = 9600,
+            .baud_rate = PMS_UART_BUAD_RATE,
             .data_bits = UART_DATA_8_BITS,
             .parity = UART_PARITY_DISABLE,
             .stop_bits = UART_STOP_BITS_1,
@@ -32,7 +38,7 @@ void pms_uart_setup()
 }
 
 /*
-    Initializing GPIO pins
+    @brief Configures GPIO pins (SET & RESET) for PMS5003.
 */
 void pms_gpio_config()
 {
@@ -43,12 +49,16 @@ void pms_gpio_config()
     io_conf.pull_down_en = (gpio_pulldown_t)0;
     io_conf.pull_up_en = (gpio_pullup_t)0;
     gpio_config(&io_conf);
-
-    pms_sleep_mode(PMS_SET_PIN);
-    // pms_active_mode(PMS_SET_PIN);
-    gpio_set_level(PMS_RESET_PIN, 1);
 }
 
+/*
+    @brief Starts the PMS5003 in sleep-mode.
+*/
+void pms_startup()
+{
+    pms_sleep_mode(PMS_SET_PIN);
+    gpio_set_level(PMS_RESET_PIN, 1);
+}
 /*!
  *  @brief  Setup timer for PMS5003 Sleep Mode.
             [Purpose: To extend the life span of the PMS5003 sensor.] 
@@ -69,7 +79,7 @@ void pms_create_sleep_timer()
     ESP_ERROR_CHECK(esp_timer_create(&pms_sleep_timer_args, &pms_sleep_timer));
     /* The timer has been created but is not running yet */
 
-    /* Start the timer of 1-Microseconds*/
+    /* Start the timer of 1sec*/
     ESP_ERROR_CHECK(esp_timer_start_periodic(pms_sleep_timer, 1000000));
 }
 
@@ -77,22 +87,33 @@ static void pms_timer_callback(void* arg)
 {
     static int sec;
     sec++;
+    
+    if(sec <= PMS_TOTAL_ACTIVE_TIME )
+    {
+      if( !(pmsStatusReg & 0x01) )
+      {
+        pms_active_mode(PMS_SET_PIN);
+        pmsStatusReg |= 0x01; //Active Mode
+      }
 
-    if(sec == 110)
-    {
-      pms_active_mode(PMS_SET_PIN);
+      if(sec == PMS_STABILITY_TIME)
+          pmsStatusReg |= 0x04; //Enable Read Status
     }
-    else if(sec == 120)
-    {
-      active_mode = true;
+
+    else if( sec <= PMS_TOTAL_TIME )
+    {        
+      if( !(pmsStatusReg & 0x02) )
+      { 
+          pmsStatusReg |= 0x02;
+          pms_sleep_mode(PMS_SET_PIN);
+      }
     }
-    else if(sec == 150)
+    
+    else if(sec > PMS_TOTAL_TIME)
     {
-      active_mode = false;
-      pms_sleep_mode(PMS_SET_PIN);
-    }
-    else if(sec > 150)
       sec = 0;
+      pmsStatusReg = 0;
+    }
 
     //ESP_LOGI("pms_timer_callback", "sec = %d , active_mode = %d", sec, active_mode);
 }
@@ -103,9 +124,11 @@ static void pms_timer_callback(void* arg)
  *          Pointer to PM25_AQI_Data that will be filled by read()ing
  *  @return ESP_OK on successful read, ESP_FAIL if timed out or bad data
  */
-esp_err_t pms_read(PM25_AQI_Data *data) 
+  esp_err_t pms_read(PM25_AQI_Data *data) 
 {
-  if(active_mode)
+  
+  /*  pmsStatusReg : Update from the "pms_timer_callback". If Active Mode and EN_Read is HIGH, this function will read the PMS_Sensor Data*/
+  if( (pmsStatusReg & 0x05) ) 
   {
     uint8_t buffer[128];
     uint16_t sum = 0;
@@ -155,6 +178,21 @@ esp_err_t pms_read(PM25_AQI_Data *data)
 }
 
 /*!
+ *  @brief  Set PMS5003 in Sleep-mode and stop the fan.
+ */
+void pms_sleep_mode(gpio_num_t set_pin)
+{
+  gpio_set_level(set_pin, 0);
+}
+/*!
+ *  @brief  Set PMS5003 in Active-mode and start the fan.
+ */
+void pms_active_mode(gpio_num_t set_pin)
+{
+  gpio_set_level(set_pin, 1);
+}
+
+/*!
  *  @brief  Prints the PMS Sensor Data
  *  @param  data
  *          Pointer to PM25_AQI_Data that was filled by pms_read()
@@ -186,14 +224,4 @@ void pms_print_data(PM25_AQI_Data* data)
   ESP_LOGI(TAG,"Particles > 5.0um / 0.1L air: %d", data->particles_50um); 
   ESP_LOGI(TAG,"Particles > 10 um / 0.1L air: %d", data->particles_100um); 
   ESP_LOGI(TAG,"---------------------------------------");
-}
-
-void pms_sleep_mode(gpio_num_t set_pin)
-{
-  gpio_set_level(set_pin, 0);
-}
-void pms_active_mode(gpio_num_t set_pin)
-{
-  gpio_set_level(set_pin, 1);
-  // vTaskDelay(6000 / portTICK_RATE_MS);
 }
