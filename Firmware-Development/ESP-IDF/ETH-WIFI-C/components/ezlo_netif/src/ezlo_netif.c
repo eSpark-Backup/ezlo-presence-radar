@@ -34,7 +34,7 @@ esp_err_t netif_begin()
 
 /*!
  *  @brief  Create instance(s) of esp-netif for SPI Ethernet(s).
- *  @param  Pointer of netif_spi_eth_t for SPI Ethernet(s)
+ *  @param  Pointer of netif_spi_eth_t (defined in ezlo_netif.h) for SPI Ethernet(s) 
  *  @return ESP_OK on success, ESP_FAIL if failed.
  */
 

@@ -18,4 +18,3 @@ esp_err_t netif_begin();
 esp_err_t netif_eth_spi_setup(netif_spi_eth_t* netif_obj);
 esp_err_t netif_create_spi_instance(netif_spi_eth_t* netif_obj);
 void netif_set_eth_glue(netif_spi_eth_t* netif_obj);
-
