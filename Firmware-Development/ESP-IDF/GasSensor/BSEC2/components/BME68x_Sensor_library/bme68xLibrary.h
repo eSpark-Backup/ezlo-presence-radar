@@ -43,7 +43,7 @@
 #include <string.h>
 #include <string>
 
-#include "bme68x/bme68x.h"
+#include "bme68x.h"
 #include <driver/i2c.h>
 
 #define BME68X_ERROR            INT8_C(-1)
