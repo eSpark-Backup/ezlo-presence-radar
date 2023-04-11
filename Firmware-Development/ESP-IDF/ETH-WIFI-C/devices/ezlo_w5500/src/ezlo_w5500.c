@@ -16,7 +16,7 @@ esp_err_t w5500_setup(w5500_t* w5500)
 
 /*!
  *  @brief  Startup reset sequence for W5500 module.
- *  @param  ESP_OK on success & esp_err_t if any error occurs.
+ *  @param  Pointer of w5500_t.
  */
 void w5500_startup_reset(w5500_t* w5500)
 {
