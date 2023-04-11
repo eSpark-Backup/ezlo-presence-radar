@@ -95,7 +95,15 @@
 #warning "Wire read requires a larger buffer size. Use SPI"
 #endif
 
-Bme68x::Bme68x(void)
+static int8_t status;
+static bme68x_dev bme6;
+static bme68x_conf conf;
+static bme68x_heatr_conf heatrConf;
+static bme68x_data sensorData[3];
+static uint8_t n_fields, i_fields;
+static uint8_t last_op_mode;
+
+void bme68xlib_setup(void)
 {
 	status = BME68X_OK;
 	memset(&bme6, 0, sizeof(bme6));
@@ -103,23 +111,25 @@ Bme68x::Bme68x(void)
 	memset(&heatrConf, 0, sizeof(heatrConf));
 	memset(sensorData, 0, sizeof(sensorData));
 	bme6.amb_temp = 25; /* Typical room temperature in Celsius */
-	nFields = 0;
-	iFields = 0;
-	lastOpMode = BME68X_SLEEP_MODE;
+	n_fields = 0;
+	i_fields = 0;
+	last_op_mode = BME68X_SLEEP_MODE;
+	bme68x_i2c_master_init();
+	vTaskDelay(1000/portTICK_PERIOD_MS);
 }
 
 /**
  * @brief Function to initialize the sensor based on custom callbacks
 */
-void Bme68x::begin(bme68xIntf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t write,
-		bme68x_delay_us_fptr_t idleTask, void *intfPtr)
+void bme68xlib_begin_custom(bme68x_intf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t write,
+		bme68x_delay_us_fptr_t idle_task, void *intf_ptr)
 {
 
 	bme6.intf = intf;
 	bme6.read = read;
 	bme6.write = write;
-	bme6.delay_us = idleTask;
-	bme6.intf_ptr = intfPtr;
+	bme6.delay_us = idle_task;
+	bme6.intf_ptr = intf_ptr;
 	bme6.amb_temp = 25;
 
 	status = bme68x_init(&bme6);
@@ -128,12 +138,12 @@ void Bme68x::begin(bme68xIntf intf, bme68x_read_fptr_t read, bme68x_write_fptr_t
 /**
  * @brief Function to initialize the sensor based on the Wire library
  */
-void Bme68x::begin(bme68x_delay_us_fptr_t idleTask)
+void bme68xlib_begin(void)
 {
 	bme6.intf = BME68X_I2C_INTF;
-	bme6.read = bme68xI2cRead;
-	bme6.write = bme68xI2cWrite;
-	bme6.delay_us = idleTask;
+	bme6.read = bme68x_i2c_read;
+	bme6.write = bme68x_i2c_write;
+	bme6.delay_us = bme68x_delay_us;
 	bme6.amb_temp = 25;
 
 	status = bme68x_init(&bme6);
@@ -142,41 +152,41 @@ void Bme68x::begin(bme68x_delay_us_fptr_t idleTask)
 /**
  * @brief Function to read a register
  */
-uint8_t Bme68x::readReg(uint8_t regAddr)
+uint8_t bme68xlib_read_reg_byte(uint8_t reg_addr)
 {
-	uint8_t regData;
-	readReg(regAddr, &regData, 1);
-	return regData;
+	uint8_t reg_data;
+	bme68xlib_read_reg(reg_addr, &reg_data, 1);
+	return reg_data;
 }
 
 /**
  * @brief Function to read multiple registers
  */
-void Bme68x::readReg(uint8_t regAddr, uint8_t *regData, uint32_t length)
+void bme68xlib_read_reg(uint8_t reg_addr, uint8_t *reg_data, uint32_t length)
 {
-	status = bme68x_get_regs(regAddr, regData, length, &bme6);
+	status = bme68x_get_regs(reg_addr, reg_data, length, &bme6);
 }
 
 /**
  * @brief Function to write data to a register
  */
-void Bme68x::writeReg(uint8_t regAddr, uint8_t regData)
+void bme68xlib_write_reg_byte(uint8_t reg_addr, uint8_t reg_data)
 {
-	status = bme68x_set_regs(&regAddr, &regData, 1, &bme6);
+	status = bme68x_set_regs(&reg_addr, &reg_data, 1, &bme6);
 }
 
 /**
  * @brief Function to write multiple registers
  */
-void Bme68x::writeReg(uint8_t *regAddr, const uint8_t *regData, uint32_t length)
+void bme68xlib_write_reg(uint8_t *reg_addr, const uint8_t *reg_data, uint32_t length)
 {
-	status = bme68x_set_regs(regAddr, regData, length, &bme6);
+	status = bme68x_set_regs(reg_addr, reg_data, length, &bme6);
 }
 
 /**
  * @brief Function to trigger a soft reset
  */
-void Bme68x::softReset(void)
+void bme68xlib_soft_reset(void)
 {
 	status = bme68x_soft_reset(&bme6);
 }
@@ -184,7 +194,7 @@ void Bme68x::softReset(void)
 /**
  * @brief Function to set the ambient temperature for better configuration
  */ 
-void Bme68x::setAmbientTemp(int8_t temp)
+void bme68xlib_set_ambient_temp(int8_t temp)
 {
 	bme6.amb_temp = temp;
 }
@@ -192,61 +202,61 @@ void Bme68x::setAmbientTemp(int8_t temp)
 /**
  * @brief Function to get the measurement duration in microseconds
  */
-uint32_t Bme68x::getMeasDur(uint8_t opMode)
+uint32_t bme68xlib_get_meas_dur(uint8_t op_mode)
 {
-	if (opMode == BME68X_SLEEP_MODE)
-		opMode = lastOpMode;
+	if (op_mode == BME68X_SLEEP_MODE)
+		op_mode = last_op_mode;
 
-	return bme68x_get_meas_dur(opMode, &conf, &bme6);
+	return bme68x_get_meas_dur(op_mode, &conf, &bme6);
 }
 
 /**
  * @brief Function to set the operation mode
  */
-void Bme68x::setOpMode(uint8_t opMode)
+void bme68xlib_set_op_mode(uint8_t op_mode)
 {
-	status = bme68x_set_op_mode(opMode, &bme6);
-	if ((status == BME68X_OK) && (opMode != BME68X_SLEEP_MODE))
-		lastOpMode = opMode;
+	status = bme68x_set_op_mode(op_mode, &bme6);
+	if ((status == BME68X_OK) && (op_mode != BME68X_SLEEP_MODE))
+		last_op_mode = op_mode;
 }
 
 /**
  * @brief Function to get the operation mode
  */
-uint8_t Bme68x::getOpMode(void)
+uint8_t bme68xlib_get_op_mode(void)
 {
-	uint8_t opMode;
-	status = bme68x_get_op_mode(&opMode, &bme6);
-	return opMode;
+	uint8_t op_mode;
+	status = bme68x_get_op_mode(&op_mode, &bme6);
+	return op_mode;
 }
 
 /**
  * @brief Function to get the Temperature, Pressure and Humidity over-sampling
  */
-void Bme68x::getTPH(uint8_t &osHum, uint8_t &osTemp, uint8_t &osPres)
+void bme68xlib_get_tph(uint8_t* os_hum, uint8_t* os_temp, uint8_t* os_pres)
 {
 	status = bme68x_get_conf(&conf, &bme6);
 
 	if (status == BME68X_OK)
 	{
-		osHum = conf.os_hum;
-		osTemp = conf.os_temp;
-		osPres = conf.os_pres;
+		*os_hum = conf.os_hum;
+		*os_temp = conf.os_temp;
+		*os_pres = conf.os_pres;
 	}
 }
 
 /**
  * @brief Function to set the Temperature, Pressure and Humidity over-sampling
  */
-void Bme68x::setTPH(uint8_t osTemp, uint8_t osPres, uint8_t osHum)
+void bme68xlib_set_tph(uint8_t os_temp, uint8_t os_pres, uint8_t os_hum)
 {
 	status = bme68x_get_conf(&conf, &bme6);
 
 	if (status == BME68X_OK)
 	{
-		conf.os_hum = osHum;
-		conf.os_temp = osTemp;
-		conf.os_pres = osPres;
+		conf.os_hum = os_hum;
+		conf.os_temp = os_temp;
+		conf.os_pres = os_pres;
 
 		status = bme68x_set_conf(&conf, &bme6);
 	}
@@ -255,7 +265,7 @@ void Bme68x::setTPH(uint8_t osTemp, uint8_t osPres, uint8_t osHum)
 /**
  * @brief Function to get the filter configuration
  */
-uint8_t Bme68x::getFilter(void)
+uint8_t bme68xlib_get_filter(void)
 {
 	status = bme68x_get_conf(&conf, &bme6);
 
@@ -265,7 +275,7 @@ uint8_t Bme68x::getFilter(void)
 /**
  * @brief Function to set the filter configuration
  */
-void Bme68x::setFilter(uint8_t filter)
+void bme68xlib_set_filter(uint8_t filter)
 {
 	status = bme68x_get_conf(&conf, &bme6);
 
@@ -280,7 +290,7 @@ void Bme68x::setFilter(uint8_t filter)
 /**
  * @brief Function to get the sleep duration during Sequential mode
  */
-uint8_t Bme68x::getSeqSleep(void)
+uint8_t bme68xlib_get_seq_sleep(void)
 {
 	status = bme68x_get_conf(&conf, &bme6);
 
@@ -290,7 +300,7 @@ uint8_t Bme68x::getSeqSleep(void)
 /**
  * @brief Function to set the sleep duration during Sequential mode
  */
-void Bme68x::setSeqSleep(uint8_t odr)
+void bme68x_set_seq_sleep(uint8_t odr)
 {
 	status = bme68x_get_conf(&conf, &bme6);
 
@@ -305,7 +315,7 @@ void Bme68x::setSeqSleep(uint8_t odr)
 /**
  * @brief Function to set the heater profile for Forced mode
  */
-void Bme68x::setHeaterProf(uint16_t temp, uint16_t dur)
+void bme68xlib_set_heater_prof_p2(uint16_t temp, uint16_t dur)
 {
 	heatrConf.enable = BME68X_ENABLE;
 	heatrConf.heatr_temp = temp;
@@ -317,12 +327,12 @@ void Bme68x::setHeaterProf(uint16_t temp, uint16_t dur)
 /**
  * @brief Function to set the heater profile for Sequential mode
  */
-void Bme68x::setHeaterProf(uint16_t *temp, uint16_t *dur, uint8_t profileLen)
+void bme68xlib_set_heater_prof_p3(uint16_t *temp, uint16_t *dur, uint8_t profile_len)
 {
 	heatrConf.enable = BME68X_ENABLE;
 	heatrConf.heatr_temp_prof = temp;
 	heatrConf.heatr_dur_prof = dur;
-	heatrConf.profile_len = profileLen;
+	heatrConf.profile_len = profile_len;
 
 	status = bme68x_set_heatr_conf(BME68X_SEQUENTIAL_MODE, &heatrConf, &bme6);
 
@@ -331,13 +341,13 @@ void Bme68x::setHeaterProf(uint16_t *temp, uint16_t *dur, uint8_t profileLen)
 /**
  * @brief Function to set the heater profile for Parallel mode
  */
-void Bme68x::setHeaterProf(uint16_t *temp, uint16_t *mul, uint16_t sharedHeatrDur, uint8_t profileLen)
+void bme68xlib_set_heater_prof_p4(uint16_t *temp, uint16_t *mul, uint16_t shared_heatr_dur, uint8_t profile_len)
 {
 	heatrConf.enable = BME68X_ENABLE;
 	heatrConf.heatr_temp_prof = temp;
 	heatrConf.heatr_dur_prof = mul;
-	heatrConf.shared_heatr_dur = sharedHeatrDur;
-	heatrConf.profile_len = profileLen;
+	heatrConf.shared_heatr_dur = shared_heatr_dur;
+	heatrConf.profile_len = profile_len;
 
 	status = bme68x_set_heatr_conf(BME68X_PARALLEL_MODE, &heatrConf, &bme6);
 }
@@ -345,42 +355,42 @@ void Bme68x::setHeaterProf(uint16_t *temp, uint16_t *mul, uint16_t sharedHeatrDu
 /**
  * @brief Function to fetch data from the sensor into the local buffer
  */
-uint8_t Bme68x::fetchData(void)
+uint8_t bme68xlib_fetch_data(void)
 {
-	nFields = 0;
-	status = bme68x_get_data(lastOpMode, sensorData, &nFields, &bme6);
-	iFields = 0;
+	n_fields = 0;
+	status = bme68x_get_data(last_op_mode, sensorData, &n_fields, &bme6);
+	i_fields = 0;
 
-	return nFields;
+	return n_fields;
 }
 
 /**
  * @brief Function to get a single data field
  */
-uint8_t Bme68x::getData(bme68xData &data)
+uint8_t bme68xlib_get_data(bme68x_data* data)
 {
-	if (lastOpMode == BME68X_FORCED_MODE)
+	if (last_op_mode == BME68X_FORCED_MODE)
 	{
-		data = sensorData[0];
+		*data = sensorData[0];
 	} else
 	{
-		if (nFields)
+		if (n_fields)
 		{
-			/* iFields spans from 0-2 while nFields spans from
+			/* i_fields spans from 0-2 while n_fields spans from
 			 * 0-3, where 0 means that there is no new data
 			 */
-			data = sensorData[iFields];
-			iFields++;
+			*data = sensorData[i_fields];
+			i_fields++;
 
 			/* Limit reading continuously to the last fields read */
-			if (iFields >= nFields)
+			if (i_fields >= n_fields)
 			{
-				iFields = nFields - 1;
+				i_fields = n_fields - 1;
 				return 0;
 			}
 
 			/* Indicate if there is something left to read */
-			return nFields - iFields;
+			return n_fields - i_fields;
 		}
 	}
 
@@ -390,7 +400,7 @@ uint8_t Bme68x::getData(bme68xData &data)
 /**
  * @brief Function to get whole sensor data
  */
-bme68xData* Bme68x::getAllData(void)
+bme68x_data* bme68xlib_get_all_data(void)
 {
 	return sensorData;
 }
@@ -398,19 +408,19 @@ bme68xData* Bme68x::getAllData(void)
 /**
  * @brief Function to get the BME68x heater configuration
  */
-const bme68xHeatrConf& Bme68x::getHeaterConfiguration(void)
+const bme68x_heatr_conf* bme68xlib_get_heater_configuration(void)
 {
-	return heatrConf;
+	return &heatrConf;
 }
 
 /**
  * @brief Function to retrieve the sensor's unique ID
  */
-uint32_t Bme68x::getUniqueId(void)
+uint32_t bme68xlib_get_unique_id(void)
 {
     uint8_t id_regs[4];
     uint32_t uid;
-    readReg(BME68X_REG_UNIQUE_ID, id_regs, 4);
+    bme68xlib_read_reg(BME68X_REG_UNIQUE_ID, id_regs, 4);
 
     uint32_t id1 = ((uint32_t) id_regs[3] + ((uint32_t) id_regs[2] << 8)) & 0x7fff;
     uid = (id1 << 16) + (((uint32_t) id_regs[1]) << 8) + (uint32_t) id_regs[0];
@@ -421,7 +431,7 @@ uint32_t Bme68x::getUniqueId(void)
 /**
  * @brief Function to get the error code of the interface functions
  */
-BME68X_INTF_RET_TYPE Bme68x::intfError(void)
+BME68X_INTF_RET_TYPE bme68xlib_intf_error(void)
 {
 	return bme6.intf_rslt;
 }
@@ -429,7 +439,7 @@ BME68X_INTF_RET_TYPE Bme68x::intfError(void)
 /**
  * @brief Function to check if an error / warning has occurred
  */
-int8_t Bme68x::checkStatus(void)
+int8_t bme68xlib_check_status(void)
 {
 	if (status < BME68X_OK)
 	{
@@ -448,9 +458,9 @@ int8_t Bme68x::checkStatus(void)
 /**
  * @brief Function to get a brief text description of the error
  */
-std::string Bme68x::statusString(void)
+const char* bme68xlib_status_string(void)
 {
-	std::string ret = "";
+	const char* ret = "";
 	switch (status)
 	{
 	case BME68X_OK:
@@ -484,9 +494,14 @@ std::string Bme68x::statusString(void)
 	return ret;
 }
 
+int8_t bme68xlib_get_status(void)
+{
+	return status;
+}
+
 #define NOP() asm volatile ("nop")
 
-void IRAM_ATTR delayMicroseconds(uint32_t us)
+void IRAM_ATTR delay_microseconds(uint32_t us)
 {
   uint64_t m = (uint64_t)esp_timer_get_time();
   if(us){
@@ -505,24 +520,24 @@ void IRAM_ATTR delayMicroseconds(uint32_t us)
 /**
  * @brief Function that implements the default microsecond delay callback
  */
-void bme68xDelayUs(uint32_t periodUs, void *intfPtr) {
+void bme68x_delay_us(uint32_t periodUs, void *intfPtr) {
     (void) intfPtr;
-    delayMicroseconds(periodUs);
+    delay_microseconds(periodUs);
 }
 
 /**
  * @brief Function that implements the default I2C write transaction
  */
-int8_t bme68xI2cWrite(uint8_t regAddr, const uint8_t *regData,
+int8_t bme68x_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
         uint32_t length, void *intfPtr) 
 {
     (void)intfPtr; // Unused parameter
     esp_err_t _error;
     uint8_t write_buf[length+1];
-    write_buf[0] = regAddr;
+    write_buf[0] = reg_addr;
     for (uint16_t i = 0; i < length; i++)
     {
-        write_buf[i+1] = regData[i];
+        write_buf[i+1] = reg_data[i];
     }
   
 	_error = i2c_master_write_to_device(ACTIVE_I2C, BME68X_DEFAULT_ADDRESS, write_buf, length+1, 1000 / portTICK_PERIOD_MS);
@@ -537,10 +552,10 @@ int8_t bme68xI2cWrite(uint8_t regAddr, const uint8_t *regData,
 /**
  * @brief Function that implements the default I2C read transaction
  */ 
-int8_t bme68xI2cRead(uint8_t regAddr, uint8_t *regData, uint32_t length,
+int8_t bme68x_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length,
         void *intfPtr) {
    	esp_err_t _error;
-    _error = i2c_master_write_read_device(ACTIVE_I2C, BME68X_DEFAULT_ADDRESS, &regAddr, 1, regData, length, 1000 / portTICK_PERIOD_MS);
+    _error = i2c_master_write_read_device(ACTIVE_I2C, BME68X_DEFAULT_ADDRESS, &reg_addr, 1, reg_data, length, 1000 / portTICK_PERIOD_MS);
 
 	if (_error != ESP_OK)
 	{
@@ -548,4 +563,17 @@ int8_t bme68xI2cRead(uint8_t regAddr, uint8_t *regData, uint32_t length,
 	}
 
     return _error;
+}
+
+esp_err_t bme68x_i2c_master_init(void)
+{
+    i2c_config_t conf = {};
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = BME68X_SDA;
+    conf.scl_io_num = BME68X_SCL;
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    i2c_param_config(ACTIVE_I2C, &conf);
+    return i2c_driver_install(ACTIVE_I2C, conf.mode, 0, 0, 0);
 }
