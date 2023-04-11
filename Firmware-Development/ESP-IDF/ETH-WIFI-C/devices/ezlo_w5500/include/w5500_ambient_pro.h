@@ -11,3 +11,5 @@
 #define W5500_PHY_ADDR     1
 #define W5500_HOST         (spi_host_device_t)2
 #define W5500_CLOCK_MHZ    12
+#define W5500_CMD_BITS     16        
+#define W5500_ADDR_BITS    8

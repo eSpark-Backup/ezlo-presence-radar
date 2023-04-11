@@ -4,17 +4,23 @@
 #include "ezlo_spi.h"
 #include "w5500_ambient_pro.h"
 
-static const char TAG[] = "Main-App";
+static const char* TAG = "Main-App";
 
 void app_main(void)
 {
     w5500_t w5500;
     netif_spi_eth_t netif_obj;
+    spi_t eth_spi;
 
-    if(ESP_OK == w5500_setup(&w5500))
-        ESP_LOGI(TAG, "W5500 - Setup Completed.");
-    if(ESP_OK == netif_eth_spi_setup(&netif_obj))
-        ESP_LOGI(TAG, "Netif - Ethernet SPI Setup Is Successfull.");
-    if(ESP_OK == spi_bus_init(W5500_HOST, W5500_MOSI, W5500_MISO, W5500_SCLK))
-        ESP_LOGI(TAG, "SPI - Bus Initialize.");
+    w5500_setup(&w5500);
+    netif_eth_spi_setup(&netif_obj);
+
+    spi_init(&eth_spi, W5500_HOST, W5500_MOSI, W5500_MISO, W5500_SCLK);
+    spi_register_device(&eth_spi, 0, W5500_CS, W5500_ADDR_BITS, W5500_CMD_BITS, 10);
+
+    while (1)
+    {
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+    
 }
