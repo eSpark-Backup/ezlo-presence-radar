@@ -3,6 +3,21 @@
 #include "bme68xLibrary.h"
 #include "bsec2.h"
 
+#define BME680_TEST 0
+
+typedef struct 
+{
+    float iaq;
+    bool iaq_accuracy;
+    float co2_equivalent;
+    float voc_equivalent;
+    float temperature;
+    float pressure;
+    float humidity;
+    float gas_resistance;
+    bool stabilization_status;
+    bool run_in_status;
+}   bme680_data_t;
 /**
  * @brief : This function checks the BSEC status, prints the respective error code. Halts in case of error
  * @param[in] bsec  : Bsec2 class object
@@ -19,4 +34,6 @@ void bme680_data_callback(const bme68x_data data, const bsec_outputs outputs);
 
 void bme680_setup(void);
 
-void bme680_test(void);
+bool bme680_get_data(bme680_data_t* data);
+
+bool bme680_print_data(bme680_data_t* data);
