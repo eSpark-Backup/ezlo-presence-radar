@@ -42,7 +42,7 @@
 static bsec_version_t version;
 static bsec_library_return_t status;
 
-bsec_bme_settings_t bmeConf;
+bsec_bme_settings_t bme_conf;
 
 bsec_callback new_data_callback;
 
@@ -78,7 +78,7 @@ void bsec2_setup(s_ezlopi_i2c_master_t* bme68x_i2c_master_conf)
     bsec_instance = NULL;
 
     memset(&version, 0, sizeof(version));
-    memset(&bmeConf, 0, sizeof(bmeConf));
+    memset(&bme_conf, 0, sizeof(bme_conf));
     memset(&outputs, 0, sizeof(outputs));
 }
 
@@ -136,34 +136,34 @@ bool bsec2_update_subscription(bsec_sensor sensor_list[], uint8_t n_sensors, flo
  */
 bool bsec2_run(void)
 {
-    uint8_t nFieldsLeft = 0;
+    uint8_t n_fields_left = 0;
     bme68x_data data;
-    int64_t currTimeNs = bsec2_get_time_ms() * INT64_C(1000000);
-    op_mode = bmeConf.op_mode;
+    int64_t curr_time_ns = bsec2_get_time_ms() * INT64_C(1000000);
+    op_mode = bme_conf.op_mode;
 
-    if (currTimeNs >= bmeConf.next_call)
+    if (curr_time_ns >= bme_conf.next_call)
     {
         /* Provides the information about the current sensor configuration that is
            necessary to fulfill the input requirements, eg: operation mode, timestamp
            at which the sensor data shall be fetched etc */
-        status = bsec_sensor_control_m(bsec_instance ,currTimeNs, &bmeConf);
+        status = bsec_sensor_control_m(bsec_instance ,curr_time_ns, &bme_conf);
         if (status != BSEC_OK)
             return false;
 
-        switch (bmeConf.op_mode)
+        switch (bme_conf.op_mode)
         {
         case BME68X_FORCED_MODE:
             bsec2_set_bme68x_config_forced();
             break;
         case BME68X_PARALLEL_MODE:
-            if (op_mode != bmeConf.op_mode)
+            if (op_mode != bme_conf.op_mode)
             {
                 bsec2_set_bme68x_config_parallel();
             }
             break;
 
         case BME68X_SLEEP_MODE:
-            if (op_mode != bmeConf.op_mode)
+            if (op_mode != bme_conf.op_mode)
             {
                 bme68xlib_set_op_mode(BME68X_SLEEP_MODE);
                 op_mode = BME68X_SLEEP_MODE;
@@ -174,22 +174,22 @@ bool bsec2_run(void)
         if (bme68xlib_check_status() == BME68X_ERROR)
             return false;
 
-        if (bmeConf.trigger_measurement && bmeConf.op_mode != BME68X_SLEEP_MODE)
+        if (bme_conf.trigger_measurement && bme_conf.op_mode != BME68X_SLEEP_MODE)
         {
             if (bme68xlib_fetch_data())
             {
                 do
                 {
-                    nFieldsLeft = bme68xlib_get_data(&data);
+                    n_fields_left = bme68xlib_get_data(&data);
                     /* check for valid gas data */
                     if (data.status & BME68X_GASM_VALID_MSK)
                     {
-                        if (!bsec2_process_data(currTimeNs, &data))
+                        if (!bsec2_process_data(curr_time_ns, &data))
                         {
                             return false;
                         }
                     }
-                } while (nFieldsLeft);
+                } while (n_fields_left);
             }
 
         }
@@ -221,7 +221,7 @@ bool bsec2_set_state(uint8_t *state)
     if (status != BSEC_OK)
         return false;
 
-    memset(&bmeConf, 0, sizeof(bmeConf));
+    memset(&bme_conf, 0, sizeof(bme_conf));
 
     return true;
 }
@@ -249,7 +249,7 @@ bool bsec2_set_config(const uint8_t *config)
     if (status != BSEC_OK)
         return false;
 
-    memset(&bmeConf, 0, sizeof(bmeConf));
+    memset(&bme_conf, 0, sizeof(bme_conf));
 
     return true;
 }
@@ -294,16 +294,16 @@ void bsec2_clear_memory(void)
 /**
  * @brief Reads data from the BME68X sensor and process it
  */
-bool bsec2_process_data(int64_t currTimeNs, const bme68x_data* data)
+bool bsec2_process_data(int64_t curr_time_ns, const bme68x_data* data)
 {
     bsec_input_t inputs[BSEC_MAX_PHYSICAL_SENSOR]; /* Temp, Pres, Hum & Gas */
     uint8_t n_inputs = 0;
     /* Checks all the required sensor inputs, required for the BSEC library for the requested outputs */
-    if (BSEC_CHECK_INPUT(bmeConf.process_data, BSEC_INPUT_TEMPERATURE))
+    if (BSEC_CHECK_INPUT(bme_conf.process_data, BSEC_INPUT_TEMPERATURE))
     {
         inputs[n_inputs].sensor_id = BSEC_INPUT_HEATSOURCE;
         inputs[n_inputs].signal = ext_temp_offset;
-        inputs[n_inputs].time_stamp = currTimeNs;
+        inputs[n_inputs].time_stamp = curr_time_ns;
         n_inputs++;
 #ifdef BME68X_USE_FPU
         inputs[n_inputs].signal = data->temperature;
@@ -311,10 +311,10 @@ bool bsec2_process_data(int64_t currTimeNs, const bme68x_data* data)
         inputs[n_inputs].signal = data->temperature / 100.0f;
 #endif
         inputs[n_inputs].sensor_id = BSEC_INPUT_TEMPERATURE;
-        inputs[n_inputs].time_stamp = currTimeNs;
+        inputs[n_inputs].time_stamp = curr_time_ns;
         n_inputs++;
     }
-    if (BSEC_CHECK_INPUT(bmeConf.process_data, BSEC_INPUT_HUMIDITY))
+    if (BSEC_CHECK_INPUT(bme_conf.process_data, BSEC_INPUT_HUMIDITY))
     {
 #ifdef BME68X_USE_FPU
         inputs[n_inputs].signal = data->humidity;
@@ -322,30 +322,30 @@ bool bsec2_process_data(int64_t currTimeNs, const bme68x_data* data)
         inputs[n_inputs].signal = data->humidity / 1000.0f;
 #endif
         inputs[n_inputs].sensor_id = BSEC_INPUT_HUMIDITY;
-        inputs[n_inputs].time_stamp = currTimeNs;
+        inputs[n_inputs].time_stamp = curr_time_ns;
         n_inputs++;
     }
-    if (BSEC_CHECK_INPUT(bmeConf.process_data, BSEC_INPUT_PRESSURE))
+    if (BSEC_CHECK_INPUT(bme_conf.process_data, BSEC_INPUT_PRESSURE))
     {
         inputs[n_inputs].sensor_id = BSEC_INPUT_PRESSURE;
         inputs[n_inputs].signal = data->pressure;
-        inputs[n_inputs].time_stamp = currTimeNs;
+        inputs[n_inputs].time_stamp = curr_time_ns;
         n_inputs++;
     }
-    if (BSEC_CHECK_INPUT(bmeConf.process_data, BSEC_INPUT_GASRESISTOR) &&
+    if (BSEC_CHECK_INPUT(bme_conf.process_data, BSEC_INPUT_GASRESISTOR) &&
             (data->status & BME68X_GASM_VALID_MSK))
     {
         inputs[n_inputs].sensor_id = BSEC_INPUT_GASRESISTOR;
         inputs[n_inputs].signal = data->gas_resistance;
-        inputs[n_inputs].time_stamp = currTimeNs;
+        inputs[n_inputs].time_stamp = curr_time_ns;
         n_inputs++;
     }
-    if (BSEC_CHECK_INPUT(bmeConf.process_data, BSEC_INPUT_PROFILE_PART) &&
+    if (BSEC_CHECK_INPUT(bme_conf.process_data, BSEC_INPUT_PROFILE_PART) &&
             (data->status & BME68X_GASM_VALID_MSK))
     {
         inputs[n_inputs].sensor_id = BSEC_INPUT_PROFILE_PART;
         inputs[n_inputs].signal = (op_mode == BME68X_FORCED_MODE) ? 0 : data->gas_index;
-        inputs[n_inputs].time_stamp = currTimeNs;
+        inputs[n_inputs].time_stamp = curr_time_ns;
         n_inputs++;
     }
 
@@ -391,7 +391,7 @@ bool bsec2_begin_common()
     if (status != BSEC_OK)
         return false;
 
-    memset(&bmeConf, 0, sizeof(bmeConf));
+    memset(&bme_conf, 0, sizeof(bme_conf));
     memset(&outputs, 0, sizeof(outputs));
 
     return true;
@@ -403,12 +403,12 @@ bool bsec2_begin_common()
 void bsec2_set_bme68x_config_forced(void)
 {
     /* Set the filter, odr, temperature, pressure and humidity settings */
-    bme68xlib_set_tph(bmeConf.temperature_oversampling, bmeConf.pressure_oversampling, bmeConf.humidity_oversampling);
+    bme68xlib_set_tph(bme_conf.temperature_oversampling, bme_conf.pressure_oversampling, bme_conf.humidity_oversampling);
 
     if (bme68xlib_check_status() == BME68X_ERROR)
         return;
 
-    bme68xlib_set_heater_prof_p2(bmeConf.heater_temperature, bmeConf.heater_duration);
+    bme68xlib_set_heater_prof_p2(bme_conf.heater_temperature, bme_conf.heater_duration);
 
     if (bme68xlib_check_status() == BME68X_ERROR)
         return;
@@ -428,15 +428,15 @@ void bsec2_set_bme68x_config_parallel(void)
     uint16_t sharedHeaterDur = 0;
 
     /* Set the filter, odr, temperature, pressure and humidity settings */
-    bme68xlib_set_tph(bmeConf.temperature_oversampling, bmeConf.pressure_oversampling, bmeConf.humidity_oversampling);
+    bme68xlib_set_tph(bme_conf.temperature_oversampling, bme_conf.pressure_oversampling, bme_conf.humidity_oversampling);
 
     if (bme68xlib_check_status() == BME68X_ERROR)
         return;
 
     sharedHeaterDur = BSEC_TOTAL_HEAT_DUR - (bme68xlib_get_meas_dur(BME68X_PARALLEL_MODE) / INT64_C(1000));
 
-    bme68xlib_set_heater_prof_p4(bmeConf.heater_temperature_profile, bmeConf.heater_duration_profile, sharedHeaterDur,
-            bmeConf.heater_profile_len);
+    bme68xlib_set_heater_prof_p4(bme_conf.heater_temperature_profile, bme_conf.heater_duration_profile, sharedHeaterDur,
+            bme_conf.heater_profile_len);
 
     if (bme68xlib_check_status() == BME68X_ERROR)
         return;

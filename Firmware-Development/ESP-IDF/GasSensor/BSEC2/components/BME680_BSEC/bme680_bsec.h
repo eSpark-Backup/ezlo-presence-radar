@@ -41,8 +41,8 @@ void bme680_data_callback(const bme68x_data data, const bsec_outputs outputs);
 
 /**
 * @brief : This function initializes the BSEC and BME680 Sensor
-* @param[in] initialize_i2c  :  True : Initialize I2C,
-                                False : Skips I2C Initialization
+* @param[in] initialize_i2c  :  true : initialize i2c,
+                                false : skips i2c initialization
 */
 void bme680_setup(bool initialize_i2c);
 

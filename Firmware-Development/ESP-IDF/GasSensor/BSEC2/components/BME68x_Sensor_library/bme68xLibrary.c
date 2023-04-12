@@ -542,18 +542,13 @@ int8_t bme68x_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
         write_buf[i+1] = reg_data[i];
     }
   
-	ezlopi_i2c_master_write_to_device(&g_bme68x_i2c_master_conf, write_buf, length+1);
-	return ESP_OK; // Returning without checking error
-
-	#if 0
-	_error = i2c_master_write_to_device(i2c_port, bme68x_addr, write_buf, length+1, 1000 / portTICK_PERIOD_MS);
+	_error = ezlopi_i2c_master_write_to_device(&g_bme68x_i2c_master_conf, write_buf, length+1);
 
 	if (_error != ESP_OK)
 	{
 		return -1;
 	}
     return (int8_t)_error;
-	#endif
 }
 
 /**
@@ -563,12 +558,8 @@ int8_t bme68x_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length,
         void *intfPtr) {
    	esp_err_t _error;
 
-	ezlopi_i2c_master_write_to_device(&g_bme68x_i2c_master_conf, &reg_addr, 1);
-	ezlopi_i2c_master_read_from_device(&g_bme68x_i2c_master_conf, reg_data, length);
-	return ESP_OK;	// Returning without checking error
-	
-	#if 0 
-    _error = i2c_master_write_read_device(i2c_port, bme68x_addr, &reg_addr, 1, reg_data, length, 1000 / portTICK_PERIOD_MS);
+	_error = ezlopi_i2c_master_write_to_device(&g_bme68x_i2c_master_conf, &reg_addr, 1);
+	_error = ezlopi_i2c_master_read_from_device(&g_bme68x_i2c_master_conf, reg_data, length);
 
 	if (_error != ESP_OK)
 	{
@@ -576,5 +567,4 @@ int8_t bme68x_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length,
 	}
 
     return _error;
-	#endif
 }
