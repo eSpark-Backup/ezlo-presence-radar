@@ -34,7 +34,8 @@ version 0.1
 #include <stdio.h>
 #include <math.h>
 #include "esp_log.h"
-#include "driver/i2c.h"
+#include "ezlopi_i2c_master.h"
+#include <string.h>
 
 typedef uint8_t byte;
 typedef bool boolean;
@@ -95,7 +96,7 @@ typedef enum {
   LTR3XX_MEASRATE_2000,
 } ltr329_measurerate_t;
 			
-boolean ltr303_begin(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t ltr303_address);
+boolean ltr303_begin(s_ezlopi_i2c_master_t* bme68x_i2c_master_conf);
 	// Initialize LTR303 library with default address (0x29)
 	// Always returns true
 
@@ -372,6 +373,4 @@ boolean ltr303_write_uint(byte address, unsigned int value);
 	// Value: unsigned int to write to address
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() above)
-
-esp_err_t ltr303_i2c_master_init(gpio_num_t sda, gpio_num_t scl);
 #endif

@@ -7,7 +7,7 @@
 
 void app_main()
 {
-    ltr303_setup(true, LTR303_SDA, LTR303_SCL, ACTIVE_I2C, LTR303_ADDR);
+    ltr303_setup(true); // true : initialize i2c, false : skips i2c initialization
 
     double lux;
     while (1)

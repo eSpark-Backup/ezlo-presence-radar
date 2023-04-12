@@ -1,5 +1,14 @@
 #include "ALS_LTR303.h"
 
+s_ezlopi_i2c_master_t ltr303_i2c_master_conf =  {
+                                                    .enable = true,
+                                                    .address = LTR303_ADDR,
+                                                    .channel = ACTIVE_I2C,
+                                                    .sda = LTR303_SDA,
+                                                    .scl = LTR303_SCL,
+                                                    .clock_speed = I2C_MASTER_FREQ_HZ,
+                                                };
+
 unsigned char gain = LTR3XX_GAIN_1;     // Gain setting, values = 0-7 
 unsigned char integration_time = LTR3XX_INTEGTIME_200;  // Integration ("shutter") time in milliseconds
 unsigned char measurement_rate = LTR3XX_MEASRATE_200;  // Interval between DATA_REGISTERS update
@@ -12,9 +21,13 @@ bool ltr303_is_data_available(void)
     return data_status;
 }
 
-esp_err_t ltr303_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t ltr303_address)
+esp_err_t ltr303_setup(bool initialize_i2c)
 {  
-    ltr303_begin(initialize_i2c, sda, scl, i2c_num, ltr303_address);
+    if (!initialize_i2c)
+    {
+        ltr303_i2c_master_conf.enable = false;
+    }
+    ltr303_begin(&ltr303_i2c_master_conf);
     unsigned char ID;
   
     if (ltr303_get_part_id(&ID)) {
