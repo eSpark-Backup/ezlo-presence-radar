@@ -2,8 +2,10 @@
 
 #include "bme68xLibrary.h"
 #include "bsec2.h"
+#include <math.h>
 
 #define BME680_TEST 0
+#define SEALEVELPRESSURE_HPA (1013.25)
 
 typedef struct 
 {
@@ -15,6 +17,7 @@ typedef struct
     float pressure;
     float humidity;
     float gas_resistance;
+    float altitude;
     bool stabilization_status;
     bool run_in_status;
 }   bme680_data_t;
@@ -37,3 +40,5 @@ void bme680_setup(void);
 bool bme680_get_data(bme680_data_t* data);
 
 bool bme680_print_data(bme680_data_t* data);
+
+float bme680_read_altitude(float pressure, float seaLevel);

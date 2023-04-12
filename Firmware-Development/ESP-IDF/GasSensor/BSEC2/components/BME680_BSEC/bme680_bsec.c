@@ -46,17 +46,8 @@ static bool bme680_copy_data(bme680_data_t* dest, bme680_data_t* src)
     {
         return false;
     }
-    
-    dest->iaq                   = src->iaq;
-    dest->iaq_accuracy          = src->iaq_accuracy;
-    dest->temperature           = src->temperature;
-    dest->pressure              = src->pressure;
-    dest->humidity              = src->humidity;
-    dest->gas_resistance        = src->gas_resistance;
-    dest->co2_equivalent        = src->co2_equivalent;
-    dest->voc_equivalent        = src->voc_equivalent;
-    dest->stabilization_status  = src->stabilization_status;
-    dest->run_in_status         = src->run_in_status;
+
+    memcpy(dest, src, sizeof(bme680_data_t));
     return true;
 }
 
@@ -123,6 +114,7 @@ void bme680_data_callback(const bme68x_data data, const bsec_outputs outputs)
                 printf("\tpressure = %0.2f\n", output.signal);
             #endif
                 bme680_data.pressure = output.signal;
+                bme680_data.altitude = bme680_read_altitude(bme680_data.pressure, SEALEVELPRESSURE_HPA);
                 break;
 
             case BSEC_OUTPUT_RAW_HUMIDITY:
@@ -173,6 +165,18 @@ void bme680_data_callback(const bme68x_data data, const bsec_outputs outputs)
     }
 }
 
+float bme680_read_altitude(float pressure, float seaLevel) {
+  // Equation taken from BMP180 datasheet (page 16):
+  //  http://www.adafruit.com/datasheets/BST-BMP180-DS000-09.pdf
+
+  // Note that using the equation from wikipedia can give bad results
+  // at high altitude. See this thread for more information:
+  //  http://forums.adafruit.com/viewtopic.php?f=22&t=58064
+
+  float atmospheric = pressure / 100.0F;
+  return 44330.0 * (1.0 - pow(atmospheric / seaLevel, 0.1903));
+}
+
 void check_bsec_status()
 {
     if (bsec2_get_status() < BSEC_OK)
@@ -205,9 +209,10 @@ bool bme680_print_data(bme680_data_t* data)
     printf("\tiaq = %0.2f\n",data->iaq);    
     printf("\tiaq accuracy = %d\n", (int) data->iaq_accuracy);
     printf("\ttemperature = %0.2f °C\n", data->temperature);
-    printf("\tpressure = %0.2f hPa\n", data->pressure);
+    printf("\tpressure = %0.2f hPa\n", data->pressure / 100.0f);
     printf("\thumidity = %0.2f %%\n", data->humidity);
-    printf("\tgas resistance = %0.2f Ω\n", data->gas_resistance);
+    printf("\tgas resistance = %0.2f KΩ\n", data->gas_resistance / 1000.0);
+    printf("\taltitude = %0.2f m\n", data->altitude);
     printf("\tCO2 Equivalent = %0.2f\n", data->co2_equivalent);
     printf("\tVOC Equivalent = %0.2f\n", data->voc_equivalent);
     printf("\tstabilization status = %d\n", data->stabilization_status);
