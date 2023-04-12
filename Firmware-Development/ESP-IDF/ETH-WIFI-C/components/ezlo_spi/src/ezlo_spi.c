@@ -10,6 +10,7 @@ static const char* TAG = "ezlo_spi";
 esp_err_t spi_init(spi_t* spi_obj, const spi_host_device_t spi_peripheral, const int pin_miso, const int pin_mosi, const int pin_sclk)
 {
     esp_err_t status = ESP_OK;
+    memset(&(spi_obj->bus_cfg), 0, sizeof(spi_bus_config_t));
     spi_obj->host = spi_peripheral;
     spi_obj->transaction.tx_buffer = NULL;
     spi_obj->transaction.rx_buffer = NULL;

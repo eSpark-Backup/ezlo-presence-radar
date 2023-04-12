@@ -4,6 +4,8 @@ static const char* TAG = "ezlo_w5500";
 
 esp_err_t w5500_setup(w5500_t* w5500)
 {
+    w5500->power_pin = W5500_EN;
+    w5500->reset_pin = W5500_RST;
     esp_err_t ret = w5500_power_pin_config(w5500->power_pin);
     if(ret != ESP_OK)
         return ret;
@@ -97,9 +99,9 @@ void set_reset_pin_PHY(eth_phy_config_t* eth_phy_obj, gpio_num_t reset_pin)
  * @param[in]   spi_device_handle_t  Pointer of SPI Instance
  * @param[in]   gpio_num_t  interrupt pin of W5500 Module
  */
-void w5500_set_config(w5500_t* w5500, spi_device_handle_t spi_handle, gpio_num_t intr_pin)
+void w5500_set_config(eth_w5500_config_t* w5500_obj, spi_device_handle_t spi_handle, gpio_num_t intr_pin)
 {
-    w5500->w5500_obj = (eth_w5500_config_t){
+    *w5500_obj = (eth_w5500_config_t){
         .spi_hdl = spi_handle,        
         .int_gpio_num = intr_pin,
     };

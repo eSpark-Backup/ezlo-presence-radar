@@ -11,6 +11,7 @@
 #include "esp_eth.h"
 #include "esp_eth_mac.h"
 #include "driver/spi_master.h"
+#include "w5500_ambient_pro.h"
 
 typedef struct 
 {
@@ -32,7 +33,7 @@ void w5500_startup_reset(w5500_t* w5500);
 void set_default_MAC(eth_mac_config_t * eth_mac_obj);
 void set_default_PHY(eth_phy_config_t* eth_phy_obj);
 void set_reset_pin_PHY(eth_phy_config_t* eth_phy_obj, gpio_num_t reset_pin);
-void w5500_set_config(w5500_t* w5500, spi_device_handle_t spi_handle, gpio_num_t intr_pin);
+void w5500_set_config(eth_w5500_config_t* w5500_obj, spi_device_handle_t spi_handle, gpio_num_t intr_pin);
 esp_err_t w5500_eth_driver_install(esp_eth_config_t* eth_obj, esp_eth_handle_t* eth_handle_spi);
 esp_err_t w5500_set_mac_address(esp_eth_handle_t eth_handle_spi);
 esp_err_t w5500_netif_glue(esp_netif_t* esp_netif , esp_eth_handle_t eth_handler);

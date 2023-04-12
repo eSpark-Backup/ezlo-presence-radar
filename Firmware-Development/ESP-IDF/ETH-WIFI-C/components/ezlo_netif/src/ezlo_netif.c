@@ -71,6 +71,6 @@ esp_err_t netif_create_spi_instance(netif_spi_eth_t* netif_obj)
 void netif_set_eth_glue(netif_spi_eth_t* netif_obj)
 {
     // attach Ethernet driver to TCP/IP stack
-    ESP_ERROR_CHECK( esp_netif_attach( netif_obj->eth_netif_spi, esp_eth_new_netif_glue(netif_obj->eth_netif_spi) ) );
+    ESP_ERROR_CHECK( esp_netif_attach( &netif_obj->eth_netif_spi, esp_eth_new_netif_glue(netif_obj->eth_netif_spi) ) );
 }
 
