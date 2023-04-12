@@ -44,6 +44,7 @@
 
 #include "bme68x.h"
 #include <driver/i2c.h>
+#include "ezlopi_i2c_master.h"
 
 #define BME68X_ERROR            INT8_C(-1)
 #define BME68X_WARNING          INT8_C(1)
@@ -95,7 +96,7 @@ int8_t bme68x_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, voi
 /**
  * Class constructor
  */
-void bme68xlib_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address);
+void bme68xlib_setup(s_ezlopi_i2c_master_t* bme68x_i2c_master_conf);
 
 /**
  * @brief Function to initialize the sensor based on custom callbacks

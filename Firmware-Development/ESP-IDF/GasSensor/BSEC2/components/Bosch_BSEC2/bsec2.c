@@ -65,9 +65,9 @@ static uint8_t work_buffer[BSEC_MAX_WORKBUFFER_SIZE];
 /**
  * @brief Constructor of Bsec2 class
  */
-void bsec2_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address)
+void bsec2_setup(s_ezlopi_i2c_master_t* bme68x_i2c_master_conf)
 {
-    bme68xlib_setup(initialize_i2c, sda, scl, i2c_num, bme68x_address);
+    bme68xlib_setup(bme68x_i2c_master_conf);
 
     ovf_counter = 0;
     last_millis = 0;

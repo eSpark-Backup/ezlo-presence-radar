@@ -1,10 +1,18 @@
 #include "bme680_bsec.h"
 
 static bool callback_status = false;
-static bme680_data_t bme680_data; 
+static bme680_data_t bme680_data;
+s_ezlopi_i2c_master_t bme68x_i2c_master_conf =  {
+                                                    .enable = true,
+                                                    .address = BME68X_I2C_ADDR_HIGH,
+                                                    .channel = ACTIVE_I2C,
+                                                    .sda = BME680_SDA,
+                                                    .scl = BME680_SCL,
+                                                    .clock_speed = I2C_MASTER_FREQ_HZ,
+                                                };
 
 /* Entry point for the example */
-void bme680_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address)
+void bme680_setup(bool initialize_i2c)
 {
     /* Desired subscription list of BSEC2 outputs */
     bsec_sensor sensor_list[] = {
@@ -18,8 +26,13 @@ void bme680_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_
             BSEC_OUTPUT_STABILIZATION_STATUS,
             BSEC_OUTPUT_RUN_IN_STATUS
     };
-
-    bsec2_setup(initialize_i2c, sda, scl, i2c_num, bme68x_address);
+    
+    if (!initialize_i2c)
+    {
+        bme68x_i2c_master_conf.enable = false;
+    }
+    
+    bsec2_setup(&bme68x_i2c_master_conf);
     /* Initialize the library and interfaces */
     if (!bsec2_begin())
     {
