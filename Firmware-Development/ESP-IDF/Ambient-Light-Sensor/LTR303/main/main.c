@@ -7,7 +7,7 @@
 
 void app_main()
 {
-    ltr303_setup();
+    ltr303_setup(true, LTR303_SDA, LTR303_SCL, ACTIVE_I2C, LTR303_ADDR);
 
     double lux;
     while (1)

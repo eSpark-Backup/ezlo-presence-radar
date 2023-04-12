@@ -41,10 +41,6 @@ typedef bool boolean;
 #define lowByte(word) ((uint8_t)(word & 0xFF))
 #define highByte(word) ((uint8_t)((word >> 8) & 0xFF))
 
-#define I2C_MASTER_SCL_IO (gpio_num_t)17
-#define I2C_MASTER_SDA_IO (gpio_num_t)18
-#define INT_ALS_PIN (gpio_num_t)16
-#define I2C_MASTER_NUM I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ 400000
 // Edited
 
@@ -99,7 +95,7 @@ typedef enum {
   LTR3XX_MEASRATE_2000,
 } ltr329_measurerate_t;
 			
-boolean ltr303_begin(void);
+boolean ltr303_begin(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t ltr303_address);
 	// Initialize LTR303 library with default address (0x29)
 	// Always returns true
 
@@ -377,4 +373,5 @@ boolean ltr303_write_uint(byte address, unsigned int value);
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() above)
 
+esp_err_t ltr303_i2c_master_init(gpio_num_t sda, gpio_num_t scl);
 #endif

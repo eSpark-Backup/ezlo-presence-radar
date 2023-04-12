@@ -12,9 +12,9 @@ bool ltr303_is_data_available(void)
     return data_status;
 }
 
-esp_err_t ltr303_setup(void)
+esp_err_t ltr303_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t ltr303_address)
 {  
-    ltr303_begin();
+    ltr303_begin(initialize_i2c, sda, scl, i2c_num, ltr303_address);
     unsigned char ID;
   
     if (ltr303_get_part_id(&ID)) {

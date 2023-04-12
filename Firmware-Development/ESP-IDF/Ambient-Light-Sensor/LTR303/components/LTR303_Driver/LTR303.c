@@ -29,26 +29,26 @@ version 0.1
 
 #include "LTR303.h"
 
-byte _i2c_address;
+static byte ltr303_addr;
+static i2c_port_t i2c_port = I2C_NUM_0;
 
 byte _error;
 
-boolean ltr303_begin(void) {
+boolean ltr303_begin(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t ltr303_address) {
 	// Initialize LTR303 library with default address (0x39)
 	// Always returns true
 
-	_i2c_address = LTR303_ADDR;
-	i2c_config_t conf = { };
-    conf.mode = I2C_MODE_MASTER,
-    conf.sda_io_num = I2C_MASTER_SDA_IO,
-    conf.scl_io_num = I2C_MASTER_SCL_IO,
-    conf.sda_pullup_en = GPIO_PULLUP_ENABLE,
-    conf.scl_pullup_en = GPIO_PULLUP_ENABLE,
-    conf.master.clk_speed = I2C_MASTER_FREQ_HZ,
+	ltr303_addr = ltr303_address;
+	i2c_port = i2c_num;
 
-	i2c_param_config(I2C_MASTER_NUM, &conf);
-	ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, I2C_MODE_MASTER, 0, 0, 0));
-
+	if(initialize_i2c)
+	{
+		if(ltr303_i2c_master_init(sda, scl) != ESP_OK)
+		{
+			return false;
+		}
+	}
+	
 	return(true);
 }
 
@@ -560,7 +560,7 @@ boolean ltr303_read_byte(byte address, byte* value) {
 	// (Also see getError() above)
 	// Check if sensor present for read
 	uint8_t data;
-	_error = i2c_master_write_read_device(I2C_MASTER_NUM, _i2c_address, &address, 1, &data, 1, 1000 / portTICK_PERIOD_MS);
+	_error = i2c_master_write_read_device(i2c_port, ltr303_addr, &address, 1, &data, 1, 1000 / portTICK_PERIOD_MS);
 
 	if (_error == ESP_OK)
 	{
@@ -578,7 +578,7 @@ boolean ltr303_write_byte(byte address, byte value) {
 	// (Also see getError() above)
 
 	uint8_t write_buf[2] = { address, value};
-	_error = i2c_master_write_to_device(I2C_MASTER_NUM, _i2c_address, write_buf, 2, 1000 / portTICK_PERIOD_MS);
+	_error = i2c_master_write_to_device(i2c_port, ltr303_addr, write_buf, 2, 1000 / portTICK_PERIOD_MS);
 
 	if (_error == ESP_OK)
 	{
@@ -594,7 +594,7 @@ boolean ltr303_read_uint(byte address, unsigned int* value) {
 	// Returns true (1) if successful, false (0) if there was an I2C error
 	// (Also see getError() above)
 	uint16_t data;
-	_error = i2c_master_write_read_device(I2C_MASTER_NUM, _i2c_address, &address, 1, (uint8_t*)&data, 2, 1000 / portTICK_PERIOD_MS);
+	_error = i2c_master_write_read_device(i2c_port, ltr303_addr, &address, 1, (uint8_t*)&data, 2, 1000 / portTICK_PERIOD_MS);
 
 	if (_error == ESP_OK)
 	{
@@ -646,3 +646,15 @@ void ltr303_print_error(byte error) {
   }
 }
 	
+esp_err_t ltr303_i2c_master_init(gpio_num_t sda, gpio_num_t scl)
+{
+    i2c_config_t conf = {};
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = sda;
+    conf.scl_io_num = scl;
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
+    i2c_param_config(i2c_port, &conf);
+    return i2c_driver_install(i2c_port, conf.mode, 0, 0, 0);
+}
