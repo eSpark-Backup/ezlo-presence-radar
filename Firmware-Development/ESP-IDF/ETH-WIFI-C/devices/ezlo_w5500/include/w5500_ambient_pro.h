@@ -6,7 +6,7 @@
 #define W5500_MOSI         GPIO_NUM_2
 #define W5500_MISO         GPIO_NUM_1
 #define W5500_SCLK         GPIO_NUM_4
-#define W5500_INT          GPIO_NUM_12
+#define W5500_INTR         GPIO_NUM_12
 #define W5500_PHY_RST      GPIO_NUM_11
 #define W5500_PHY_ADDR     1
 #define W5500_HOST         (spi_host_device_t)2

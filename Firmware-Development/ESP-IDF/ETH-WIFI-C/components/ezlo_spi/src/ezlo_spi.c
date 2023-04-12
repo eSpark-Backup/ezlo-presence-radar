@@ -1,5 +1,7 @@
 #include "ezlo_spi.h"
 
+static const char* TAG = "ezlo_spi";
+
 /*!
     @brief  Initializes SPI Master bus.
     @param  
@@ -32,7 +34,7 @@ esp_err_t spi_register_device(spi_t* spi_obj ,const uint8_t mode, const int ss, 
     spi_obj->interface_cfg.mode = mode;
     spi_obj->interface_cfg.clock_speed_hz = clock_speed_devider; // 80MHz/10 = 8MHz SPI speed
     spi_obj->interface_cfg.spics_io_num = ss; // IO pin 5 is my chip select
-    spi_obj->interface_cfg.queue_size = 5;
+    spi_obj->interface_cfg.queue_size = 20;
     status |= spi_bus_add_device(spi_obj->host, &(spi_obj->interface_cfg), &(spi_obj->handle));
     return status;
 }
