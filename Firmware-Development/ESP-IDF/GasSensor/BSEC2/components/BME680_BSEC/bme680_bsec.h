@@ -4,6 +4,10 @@
 #include "bsec2.h"
 #include <math.h>
 
+#define BME680_SDA              GPIO_NUM_18
+#define BME680_SCL              GPIO_NUM_17
+#define ACTIVE_I2C              I2C_NUM_0
+
 #define BME680_TEST 0
 #define SEALEVELPRESSURE_HPA (1013.25)
 
@@ -35,7 +39,7 @@ void check_bsec_status();
  */
 void bme680_data_callback(const bme68x_data data, const bsec_outputs outputs);
 
-void bme680_setup(void);
+void bme680_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address);
 
 bool bme680_get_data(bme680_data_t* data);
 

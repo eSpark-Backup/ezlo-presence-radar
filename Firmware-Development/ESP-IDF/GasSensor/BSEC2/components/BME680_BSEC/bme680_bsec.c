@@ -4,7 +4,7 @@ static bool callback_status = false;
 static bme680_data_t bme680_data; 
 
 /* Entry point for the example */
-void bme680_setup(void)
+void bme680_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address)
 {
     /* Desired subscription list of BSEC2 outputs */
     bsec_sensor sensor_list[] = {
@@ -19,7 +19,7 @@ void bme680_setup(void)
             BSEC_OUTPUT_RUN_IN_STATUS
     };
 
-    bsec2_setup();
+    bsec2_setup(initialize_i2c, sda, scl, i2c_num, bme68x_address);
     /* Initialize the library and interfaces */
     if (!bsec2_begin())
     {

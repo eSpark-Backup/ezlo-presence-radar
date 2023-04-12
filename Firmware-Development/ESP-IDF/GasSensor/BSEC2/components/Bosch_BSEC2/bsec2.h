@@ -70,7 +70,7 @@ typedef void (*bsec_callback)(const bme68x_data data, const bsec_outputs outputs
 extern "C" {
 #endif
 
-void bsec2_setup(void);
+void bsec2_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address);
 
 /**
  * @brief Function to initialize the sensor based on custom callbacks

@@ -102,8 +102,10 @@ static bme68x_heatr_conf heatrConf;
 static bme68x_data sensorData[3];
 static uint8_t n_fields, i_fields;
 static uint8_t last_op_mode;
+static i2c_port_t i2c_port = I2C_NUM_0;
+static uint8_t bme68x_addr = 0;
 
-void bme68xlib_setup(void)
+void bme68xlib_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address)
 {
 	status = BME68X_OK;
 	memset(&bme6, 0, sizeof(bme6));
@@ -114,8 +116,13 @@ void bme68xlib_setup(void)
 	n_fields = 0;
 	i_fields = 0;
 	last_op_mode = BME68X_SLEEP_MODE;
-	bme68x_i2c_master_init();
-	vTaskDelay(1000/portTICK_PERIOD_MS);
+
+	i2c_port = i2c_num;
+	bme68x_addr = bme68x_address;
+	if(initialize_i2c)
+	{
+		bme68x_i2c_master_init(sda, scl);
+	}
 }
 
 /**
@@ -540,7 +547,7 @@ int8_t bme68x_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
         write_buf[i+1] = reg_data[i];
     }
   
-	_error = i2c_master_write_to_device(ACTIVE_I2C, BME68X_DEFAULT_ADDRESS, write_buf, length+1, 1000 / portTICK_PERIOD_MS);
+	_error = i2c_master_write_to_device(i2c_port, bme68x_addr, write_buf, length+1, 1000 / portTICK_PERIOD_MS);
 
 	if (_error != ESP_OK)
 	{
@@ -555,7 +562,7 @@ int8_t bme68x_i2c_write(uint8_t reg_addr, const uint8_t *reg_data,
 int8_t bme68x_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length,
         void *intfPtr) {
    	esp_err_t _error;
-    _error = i2c_master_write_read_device(ACTIVE_I2C, BME68X_DEFAULT_ADDRESS, &reg_addr, 1, reg_data, length, 1000 / portTICK_PERIOD_MS);
+    _error = i2c_master_write_read_device(i2c_port, bme68x_addr, &reg_addr, 1, reg_data, length, 1000 / portTICK_PERIOD_MS);
 
 	if (_error != ESP_OK)
 	{
@@ -565,15 +572,15 @@ int8_t bme68x_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length,
     return _error;
 }
 
-esp_err_t bme68x_i2c_master_init(void)
+esp_err_t bme68x_i2c_master_init(gpio_num_t sda, gpio_num_t scl)
 {
     i2c_config_t conf = {};
     conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = BME68X_SDA;
-    conf.scl_io_num = BME68X_SCL;
+    conf.sda_io_num = sda;
+    conf.scl_io_num = scl;
     conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
     conf.master.clk_speed = I2C_MASTER_FREQ_HZ;
-    i2c_param_config(ACTIVE_I2C, &conf);
-    return i2c_driver_install(ACTIVE_I2C, conf.mode, 0, 0, 0);
+    i2c_param_config(i2c_port, &conf);
+    return i2c_driver_install(i2c_port, conf.mode, 0, 0, 0);
 }

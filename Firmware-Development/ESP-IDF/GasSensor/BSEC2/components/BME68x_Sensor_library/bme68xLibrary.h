@@ -49,11 +49,6 @@
 #define BME68X_WARNING          INT8_C(1)
 
 #define I2C_MASTER_FREQ_HZ 400000
-#define BME68X_SDA GPIO_NUM_18
-#define BME68X_SCL GPIO_NUM_17
-#define BME68X_DEFAULT_ADDRESS 0x77
-#define ACTIVE_I2C      I2C_NUM_0
-
 
 /** Datatype to keep consistent with camel casing */
 typedef struct bme68x_data          bme68x_data;
@@ -66,7 +61,7 @@ typedef struct bme68x_heatr_conf    bme68x_heatr_conf;
 extern "C" {
 #endif
 
-esp_err_t bme68x_i2c_master_init(void);
+esp_err_t bme68x_i2c_master_init(gpio_num_t sda, gpio_num_t scl);
 
 /**
  * @brief Function that implements the default microsecond delay callback
@@ -100,7 +95,7 @@ int8_t bme68x_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t length, voi
 /**
  * Class constructor
  */
-void bme68xlib_setup(void);
+void bme68xlib_setup(bool initialize_i2c, gpio_num_t sda, gpio_num_t scl, i2c_port_t i2c_num, uint8_t bme68x_address);
 
 /**
  * @brief Function to initialize the sensor based on custom callbacks
