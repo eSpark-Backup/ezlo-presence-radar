@@ -5,16 +5,17 @@
 #include "esp_log.h"
 #include "ALS_LTR303.h"
 
+ltr303_data_t light_sensor_data;
+
 void app_main()
 {
     ltr303_setup(true); // true : initialize i2c, false : skips i2c initialization
 
-    double lux;
     while (1)
     { 
-        if(ltr303_get_val(&lux) == ESP_OK)
+        if(ltr303_get_val(&light_sensor_data) == ESP_OK)
         { 
-            printf(" lux: %f\n",lux);
+            printf(" lux: %f\n",light_sensor_data.lux);
         }
     }  
 }

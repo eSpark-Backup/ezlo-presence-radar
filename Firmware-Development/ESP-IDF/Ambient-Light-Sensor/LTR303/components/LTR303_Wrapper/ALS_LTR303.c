@@ -55,7 +55,7 @@ esp_err_t ltr303_loop(void)
     return ESP_OK;
 }
 
-esp_err_t ltr303_get_val(double* lux)
+esp_err_t ltr303_get_val(ltr303_data_t* ltr303_data)
 {
     if (ltr303_is_data_available())
     {        
@@ -76,7 +76,7 @@ esp_err_t ltr303_get_val(double* lux)
             // reduce the integration time and/or gain.
 
             // Perform lux calculation:
-            if (ltr303_get_lux(gain,integration_time,data0,data1,lux))
+            if (ltr303_get_lux(gain,integration_time,data0,data1,&(ltr303_data->lux)))
             {
                 return ESP_OK;
             }
