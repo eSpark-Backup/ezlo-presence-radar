@@ -8,7 +8,7 @@
 #define W5500_SCLK         GPIO_NUM_4
 #define W5500_INTR         GPIO_NUM_12
 #define W5500_RST      GPIO_NUM_11
-#define W5500_PHY_ADDR     1
+#define W5500_PHY_ADDR     -1
 #define W5500_HOST         (spi_host_device_t)2
 #define W5500_CLOCK_MHZ    12
 #define W5500_CMD_BITS     16        

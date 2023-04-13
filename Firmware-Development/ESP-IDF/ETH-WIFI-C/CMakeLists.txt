@@ -5,4 +5,4 @@
 cmake_minimum_required(VERSION 3.5)
 set(EXTRA_COMPONENT_DIRS devices)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(ETH-WIFI-C)
+project(W5500-C)

@@ -1,50 +1,89 @@
 #include "ezlo_w5500.h"
-
 static const char* TAG = "ezlo_w5500";
 
-esp_err_t w5500_setup(w5500_t* w5500)
+void ezlo_w5500_setup(w5500_t* w5500, spi_t* spi)
 {
-    w5500->power_pin = W5500_EN;
-    w5500->reset_pin = W5500_RST;
-    esp_err_t ret = w5500_power_pin_config(w5500->power_pin);
-    if(ret != ESP_OK)
-        return ret;
-
-    ret = w5500_reset_pin_config(w5500->reset_pin);
-    if(ret != ESP_OK)
-        return ret;
-
-    w5500_startup_reset(w5500);
-    return ESP_OK;
+    w5500_spi_setup(spi);
+    esp_netif_t* eth_netif_spi = NULL;
+    w5500_netif_setup(&eth_netif_spi);
+    w5500_setup(w5500, spi, eth_netif_spi);
 }
 
-/*!
- *  @brief  Startup reset sequence for W5500 module.
- *  @param  Pointer of w5500_t.
- */
-void w5500_startup_reset(w5500_t* w5500)
+esp_err_t w5500_spi_setup(spi_t* spi)
 {
-    /* 1.Enable PWR to W5500 via mosfet */
-    gpio_set_level(w5500->power_pin, 1);
-    /* 2. Wait 500mS */
-    vTaskDelay(500 / portTICK_RATE_MS);
-    /* 3. Pull reset low, wait 5mS */
-    gpio_set_level(w5500->reset_pin, 0);
-    vTaskDelay(5 / portTICK_RATE_MS);
-    /* 4. Pull reset high, wait 10mS */
-    gpio_set_level(w5500->reset_pin, 1);
-    vTaskDelay(10 / portTICK_RATE_MS);
-}
+    // Install GPIO ISR handler to be able to service SPI Eth modlues interrupts
+    gpio_install_isr_service(0);
 
-esp_err_t w5500_power_pin_config(gpio_num_t power_pin)
-{
-    esp_err_t ret = w5500_gpio_config(power_pin);
+    esp_err_t ret = ESP_OK;
+    ret |= spi_init(spi, W5500_HOST, W5500_MISO, W5500_MOSI, W5500_SCLK);
+    ret |= spi_register_device(spi, 0, W5500_CS, W5500_ADDR_BITS, W5500_CMD_BITS,  12000000);
     return ret;
 }
 
-esp_err_t w5500_reset_pin_config(gpio_num_t reset_pin)
+esp_err_t w5500_netif_setup(esp_netif_t** eth_netif_spi)
 {
-    esp_err_t ret = w5500_gpio_config(reset_pin);
+    return netif_eth_spi_setup(eth_netif_spi);
+}
+
+void w5500_setup(w5500_t* w5500, spi_t* spi, esp_netif_t* eth_netif_spi)
+{
+    esp_err_t ret = ESP_OK;
+
+    eth_mac_config_t eth_mac_obj; 
+    eth_phy_config_t eth_phy_obj; 
+    
+    w5500_gpio_setup(W5500_EN, W5500_RST);
+    w5500_startup_reset(W5500_EN, W5500_RST);
+    w5500_set_config(&w5500->w5500_obj, spi->handle, W5500_INTR);
+    w5500_eth_mac_config(&eth_mac_obj);
+    w5500_eth_phy_config(&eth_phy_obj);
+    w5500->mac_spi = esp_eth_mac_new_w5500(&w5500->w5500_obj, &eth_mac_obj);
+    w5500->phy_spi = esp_eth_phy_new_w5500(&eth_phy_obj);
+    w5500->eth_obj = (esp_eth_config_t)ETH_DEFAULT_CONFIG(w5500->mac_spi, w5500->phy_spi);
+    w5500_eth_driver_install(&w5500->eth_obj, &w5500->eth_handle_spi);
+    w5500_set_mac_address(w5500->eth_handle_spi);
+    w5500_netif_glue(eth_netif_spi, w5500->eth_handle_spi);
+    w5500_register_cbs();
+    w5500_start(w5500->eth_handle_spi);
+}
+
+void w5500_eth_mac_config(eth_mac_config_t * eth_mac_obj)
+{
+    *eth_mac_obj = (eth_mac_config_t)
+        {
+            .sw_reset_timeout_ms = 100,                       
+            .rx_task_stack_size = 2048,                       
+            .rx_task_prio = 15,                               
+            .smi_mdc_gpio_num = 23,                           
+            .smi_mdio_gpio_num = 18,                          
+            .flags = 0,                                       
+            .interface = EMAC_DATA_INTERFACE_RMII,            
+            .clock_config =                                   
+            {                                                 
+                .rmii =                                       
+                {                                             
+                    .clock_mode = EMAC_CLK_DEFAULT,           
+                    .clock_gpio = EMAC_CLK_IN_GPIO            
+                }                                             
+            }                                                 
+        };
+}
+
+void w5500_eth_phy_config(eth_phy_config_t* eth_phy_obj)
+{
+    *eth_phy_obj = (eth_phy_config_t) {                                      
+                    .phy_addr = W5500_PHY_ADDR, 
+                    .reset_timeout_ms = 100,           
+                    .autonego_timeout_ms = 4000,       
+                    .reset_gpio_num = W5500_RST,               
+                };
+}
+
+esp_err_t w5500_gpio_setup(gpio_num_t power_pin, gpio_num_t reset_pin)
+{
+    esp_err_t ret = ESP_OK; 
+    ret |= w5500_gpio_config(power_pin);
+    ret |= w5500_gpio_config(reset_pin);
     return ret;
 }
 
@@ -63,34 +102,22 @@ esp_err_t w5500_gpio_config(gpio_num_t gpio_num)
     return status;
 }
 
-/**
- * @brief       Set Default Configurations for Ethernet MAC object
- * @param[in]   eth_mac_config_t Pointer of Ethernet MAC object
+/*!
+ *  @brief  Startup reset sequence for W5500 module.
+ *  @param  Pointer of w5500_t.
  */
-void set_default_MAC(eth_mac_config_t * eth_mac_obj)
+void w5500_startup_reset(gpio_num_t power_pin, gpio_num_t reset_pin)
 {
-    *eth_mac_obj = (eth_mac_config_t)ETH_MAC_DEFAULT_CONFIG();
-}
-
-/**
- * @brief       Set Default Configurations for Ethernet PHY object
- * @param[in]   eth_phy_config_t* Pointer of Ethernet PHY object
- */
-void set_default_PHY(eth_phy_config_t* eth_phy_obj)
-{
-    *eth_phy_obj = (eth_phy_config_t)ETH_PHY_DEFAULT_CONFIG();
-}
-
-/**
- * @brief       Configure reset-pin of Ethernet PHY object
- * @param[in]   eth_phy_config_t* Pointer of Ethernet PHY object
- * @param[in]   gpio_num_t        Reset Pin of W5500 Module
- */
-
-void set_reset_pin_PHY(eth_phy_config_t* eth_phy_obj, gpio_num_t reset_pin)
-{
-    eth_phy_obj->phy_addr = -1;
-    eth_phy_obj->reset_gpio_num = reset_pin;
+    /* 1.Enable PWR to W5500 via mosfet */
+    gpio_set_level(power_pin, 1);
+    /* 2. Wait 500mS */
+    vTaskDelay(500 / portTICK_RATE_MS);
+    /* 3. Pull reset low, wait 5mS */
+    gpio_set_level(reset_pin, 0);
+    vTaskDelay(5 / portTICK_RATE_MS);
+    /* 4. Pull reset high, wait 10mS */
+    gpio_set_level(reset_pin, 1);
+    vTaskDelay(10 / portTICK_RATE_MS);
 }
 
 /**
