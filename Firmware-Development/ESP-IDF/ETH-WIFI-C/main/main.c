@@ -5,8 +5,11 @@
 #include "w5500_ambient_pro.h"
 
 static const char* TAG = "Main-App";
+
+esp_netif_t* eth_netif_spi = NULL;
+esp_eth_handle_t eth_handle_spi = NULL;
+
 w5500_t w5500;
-netif_spi_eth_t netif_obj;
 spi_t eth_spi;
     
 void app_main(void)
@@ -17,7 +20,7 @@ void app_main(void)
     // **** W5500 Begin ****
     //W5500 & Netif Setup
     w5500_setup(&w5500);
-    netif_eth_spi_setup(&netif_obj);
+    netif_eth_spi_setup(&eth_netif_spi);
 
     //SPI SETUP
     spi_init(&eth_spi, W5500_HOST, W5500_MISO, W5500_MOSI, W5500_SCLK);
@@ -32,11 +35,11 @@ void app_main(void)
     w5500.mac_spi = esp_eth_mac_new_w5500(&w5500.w5500_obj, &w5500.eth_mac_obj);
     w5500.phy_spi = esp_eth_phy_new_w5500(&w5500.eth_phy_obj);
     w5500.eth_obj = (esp_eth_config_t)ETH_DEFAULT_CONFIG(w5500.mac_spi, w5500.phy_spi);
-    w5500_eth_driver_install(&w5500.eth_obj, &netif_obj.eth_handle_spi);
-    w5500_set_mac_address(netif_obj.eth_handle_spi);
-    w5500_netif_glue(&netif_obj.eth_netif_spi, netif_obj.eth_handle_spi);
+    w5500_eth_driver_install(&w5500.eth_obj, &eth_handle_spi);
+    w5500_set_mac_address(eth_handle_spi);
+    w5500_netif_glue(eth_netif_spi, eth_handle_spi);
     w5500_register_cbs();
-    w5500_start(netif_obj.eth_handle_spi);
+    w5500_start(eth_handle_spi);
 
     while (1)
     {
