@@ -2,7 +2,7 @@
 #include "ezlo_w5500.h"
 
 w5500_t w5500;
-spi_t spi;
+s_ezlopi_spi_master_t spi;
 
 void app_main(void)
 {

@@ -1,7 +1,7 @@
 #include "ezlo_w5500.h"
 static const char* TAG = "ezlo_w5500";
 
-void ezlo_w5500_setup(w5500_t* w5500, spi_t* spi)
+void ezlo_w5500_setup(w5500_t* w5500, s_ezlopi_spi_master_t* spi)
 {
     w5500_spi_setup(spi);
     esp_netif_t* eth_netif_spi = NULL;
@@ -9,14 +9,27 @@ void ezlo_w5500_setup(w5500_t* w5500, spi_t* spi)
     w5500_setup(w5500, spi, eth_netif_spi);
 }
 
-esp_err_t w5500_spi_setup(spi_t* spi)
+esp_err_t w5500_spi_setup(s_ezlopi_spi_master_t* spi)
 {
     // Install GPIO ISR handler to be able to service SPI Eth modlues interrupts
     gpio_install_isr_service(0);
 
     esp_err_t ret = ESP_OK;
-    ret |= spi_init(spi, W5500_HOST, W5500_MISO, W5500_MOSI, W5500_SCLK);
-    ret |= spi_register_device(spi, 0, W5500_CS, W5500_ADDR_BITS, W5500_CMD_BITS,  12000000);
+    *spi = (s_ezlopi_spi_master_t){
+            .enable = true,
+            .cs = W5500_CS,
+            .miso = W5500_MISO,
+            .mosi = W5500_MOSI,
+            .sck = W5500_SCLK,
+            .mode = 0,
+            .clock_speed_mhz = W5500_CLOCK_MHZ,
+            .addr_length = W5500_ADDR_BITS, 
+            .command_length = W5500_CMD_BITS,
+            .transfer_sz = 4096,
+            .flags = SPICOMMON_BUSFLAG_MASTER,
+            .channel = EZLOPI_SPI_3
+    };
+    ezlopi_spi_master_init(spi);
     return ret;
 }
 
@@ -25,10 +38,8 @@ esp_err_t w5500_netif_setup(esp_netif_t** eth_netif_spi)
     return netif_eth_spi_setup(eth_netif_spi);
 }
 
-void w5500_setup(w5500_t* w5500, spi_t* spi, esp_netif_t* eth_netif_spi)
+void w5500_setup(w5500_t* w5500, s_ezlopi_spi_master_t* spi, esp_netif_t* eth_netif_spi)
 {
-    esp_err_t ret = ESP_OK;
-
     eth_mac_config_t eth_mac_obj; 
     eth_phy_config_t eth_phy_obj; 
     

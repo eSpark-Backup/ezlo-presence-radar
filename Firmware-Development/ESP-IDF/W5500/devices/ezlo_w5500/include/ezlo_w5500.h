@@ -11,7 +11,7 @@
 #include "esp_eth.h"
 #include "esp_eth_mac.h"
 #include "ezlo_netif.h"
-#include "ezlo_spi.h"
+#include "ezlopi_spi_master.h"
 #include "w5500_ambient_pro.h"
 
 typedef struct 
@@ -23,10 +23,10 @@ typedef struct
     esp_eth_handle_t eth_handle_spi;
 }w5500_t;
 
-void ezlo_w5500_setup(w5500_t* w5500, spi_t* spi);
-esp_err_t w5500_spi_setup(spi_t* spi);
+void ezlo_w5500_setup(w5500_t* w5500, s_ezlopi_spi_master_t* spi);
+esp_err_t w5500_spi_setup(s_ezlopi_spi_master_t* spi);
 esp_err_t w5500_netif_setup(esp_netif_t** eth_netif_spi);
-void w5500_setup(w5500_t* w5500, spi_t* spi, esp_netif_t* eth_netif_spi);
+void w5500_setup(w5500_t* w5500, s_ezlopi_spi_master_t* spi, esp_netif_t* eth_netif_spi);
 esp_err_t w5500_gpio_setup(gpio_num_t power_pin, gpio_num_t reset_pin);
 esp_err_t w5500_gpio_config(gpio_num_t gpio_num);
 void w5500_set_config(eth_w5500_config_t* w5500_obj, spi_device_handle_t spi_handle, gpio_num_t intr_pin);

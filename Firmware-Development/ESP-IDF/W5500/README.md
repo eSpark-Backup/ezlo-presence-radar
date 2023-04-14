@@ -1,1 +1,1 @@
-# _W5500 EzloPi_
+# _W5500 EZLOPI_
