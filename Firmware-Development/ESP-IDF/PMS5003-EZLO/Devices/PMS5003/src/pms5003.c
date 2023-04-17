@@ -142,67 +142,6 @@ void pms_active_mode(gpio_num_t set_pin)
 }
 
 /*!
- *  @brief  Function to read PMS sensor with default uart. ( without using ezlopi_uart_init() )
- *  @param  data
- *          Pointer to PM25_AQI_Data that will be filled by read()ing
- *  @return ESP_OK on successful read, ESP_FAIL if timed out or bad data
- */
-  esp_err_t pms_read(PM25_AQI_Data *data) 
-{
-  if((pmsStatusReg & 0x01) && (pmsStatusReg & 0x04))
-  {
-  
-  /*  pmsStatusReg : Update from the "pms_timer_callback". 
-      If Active Mode and EN_Read is HIGH, this function will read the PMS_Sensor Data
-  */
-    uint8_t buffer[128];
-    uint16_t sum = 0;
-    memset(data, 0, sizeof(PM25_AQI_Data));
-
-    if (!data) {
-      return ESP_FAIL;
-    }
-
-    int length = 0;
-    length = uart_read_bytes(PMS_UART_PORT, buffer, 128, 1); 
-  
-
-    /* Length test */
-    if (length < 32)
-        return ESP_FAIL;
-
-    /* Check that start byte is correct! */
-    if (buffer[0] != 0x42) {
-      return false;
-    }
-
-    /* Get checksum ready */
-    for (uint8_t i = 0; i < 30; i++) {
-      sum += buffer[i];
-    }
-
-    /* The data comes in endian'd, this solves it so it works on all platforms */
-    uint16_t buffer_u16[15];
-    for (uint8_t i = 0; i < 15; i++) {
-      buffer_u16[i] = buffer[2 + i * 2 + 1];
-      buffer_u16[i] += (buffer[2 + i * 2] << 8);
-    }
-
-    /* put it into a nice struct :) */
-    memcpy((void *)data, (void *)buffer_u16, 30);
-
-    if (sum != data->checksum) {
-      return ESP_FAIL;
-    }
-    ESP_LOGE(TAG, "PMS_READ DONE");
-    /* success! */
-    return ESP_OK;
-  }
-  else
-    return ESP_FAIL;
-}
-
-/*!
  *  @brief  Prints the PMS Sensor Data
  *  @param  data
  *          Pointer to PM25_AQI_Data that was filled by pms_read()
@@ -242,13 +181,17 @@ void pms_print_data(PM25_AQI_Data* data)
 
 static void ezlopi_pms5003_upcall(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, void* user_args)
 {
-  uint16_t sum = 0;
   PM25_AQI_Data* data = (PM25_AQI_Data *)user_args;
-  memset(data, 0, sizeof(PM25_AQI_Data));
+  pms_read_upcall(buffer, data);
+}
 
+esp_err_t pms_read_upcall(uint8_t* buffer, PM25_AQI_Data* data)
+{
+  uint16_t sum = 0;
+  memset(data, 0, sizeof(PM25_AQI_Data));
   /* Check that start byte is correct! */
     if (buffer[0] != 0x42) {
-      return;
+      return ESP_FAIL;
     }
 
     /* Get checksum ready */
@@ -267,8 +210,69 @@ static void ezlopi_pms5003_upcall(uint8_t* buffer, s_ezlopi_uart_object_handle_t
     memcpy((void *)data, (void *)buffer_u16, 30);
 
     if (sum != data->checksum) {
-      return;
+      return ESP_FAIL;
     }
     /* success! */
-    return;
+    return ESP_OK;
+}
+
+/*!
+ *  @brief  Function to read PMS sensor with default uart. ( without using ezlopi_uart_init() & _upcall functions )
+ *  @param  data
+ *          Pointer to PM25_AQI_Data that will be filled by read()ing
+ *  @return ESP_OK on successful read, ESP_FAIL if timed out or bad data
+ */
+  esp_err_t pms_read(PM25_AQI_Data *data) 
+{
+  if((pmsStatusReg & 0x01) && (pmsStatusReg & 0x04))
+  {
+  
+  /*  pmsStatusReg : Update from the "pms_timer_callback". 
+      If Active Mode and EN_Read is HIGH, this function will read the PMS_Sensor Data
+  */
+    uint8_t buffer[128];
+    uint16_t sum = 0;
+    memset(data, 0, sizeof(PM25_AQI_Data));
+
+    if (!data) {
+      return ESP_FAIL;
+    }
+
+    int length = 0;
+    length = uart_read_bytes(PMS_UART_PORT, buffer, 128, 1); 
+  
+
+    /* Length test */
+    if (length < 32)
+        return ESP_FAIL;
+
+    /* Check that start byte is correct! */
+    if (buffer[0] != 0x42) {
+      return ESP_FAIL;
+    }
+
+    /* Get checksum ready */
+    for (uint8_t i = 0; i < 30; i++) {
+      sum += buffer[i];
+    }
+
+    /* The data comes in endian'd, this solves it so it works on all platforms */
+    uint16_t buffer_u16[15];
+    for (uint8_t i = 0; i < 15; i++) {
+      buffer_u16[i] = buffer[2 + i * 2 + 1];
+      buffer_u16[i] += (buffer[2 + i * 2] << 8);
+    }
+
+    /* put it into a nice struct :) */
+    memcpy((void *)data, (void *)buffer_u16, 30);
+
+    if (sum != data->checksum) {
+      return ESP_FAIL;
+    }
+    ESP_LOGE(TAG, "PMS_READ DONE");
+    /* success! */
+    return ESP_OK;
+  }
+  else
+    return ESP_FAIL;
 }

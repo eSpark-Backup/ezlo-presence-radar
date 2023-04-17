@@ -53,6 +53,7 @@ void pms_uart_setup(PM25_AQI_Data* data);
 esp_err_t pms_setup_control_gpio(gpio_num_t set_pin, gpio_num_t reset_pin);
 esp_err_t pms_gpio_config_output(gpio_num_t pin);
 void pms_startup();
+esp_err_t pms_read_upcall(uint8_t* buffer, PM25_AQI_Data* data);
 esp_err_t pms_read(PM25_AQI_Data *data);
 void pms_print_data(PM25_AQI_Data* data);
 void pms_sleep_mode(gpio_num_t set_pin);
