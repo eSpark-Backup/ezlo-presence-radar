@@ -8,54 +8,56 @@ uint8_t volatile pmsStatusReg = 0x00;
 */                
 
 
-/*
+/*!
      @brief  Setups the hardware and detects a valid UART PM2.5
 */ 
 void pms_init(PM25_AQI_Data* data)
 {
-    pms_uart_setup(data);
-    pms_gpio_config();
+    pms_uart_setup(data); /* Passing the data parameter for the uart tasl : ezlopi_uart_channel_task() */
+    pms_setup_control_gpio(PMS_SET_PIN, PMS_RESET_PIN);
     pms_startup();
-    pms_create_sleep_timer(data);
+    pms_create_sleep_timer(data); /* Passing the data parameter for the timer callback : pms_timer_callback()*/
 }
 
-/*
+/*!
     @brief Install UART Driver for PMS5003.
 */ 
 void pms_uart_setup(PM25_AQI_Data* data)
 {
-    // uart_config_t uartConfig = 
-    // {
-    //         .baud_rate = PMS_UART_BUAD_RATE,
-    //         .data_bits = UART_DATA_8_BITS,
-    //         .parity = UART_PARITY_DISABLE,
-    //         .stop_bits = UART_STOP_BITS_1,
-    //         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
-    // };
-
-    // uart_param_config(PMS_UART_PORT, &uartConfig);
-    // uart_set_pin(PMS_UART_PORT, PMS_TX_PIN, PMS_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    // uart_driver_install(PMS_UART_PORT, PMS_UART_BUF_SIZE * 2, 0, 0, NULL, 0);
-
-    //EZLO:
     ezlopi_uart_init(PMS_UART_BUAD_RATE, PMS_TX_PIN, PMS_RX_PIN, ezlopi_pms5003_upcall, data);
 }
 
-/*
-    @brief Configures GPIO pins (SET & RESET) for PMS5003.
+/*!
+    @brief Configures Control GPIO pins (SET & RESET) for PMS5003.
 */
-void pms_gpio_config()
+esp_err_t pms_setup_control_gpio(gpio_num_t set_pin, gpio_num_t reset_pin)
 {
-    gpio_config_t io_conf;
-    io_conf.intr_type = (gpio_int_type_t)GPIO_PIN_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = (1ULL << PMS_SET_PIN) | (1ULL << PMS_RESET_PIN);
-    io_conf.pull_down_en = (gpio_pulldown_t)0;
-    io_conf.pull_up_en = (gpio_pullup_t)0;
-    gpio_config(&io_conf);
+    esp_err_t ret = ESP_OK;
+    ret |= pms_gpio_config_output(reset_pin);
+    ret |= pms_gpio_config_output(set_pin);
+
+    return ret;
 }
 
-/*
+/*!
+    @brief Configures GPIO pins (SET & RESET) for PMS5003.
+*/
+esp_err_t pms_gpio_config_output(gpio_num_t pin)
+{
+    esp_err_t ret = ESP_OK;
+
+    gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = (1ULL << pin);
+    io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    ret |= gpio_config(&io_conf);
+
+    return ret;
+}
+
+/*!
     @brief Starts the PMS5003 in sleep-mode.
 */
 void pms_startup()
@@ -94,25 +96,25 @@ static void pms_timer_callback(void* arg)
     sec++;
     PM25_AQI_Data* data = (PM25_AQI_Data *)arg;
     
-    if(sec <= PMS_TOTAL_ACTIVE_TIME )
+    if(sec <= PMS_ACTIVE_TIME )
     {
-      if( !(pmsStatusReg & 0x01) )
+      if( !PMS_CHECK_ACTIVE_STATUS(pmsStatusReg) )
       {
         pms_active_mode(PMS_SET_PIN);
-        pmsStatusReg |= 0x01; //Active Mode
+        PMS_SET_ACTIVE_STATUS(pmsStatusReg);
       }
 
       if(sec == PMS_STABILITY_TIME)
       {
-        pmsStatusReg |= 0x04; //Enable Read Status     
+        PMS_SET_READ_STATUS(pmsStatusReg); //Enable Read Status     
       }
     }
 
     else if( sec <= PMS_TOTAL_TIME )
     {        
-      if( !(pmsStatusReg & 0x02) )
+      if( !PMS_CHECK_SLEEP_STATUS(pmsStatusReg) )
       { 
-          pmsStatusReg |= 0x02; //Sleep Mode
+          PMS_SET_SLEEP_STATUS(pmsStatusReg);
           data->available = true; 
           pms_sleep_mode(PMS_SET_PIN);
       }
@@ -124,9 +126,23 @@ static void pms_timer_callback(void* arg)
       pmsStatusReg = 0;
     }
 }
+/*!
+ *  @brief  Set PMS5003 in Sleep-mode and stop the fan.
+ */
+void pms_sleep_mode(gpio_num_t set_pin)
+{
+  gpio_set_level(set_pin, 0);
+}
+/*!
+ *  @brief  Set PMS5003 in Active-mode and start the fan.
+ */
+void pms_active_mode(gpio_num_t set_pin)
+{
+  gpio_set_level(set_pin, 1);
+}
 
 /*!
- *  @brief  Setups the hardware and detects a valid UART PM2.5
+ *  @brief  Function to read PMS sensor with default uart. ( without using ezlopi_uart_init() )
  *  @param  data
  *          Pointer to PM25_AQI_Data that will be filled by read()ing
  *  @return ESP_OK on successful read, ESP_FAIL if timed out or bad data
@@ -187,26 +203,10 @@ static void pms_timer_callback(void* arg)
 }
 
 /*!
- *  @brief  Set PMS5003 in Sleep-mode and stop the fan.
- */
-void pms_sleep_mode(gpio_num_t set_pin)
-{
-  gpio_set_level(set_pin, 0);
-}
-/*!
- *  @brief  Set PMS5003 in Active-mode and start the fan.
- */
-void pms_active_mode(gpio_num_t set_pin)
-{
-  gpio_set_level(set_pin, 1);
-}
-
-/*!
  *  @brief  Prints the PMS Sensor Data
  *  @param  data
  *          Pointer to PM25_AQI_Data that was filled by pms_read()
  */
-
 void pms_print_data(PM25_AQI_Data* data)
 {
   if(data->available == true)
@@ -269,10 +269,6 @@ static void ezlopi_pms5003_upcall(uint8_t* buffer, s_ezlopi_uart_object_handle_t
     if (sum != data->checksum) {
       return;
     }
-    // pms_print_data(data);
-    // ESP_LOGI(TAG,"Particles > 5.0um / 0.1L air: %d", data->particles_50um); 
-    // ESP_LOGI(TAG,"Particles > 10 um / 0.1L air: %d", data->particles_100um); 
-    // ESP_LOGI("Upcall data->available","%d", data->available); 
     /* success! */
     return;
 }

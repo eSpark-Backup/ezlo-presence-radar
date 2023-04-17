@@ -16,10 +16,17 @@
 #define PMS_UART_BUF_SIZE 128
 #define PMS_UART_BUAD_RATE 9600
 
-#define PMS_TOTAL_ACTIVE_TIME   20
-#define PMS_TOTAL_SLEEP_TIME    30  
+#define PMS_ACTIVE_TIME         30
+#define PMS_SLEEP_TIME          120  
 #define PMS_STABILITY_TIME      15      // Here  
-#define PMS_TOTAL_TIME          (PMS_TOTAL_ACTIVE_TIME + PMS_TOTAL_SLEEP_TIME)
+#define PMS_TOTAL_TIME          (PMS_ACTIVE_TIME + PMS_SLEEP_TIME)
+
+#define PMS_CHECK_ACTIVE_STATUS(status) (status & 0x01)
+#define PMS_CHECK_SLEEP_STATUS(status)  (status & 0x02)
+
+#define PMS_SET_ACTIVE_STATUS(status)   ( status |= 0x01 )
+#define PMS_SET_SLEEP_STATUS(status)    ( status |= 0x02 )
+#define PMS_SET_READ_STATUS(status)     ( status |= 0x04 )
 
 /**! Structure holding Plantower's standard packet **/
 typedef struct PMSAQIdata {
@@ -43,7 +50,8 @@ typedef struct PMSAQIdata {
 
 void pms_init(PM25_AQI_Data* data);
 void pms_uart_setup(PM25_AQI_Data* data);
-void pms_gpio_config();
+esp_err_t pms_setup_control_gpio(gpio_num_t set_pin, gpio_num_t reset_pin);
+esp_err_t pms_gpio_config_output(gpio_num_t pin);
 void pms_startup();
 esp_err_t pms_read(PM25_AQI_Data *data);
 void pms_print_data(PM25_AQI_Data* data);

@@ -22,7 +22,13 @@ s_ezlopi_uart_object_handle_t ezlopi_uart_init(uint32_t baudrate, uint32_t tx, u
     s_ezlopi_uart_object_handle_t uart_object_handle = (struct s_ezlopi_uart_object*)malloc(sizeof(struct s_ezlopi_uart_object));
     memset(uart_object_handle, 0, sizeof(struct s_ezlopi_uart_object));
     ezlo_uart_channel_t channel = get_available_channel();
-    if(NULL == upcall){ return NULL; }
+
+    if(upcall == NULL)
+    {
+        free(uart_object_handle);
+        uart_object_handle = NULL;
+    }
+
     else if(channel != -1)
     {
         uart_config_t uart_config = {
@@ -34,12 +40,10 @@ s_ezlopi_uart_object_handle_t ezlopi_uart_init(uint32_t baudrate, uint32_t tx, u
             .rx_flow_ctrl_thresh = 0,
             .source_clk = UART_SCLK_APB,
         };
-         ESP_ERROR_CHECK(uart_param_config(channel, &uart_config));
+        ESP_ERROR_CHECK(uart_param_config(channel, &uart_config));
         ESP_ERROR_CHECK(uart_set_pin(channel, tx, rx, UART_PIN_NC, UART_PIN_NC));
         ESP_ERROR_CHECK(uart_driver_install(channel, 256, 256, 32, &ezlo_uart_channel_queue, 0));
         uart_object_handle->ezlopi_uart_queue_handle = ezlo_uart_channel_queue;
-
-        // TRACE_I("UART configured successfully.");
         uart_object_handle->ezlopi_uart.channel = channel;  
         uart_object_handle->ezlopi_uart.baudrate = baudrate; 
         uart_object_handle->ezlopi_uart.tx = tx;        
@@ -53,9 +57,10 @@ s_ezlopi_uart_object_handle_t ezlopi_uart_init(uint32_t baudrate, uint32_t tx, u
     else 
     {
         // TRACE_E("All channels are busy.");
+        free(uart_object_handle);
+        uart_object_handle = NULL;
     }
-
-    return uart_object_handle;
+    return uart_object_handle; 
 }
 
 
@@ -77,7 +82,6 @@ static void ezlopi_uart_channel_task(void* args)
     uart_event_t event;
     uint8_t *buffer = (uint8_t*)malloc(256);
     
-    // s_ezlopi_uart_object_t *ezlopi_uart_object = (s_ezlopi_uart_object_t*)args;
     s_ezlopi_uart_object_handle_t ezlopi_uart_object = (s_ezlopi_uart_object_handle_t)args;
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     while (1)
@@ -102,6 +106,8 @@ static void ezlopi_uart_channel_task(void* args)
         }  
         ezlopi_uart_object->upcall(buffer, ezlopi_uart_object, ezlopi_uart_object->user_args); 
     } 
+    free(ezlopi_uart_object);
+    ezlopi_uart_object = NULL;
     free(buffer);
     buffer = NULL;  
 }
