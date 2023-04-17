@@ -18,7 +18,7 @@
 
 #define PMS_TOTAL_ACTIVE_TIME   20
 #define PMS_TOTAL_SLEEP_TIME    30  
-#define PMS_STABILITY_TIME      10      // Here  
+#define PMS_STABILITY_TIME      15      // Here  
 #define PMS_TOTAL_TIME          (PMS_TOTAL_ACTIVE_TIME + PMS_TOTAL_SLEEP_TIME)
 
 /**! Structure holding Plantower's standard packet **/

@@ -104,9 +104,7 @@ static void pms_timer_callback(void* arg)
 
       if(sec == PMS_STABILITY_TIME)
       {
-        pmsStatusReg |= 0x04; //Enable Read Status   
-        data->available = true;   
-        ESP_LOGI("data->available","%d", data->available); 
+        pmsStatusReg |= 0x04; //Enable Read Status     
       }
     }
 
@@ -114,14 +112,15 @@ static void pms_timer_callback(void* arg)
     {        
       if( !(pmsStatusReg & 0x02) )
       { 
-          pmsStatusReg |= 0x02;
+          pmsStatusReg |= 0x02; //Sleep Mode
+          data->available = true; 
           pms_sleep_mode(PMS_SET_PIN);
       }
     }
     
     else if(sec > PMS_TOTAL_TIME)
     {
-      sec = 0;
+      sec = 0;  // Reset
       pmsStatusReg = 0;
     }
 }
@@ -134,6 +133,8 @@ static void pms_timer_callback(void* arg)
  */
   esp_err_t pms_read(PM25_AQI_Data *data) 
 {
+  if((pmsStatusReg & 0x01) && (pmsStatusReg & 0x04))
+  {
   
   /*  pmsStatusReg : Update from the "pms_timer_callback". 
       If Active Mode and EN_Read is HIGH, this function will read the PMS_Sensor Data
@@ -148,6 +149,7 @@ static void pms_timer_callback(void* arg)
 
     int length = 0;
     length = uart_read_bytes(PMS_UART_PORT, buffer, 128, 1); 
+  
 
     /* Length test */
     if (length < 32)
@@ -176,8 +178,12 @@ static void pms_timer_callback(void* arg)
     if (sum != data->checksum) {
       return ESP_FAIL;
     }
+    ESP_LOGE(TAG, "PMS_READ DONE");
     /* success! */
     return ESP_OK;
+  }
+  else
+    return ESP_FAIL;
 }
 
 /*!
@@ -203,30 +209,35 @@ void pms_active_mode(gpio_num_t set_pin)
 
 void pms_print_data(PM25_AQI_Data* data)
 {
-  ESP_LOGI(TAG ,"AQI reading success");
+  if(data->available == true)
+  {
+    ESP_LOGI(TAG ,"AQI reading success");
 
-  ESP_LOGI(TAG,"---------------------------------------");
-  ESP_LOGI(TAG,"Concentration Units (standard)");
-  ESP_LOGI(TAG,"---------------------------------------");
-  ESP_LOGI(TAG,"PM 1.0: %d", data->pm10_standard); 
-  ESP_LOGI(TAG,"PM 2.5: %d", data->pm25_standard); 
-  ESP_LOGI(TAG,"PM 10:  %d", data->pm100_standard); 
+    ESP_LOGI(TAG,"---------------------------------------");
+    ESP_LOGI(TAG,"Concentration Units (standard)");
+    ESP_LOGI(TAG,"---------------------------------------");
+    ESP_LOGI(TAG,"PM 1.0: %d", data->pm10_standard); 
+    ESP_LOGI(TAG,"PM 2.5: %d", data->pm25_standard); 
+    ESP_LOGI(TAG,"PM 10:  %d", data->pm100_standard); 
 
-  ESP_LOGI(TAG,"---------------------------------------");
-  ESP_LOGI(TAG,"Concentration Units (environmental)");
-  ESP_LOGI(TAG,"---------------------------------------");
-  ESP_LOGI(TAG,"PM 1.0: %d", data->pm10_env); 
-  ESP_LOGI(TAG,"PM 2.5: %d", data->pm25_env); 
-  ESP_LOGI(TAG,"PM 10:  %d", data->pm100_env); 
+    ESP_LOGI(TAG,"---------------------------------------");
+    ESP_LOGI(TAG,"Concentration Units (environmental)");
+    ESP_LOGI(TAG,"---------------------------------------");
+    ESP_LOGI(TAG,"PM 1.0: %d", data->pm10_env); 
+    ESP_LOGI(TAG,"PM 2.5: %d", data->pm25_env); 
+    ESP_LOGI(TAG,"PM 10:  %d", data->pm100_env); 
 
-  ESP_LOGI(TAG,"---------------------------------------");
-  ESP_LOGI(TAG,"Particles > 0.3um / 0.1L air: %d", data->particles_03um); 
-  ESP_LOGI(TAG,"Particles > 0.5um / 0.1L air: %d", data->particles_05um); 
-  ESP_LOGI(TAG,"Particles > 1.0um / 0.1L air: %d", data->particles_10um); 
-  ESP_LOGI(TAG,"Particles > 2.5um / 0.1L air: %d", data->particles_25um); 
-  ESP_LOGI(TAG,"Particles > 5.0um / 0.1L air: %d", data->particles_50um); 
-  ESP_LOGI(TAG,"Particles > 10 um / 0.1L air: %d", data->particles_100um); 
-  ESP_LOGI(TAG,"---------------------------------------");
+    ESP_LOGI(TAG,"---------------------------------------");
+    ESP_LOGI(TAG,"Particles > 0.3um / 0.1L air: %d", data->particles_03um); 
+    ESP_LOGI(TAG,"Particles > 0.5um / 0.1L air: %d", data->particles_05um); 
+    ESP_LOGI(TAG,"Particles > 1.0um / 0.1L air: %d", data->particles_10um); 
+    ESP_LOGI(TAG,"Particles > 2.5um / 0.1L air: %d", data->particles_25um); 
+    ESP_LOGI(TAG,"Particles > 5.0um / 0.1L air: %d", data->particles_50um); 
+    ESP_LOGI(TAG,"Particles > 10 um / 0.1L air: %d", data->particles_100um); 
+    ESP_LOGI(TAG,"---------------------------------------");
+    data->available = false;
+  }
+
 }
 
 static void ezlopi_pms5003_upcall(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, void* user_args)
