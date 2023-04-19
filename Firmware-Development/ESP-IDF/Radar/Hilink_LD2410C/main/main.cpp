@@ -34,20 +34,20 @@ void app_main(void)
     while (1) 
     {
         radar.read();
-        if(radar.isConnected() && millis() - lastReading > 1000)  //Report every 1000ms
+        if(radar.isConnected() && millis() - lastReading > 300)  //Report every 300ms
         {
             lastReading = millis();
             if(radar.presenceDetected())
             {
                 if(radar.stationaryTargetDetected())
                 {
-                    printf("Stationary target: %d\n",radar.stationaryTargetDistance());
-                    printf("cm energy: %d\n",radar.stationaryTargetEnergy());
+                    printf("Stationary target: %d ",radar.stationaryTargetDistance());
+                    printf("cm energy: %d ",radar.stationaryTargetEnergy());
                 }
                 if(radar.movingTargetDetected())
                 {
-                    printf("Moving target: %d\n",radar.movingTargetDistance());
-                    printf("cm energy: %d\n",radar.movingTargetEnergy());
+                    printf("Moving target: %d ",radar.movingTargetDistance());
+                    printf("cm energy: %d ",radar.movingTargetEnergy());
                 }
                 printf("\n");
             }
@@ -56,5 +56,6 @@ void app_main(void)
                 printf("No target\n");
             }
         }
+        // vTaskDelay(10/ portTICK_RATE_MS);
     }
 }
