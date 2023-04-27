@@ -3,7 +3,10 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "driver/uart.h"
 #include "ld2410.h"
+
+#define BUF_SIZE (1024)
 
 extern "C" 
 { 
@@ -26,11 +29,18 @@ void app_main(void)
     {
         printf("OK\n");
         printf("LD2410 firmware version: %02X.%02X.%02X\n",radar.firmware_major_version, radar.firmware_minor_version, radar.firmware_bugfix_version);
+
+        radar.setMaxValues(distance_600cm, distance_525cm, 5); // (max_moving_distance, max_still_distance, no_one_duration in seconds)
+
+        uint8_t mov_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20}; // Gate 0 to 8 sensitivity : sensitivity range 0-100
+        uint8_t still_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20}; // Gate 0 to 8 sensitivity : sensitivity range 0-100
+        radar.setGateSensitivityThreshold(mov_sensitivity, still_sensitivity);
     }
     else
     {
         printf("not connected\n");
     }
+    
     while (1) 
     {
         radar.read();
@@ -56,6 +66,5 @@ void app_main(void)
                 printf("No target\n");
             }
         }
-        // vTaskDelay(10/ portTICK_RATE_MS);
     }
 }

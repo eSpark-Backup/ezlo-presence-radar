@@ -1088,3 +1088,13 @@ bool ld2410::setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t s
 	return false;
 }
 #endif
+
+bool ld2410::setGateSensitivityThreshold(uint8_t* moving, uint8_t* stationary)
+{
+	bool ret = false;
+	for (uint8_t gate = 0; gate < 9; gate++)
+	{
+		ret = setGateSensitivityThreshold(gate, moving[gate], stationary[gate]);
+	}
+	return ret;
+}

@@ -7,7 +7,6 @@
 #define RADAR_TX_PIN GPIO_NUM_12
 #define RADAR_RX_PIN GPIO_NUM_13
 
-static const char *TAG = "uart_echo";
 #define UART_PORT_NUM UART_NUM_1
 #define F(x) x
 #define HEX 0

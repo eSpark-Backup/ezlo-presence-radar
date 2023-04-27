@@ -26,6 +26,19 @@ typedef unsigned char byte;
 #define LD2410_DEBUG_COMMANDS
 //#define LD2410_DEBUG_PARSE
 
+typedef enum
+{
+	distance_0cm = 0,
+	distance_75cm,
+	distance_150cm,
+	distance_225cm,
+	distance_300cm,
+	distance_375cm,
+	distance_450cm,
+	distance_525cm,
+	distance_600cm,
+} distance;
+
 class ld2410	{
 
 	public:
@@ -59,6 +72,7 @@ class ld2410	{
 		bool requestEndEngineeringMode();
 		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
 		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+		bool setGateSensitivityThreshold(uint8_t* moving, uint8_t* stationary);
 	protected:
 	private:
 		Stream *radar_uart_ = nullptr;
