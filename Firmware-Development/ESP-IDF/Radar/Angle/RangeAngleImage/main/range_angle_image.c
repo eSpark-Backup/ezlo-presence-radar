@@ -78,7 +78,7 @@ spi_device_handle_t xnsiv_bgt60_spi;
 static xQueueHandle gpio_evt_queue = NULL;
 TaskHandle_t getFIFOHandle = NULL;
 bool frameProcFlag = 0;
-uint8_t fifoFailed = 0;
+bgt60trxx_fifo_status_t radar_fifo_status = 0;
 uint8_t fifoRead = 0;
 uint16_t no_of_bytes = 0;
 extern spi_transaction_t transaction; 
@@ -237,7 +237,7 @@ static void print_device_config(const ifx_Avian_Config_t* config)
 // ***************** Range Angle Image Configurations: *****************
 
 // * Range Doppler Map Config: * //
-#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 1* 1.067// Zero padding of 4 gives good range resolution in Range spectrum
+#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 1// Zero padding of 4 gives good range resolution in Range spectrum
 #define DOPPLER_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * 1 // Zero padding of 4 gives good range resolution in Doppler spectrum
 
 const ifx_PPFFT_Config_t range_fft_config = {
@@ -448,7 +448,7 @@ void radar(void* pvParameter)
 
       
 
-    xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, SAMP_PER_FRAME+200);
+    xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME/MAX_FIFO_BREAK_COUNT)+200);
 
     uint32_t reg_read = 0;
     if (xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, true) != XENSIV_BGT60TRXX_STATUS_OK) {
@@ -485,7 +485,7 @@ void radar(void* pvParameter)
 
 void getFifoData(void) 
 {
-    xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA);
+    xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA/MAX_FIFO_BREAK_COUNT);
 }
 
 void processFrame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_Cube_R_t* frame)
@@ -609,22 +609,23 @@ void blinky(void)
 
 void getFifoErr(void)
 {
-    if (fifoFailed == 1)
+    if (radar_fifo_status == FIFO_READ_FAILED)
     {
         ESP_LOGI("FIFO","failed!");
-        fifoFailed= 0;
+        radar_fifo_status= FIFO_NO_ERROR;
     }
-    else if (fifoFailed == 2)
+    else if (radar_fifo_status == FIFO_READ_SUCCESS)
     {
         /* code */
         ESP_LOGI("FIFO","Read Successfull");
         // ESP_LOGI("FIFO", "Fifo Fill Time = %d us",fillduration);
         // ESP_LOGI("FIFO", "SPI Read Time = %d us",duration);
-        fifoFailed= 0;
+        radar_fifo_status= FIFO_NO_ERROR;
     }
 }
 
 uint16_t rdata=0;
+extern uint8_t fifo_read_count;
 static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
 {
     // fillStartTime = esp_timer_get_time();
@@ -636,11 +637,17 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
     
     gpio_set_level(XNSIV_BGT60_CS_GPIO, 1);
     fifoRead = 0;
-    fifoFailed = 2;
+
+    if (fifo_read_count < MAX_FIFO_BREAK_COUNT)
+    {
+        return;
+    }
+    fifo_read_count = FIFO_RESET_COUNT;
+    radar_fifo_status = FIFO_READ_SUCCESS;
 
     if (samples != samples1)
     {
-        getArrData(samples1, trans->rx_buffer);
+        getArrData(samples1, get_data_ptr());
         if (!frameProcFlag)
         {
             samples = samples1;
@@ -649,7 +656,7 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
     }
     else
     {
-        getArrData(samples2, trans->rx_buffer);
+        getArrData(samples2, get_data_ptr());
         if (!frameProcFlag)
         {
             samples = samples2;

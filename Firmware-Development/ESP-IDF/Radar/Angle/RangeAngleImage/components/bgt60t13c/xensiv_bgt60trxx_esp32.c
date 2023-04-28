@@ -42,8 +42,10 @@ int32_t xensiv_bgt60trxx_esp32_spi_transfer(void* iface,
 }
 
 spi_transaction_t transaction; 
-DMA_ATTR uint16_t data[TOTAL_DATA*12/16];
+#define BUFF_SIZE TOTAL_DATA*12/16
+DMA_ATTR uint16_t data[BUFF_SIZE];
 extern uint8_t fifoRead;
+uint8_t fifo_read_count =0;
 
 int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
                                                 uint16_t* rx_data,
@@ -54,15 +56,16 @@ int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
     xensiv_bgt60trxx_esp32_assert(rx_data != NULL);
 
     transaction.flags = 0;
-    transaction.length = 12 * TOTAL_DATA;
-    transaction.rxlength = 12 * TOTAL_DATA;
+    transaction.length = (12 * TOTAL_DATA)/ MAX_FIFO_BREAK_COUNT;
+    transaction.rxlength = (12 * TOTAL_DATA)/ MAX_FIFO_BREAK_COUNT;
     transaction.user = NULL;
-    transaction.tx_buffer = &data;
-    transaction.rx_buffer = &data;
+    transaction.tx_buffer = (data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
+    transaction.rx_buffer = (data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
     
     
     // for(uint32_t i = 0; i < len; i++) { 
-        fifoRead =1;       
+        fifoRead =1;
+        fifo_read_count++;       
         spi_device_queue_trans(*(spi_device_handle_t *)iface, &transaction,portMAX_DELAY);        
         // rx_data[i] =  ((data << 4) | (data >> 12 )) & 0x0FFF;
     // }
@@ -73,6 +76,10 @@ int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
     // free(data);
 }
 
+uint16_t* get_data_ptr(void)
+{
+    return data;
+}
 uint32_t xensiv_bgt60trxx_esp32_word_reverse(uint32_t x) {
     return (((x & 0x000000ffUL) << 24) |
         ((x & 0x0000ff00UL) <<  8) |

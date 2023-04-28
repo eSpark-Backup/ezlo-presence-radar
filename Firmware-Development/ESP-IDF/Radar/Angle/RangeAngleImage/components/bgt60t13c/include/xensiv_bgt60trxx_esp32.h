@@ -49,11 +49,20 @@ extern "C" {
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 
+#define MAX_FIFO_BREAK_COUNT 4
+#define FIFO_RESET_COUNT 0
+
+typedef enum 
+{
+    FIFO_NO_ERROR,
+    FIFO_READ_FAILED,
+    FIFO_READ_SUCCESS
+} bgt60trxx_fifo_status_t;
 
 #ifndef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_SPI_HOST       SPI2_HOST
 #endif
-    #if 1
+    #if 0
 #ifdef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_RST_GPIO      36
     #define     XNSIV_BGT60_MISO_GPIO     35
@@ -74,7 +83,7 @@ extern "C" {
 
 #define     XNSIV_BGT60_IRQ_GPIO          38
 #define     XNSIV_BGT60_IRQ_PIN_SEL       (1ULL<<XNSIV_BGT60_IRQ_GPIO)
-#else
+#elif 0
 #ifdef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_RST_GPIO      14
     #define     XNSIV_BGT60_MISO_GPIO     36
@@ -96,6 +105,27 @@ extern "C" {
 #define     XNSIV_BGT60_IRQ_GPIO          13
 #define     XNSIV_BGT60_IRQ_PIN_SEL       (1ULL<<XNSIV_BGT60_IRQ_GPIO)
 
+#else
+#ifdef XNSIV_BGT60_SPI_HOST
+    #define     XNSIV_BGT60_RST_GPIO      14
+    #define     XNSIV_BGT60_MISO_GPIO     6
+    #define     XNSIV_BGT60_MOSI_GPIO     7
+    #define     XNSIV_BGT60_CLK_GPIO      8
+    #define     XNSIV_BGT60_CS_GPIO       10
+#endif
+
+#define     XNSIV_BGT60_CS_PIN_SEL       (1ULL << XNSIV_BGT60_CS_GPIO)
+#define     XNSIV_BGT60_RST_PIN_SEL      (1ULL << XNSIV_BGT60_RST_GPIO)
+
+#define     XNSIV_BGT60_LED_GREEN         17  
+#define     XNSIV_BGT60_LED_RED           18
+#define     XNSIV_BGT60_LEDS_PIN_SEL      ((1ULL << XNSIV_BGT60_LED_GREEN) | (1ULL << XNSIV_BGT60_LED_RED))
+
+#define     XNSIV_BGT60_BUTTON_GPIO       1
+#define     XNSIV_BGT60_BUTTON_PIN_SEL    (1ULL << XNSIV_BGT60_BUTTON_GPIO)
+
+#define     XNSIV_BGT60_IRQ_GPIO          15
+#define     XNSIV_BGT60_IRQ_PIN_SEL       (1ULL<<XNSIV_BGT60_IRQ_GPIO)
 #endif
 
 #define     XNSIV_BGT60_SPI_CLK           (uint32_t)(50 * 1000 * 1000)
@@ -185,6 +215,7 @@ uint32_t xensiv_bgt60trxx_esp32_word_reverse(uint32_t x);
  */
 void xensiv_bgt60trxx_esp32_assert(bool expr);
 
+uint16_t* get_data_ptr(void);
 #ifdef __cplusplus
 }
 #endif
