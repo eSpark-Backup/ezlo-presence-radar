@@ -62,24 +62,28 @@ int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
     transaction.tx_buffer = (data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
     transaction.rx_buffer = (data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
     
-    
-    // for(uint32_t i = 0; i < len; i++) { 
-        fifoRead =1;
-        fifo_read_count++;       
-        spi_device_queue_trans(*(spi_device_handle_t *)iface, &transaction,portMAX_DELAY);        
-        // rx_data[i] =  ((data << 4) | (data >> 12 )) & 0x0FFF;
-    // }
-    // if (ESP_OK == err)
-        return XENSIV_BGT60TRXX_STATUS_OK;
-    // else 
-        // return XENSIV_BGT60TRXX_STATUS_DEV_ERROR;
-    // free(data);
+    fifoRead =1;
+    fifo_read_count++;       
+    err = spi_device_queue_trans(*(spi_device_handle_t *)iface, &transaction,portMAX_DELAY);        
+
+    return err;
 }
 
-uint16_t* get_data_ptr(void)
+uint16_t* xensiv_bgt60trxx_esp32_get_data_ptr(void)
 {
     return data;
 }
+
+uint8_t xensiv_bgt60trxx_esp32_get_fifo_read_count(void)
+{
+    return fifo_read_count;
+}
+
+void xensiv_bgt60trxx_esp32_reset_fifo_count(void)
+{
+    fifo_read_count = FIFO_RESET_COUNT;
+}
+
 uint32_t xensiv_bgt60trxx_esp32_word_reverse(uint32_t x) {
     return (((x & 0x000000ffUL) << 24) |
         ((x & 0x0000ff00UL) <<  8) |

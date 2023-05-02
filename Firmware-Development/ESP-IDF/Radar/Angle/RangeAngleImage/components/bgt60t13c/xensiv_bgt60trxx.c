@@ -312,8 +312,6 @@ int32_t xensiv_bgt60trxx_set_fifo_limit(const xensiv_bgt60trxx_t* dev, uint32_t 
 
     return retval;
 }
-uint32_t sTime=0;
-uint32_t sDur=0;
 
 int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* data,
                                        uint32_t num_samples)
@@ -330,14 +328,10 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
     reg_addr = xensiv_bgt60trxx_esp32_word_reverse(reg_addr);
     
     /* SPI read burst mode command */
-    // xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
-    // ESP_LOGI("", "%d",(int)(esp_timer_get_time() - timeduration));
-
     int32_t retval = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
                                                             (uint8_t*)&reg_addr,
                                                             (uint8_t*)&gsr0,
-                                                            XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
-                                        
+                                                            XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);                                   
     
     if (XENSIV_BGT60TRXX_STATUS_OK == retval)
     {
@@ -345,11 +339,9 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
                      XENSIV_BGT60TRXX_REG_GSR0_SPI_BURST_ERR_MSK |
                      XENSIV_BGT60TRXX_REG_GSR0_CLK_NUM_ERR_MSK)) == 0U)
         {
-            // sTime = esp_timer_get_time();
             retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface,
                                                              data,
-                                                             num_samples);
-            // sDur =     esp_timer_get_time() - sTime;                                             
+                                                             num_samples);                                           
         }
         else
         {
@@ -357,11 +349,6 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
         }
     }    
 
-    // xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
-    
-    // if (retval) {
-        // ESP_LOGI("1","GSR = 0x%x",gsr0);
-    // }
     return retval;
 }
 

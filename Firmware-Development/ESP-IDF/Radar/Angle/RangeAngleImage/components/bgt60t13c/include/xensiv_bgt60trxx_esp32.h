@@ -215,7 +215,9 @@ uint32_t xensiv_bgt60trxx_esp32_word_reverse(uint32_t x);
  */
 void xensiv_bgt60trxx_esp32_assert(bool expr);
 
-uint16_t* get_data_ptr(void);
+uint16_t* xensiv_bgt60trxx_esp32_get_data_ptr(void);
+uint8_t xensiv_bgt60trxx_esp32_get_fifo_read_count(void);
+void xensiv_bgt60trxx_esp32_reset_fifo_count(void);
 #ifdef __cplusplus
 }
 #endif

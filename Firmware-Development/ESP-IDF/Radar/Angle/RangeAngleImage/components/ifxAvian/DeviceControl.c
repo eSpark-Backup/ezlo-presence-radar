@@ -145,26 +145,23 @@ ifx_Avian_Config_t cfg;// = (ifx_Avian_Config_t *)malloc(sizeof(ifx_Avian_Config
 ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
     ifx_Cube_R_t* frame, uint16_t* samples) {
 
-   
-
    ifx_avian_get_config(handle, &cfg);
-   // const uint32_t num_samples_per_frame = cfg->num_chirps_per_frame * cfg->num_samples_per_chirp;
-   // const uint32_t num_total_fifo_data = num_samples_per_frame + (6 * cfg->num_chirps_per_frame);
-   // = (uint16_t *)malloc(sizeof(uint16_t) * num_total_fifo_data);
 
    frame->rows = XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS; // No of antennas
    frame->cols = cfg.num_chirps_per_frame;
    frame->slices = cfg.num_samples_per_chirp;
    frame->stride[0] = 1;
    frame->stride[1] = frame->slices;
-   // frame->stride[2] = frame->cols * frame->slices;
+   frame->stride[2] = frame->cols * frame->slices;
    
    uint32_t samp_no=0;
    uint32_t frame_idx=0;
    uint32_t samp_idx=0;
    uint32_t fant1=0;
    uint32_t fant2= SAMP_PER_FRAME/2;
-   for (uint16_t chirp_index=0; chirp_index< cfg.num_chirps_per_frame; chirp_index++) {
+
+   for (uint16_t chirp_index=0; chirp_index< cfg.num_chirps_per_frame; chirp_index++) 
+   {
       if((samples[samp_no] != 0) && (samples[samp_no+1] != 0)) 
       {
          ESP_LOGI("FIFO","Sync Word Error");
@@ -198,8 +195,6 @@ ifx_Cube_R_t* ifx_avian_get_next_frame(ifx_Avian_Device_t* handle,
       
       samp_no +=  (cfg.num_samples_per_chirp*2 + HEADER_OFFSET);   
    }
-
-   
    
    return frame;
 
