@@ -25,5 +25,5 @@ ifx_Error_t rdm_init(rdm_t *rdm_context);
 ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian_Config_t *dev_config);
 ifx_Error_t rdm_cleanup(rdm_t *rdm_context);
 
-ifx_Error_t rdm_range_idx(rdm_t *rdm_context, ifx_Cube_R_t *frame, uint32_t* range_idx);
+ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame);
 void rdm_peak_search(const ifx_Matrix_R_t *matrix, uint32_t *rmax, uint32_t *cmax);
