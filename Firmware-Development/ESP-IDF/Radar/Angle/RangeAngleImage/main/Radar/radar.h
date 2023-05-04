@@ -43,7 +43,7 @@ esp_err_t radar_configure_led(void);
 esp_err_t radar_spi_init(void);
 void radar_led_blinky(void);
 int32_t radar_get_fifo_data(void);
-void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_Cube_R_t* frame, ifx_Cube_R_t* output);
+void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame);
 void radar_print_fifo_err(void);
 void radar_print_device_config(const ifx_Avian_Config_t* config);
 

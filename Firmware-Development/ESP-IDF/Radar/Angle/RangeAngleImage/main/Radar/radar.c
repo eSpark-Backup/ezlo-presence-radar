@@ -1,6 +1,7 @@
 #define XENSIV_BGT60TRXX_CONF_IMPL 1
 #include "radar.h"
 
+#define ANGLE_APP 1
 #define ESP_INTR_FLAG_DEFAULT 0
 
 // radar task 
@@ -23,17 +24,22 @@ bool frame_process_status = 0;
 uint16_t* samples = NULL;
 static uint16_t samples1[TOTAL_DATA];
 static uint16_t samples2[TOTAL_DATA];
+ifx_Cube_R_t* frame = NULL;
 
 // cfar
 ifx_OSCFAR_t* cfar_handle;
 ifx_Matrix_R_t *cfar_mat;
 
+#if ANGLE_APP
 // range_angle_image
+ifx_RAI_t* rai_handle = NULL;
+ifx_Cube_R_t* rai_output = NULL;
 ifx_RAI_Config_t raiConfig;
 
 // angle_capon
 ifx_AngleCapon_Config_t ang_cap_config;
 ifx_AngleCapon_t* angle_capon_handle=NULL;
+#endif
 
 // radar interrupt handler
 static void IRAM_ATTR gpio_isr_handler(void* arg) 
@@ -145,26 +151,13 @@ void bgt60_hard_reset(void)
     vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
-/* OS CFAR */
-ifx_OSCFAR_Config_t os_cfar_conf = 
-{
-    .win_rank = 5,       /**< Rank of CFAR reference window.*/
-    .guard_band = 4,     /**< Rank of CFAR guard band.*/
-    .sample = 0.05,         /**< Constant used for setting CFAR threshold.*/
-    .pfa = 0.001,            /**< Probability of false alarm.*/
-    .coarse_scalar = 0.3  /**< Used for coarse thresholding 2D feature map.*/
-};
-
 void radar(void* pvParameter)
 {
     ifx_Error_t error = IFX_OK;
     ifx_Avian_Config_t device_config = {0};
     xnsiv_bgt60tr13c = (xensiv_bgt60trxx_t *)malloc(sizeof(xensiv_bgt60trxx_t));
 
-    ifx_Cube_R_t* frame = NULL;
-    frame = ifx_cube_create_r(XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS, XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP);  
-    ifx_Cube_R_t* rai_output = NULL;
-    rai_output = ifx_cube_create_r(NUM_OF_IMAGES, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP, NUM_OF_BEAMS);   
+    frame = ifx_cube_create_r(XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS, XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP);    
 
     radar_gpio_init();
     // radar_configure_led();
@@ -191,7 +184,18 @@ void radar(void* pvParameter)
     ifx_avian_get_config(device_handle, &device_config);
     radar_print_device_config(&device_config);
 
-    ifx_RAI_t* rai_handle = NULL;
+    xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME/MAX_FIFO_BREAK_COUNT)+200);
+
+    if (xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, true) != XENSIV_BGT60TRXX_STATUS_OK) 
+    {
+        TRACE_B("error stopping the frame.");
+    } 
+    else 
+    {
+        TRACE_B("frame started !!");
+    }  
+
+    #if ANGLE_APP
     ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
     ifx_avian_get_config(device_handle, dev_config);
 
@@ -216,6 +220,9 @@ void radar(void* pvParameter)
         printf("failed to config angle capon object!\n");
     }
     printf("angle capon config : %s\n",ifx_error_to_string(ifx_error_get()));
+        
+    rai_output = ifx_cube_create_r(NUM_OF_IMAGES, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP, NUM_OF_BEAMS); 
+    #endif 
 
     // cfar_handle = ifx_oscfar_create(&os_cfar_conf);
     // cfar_mat = ifx_mat_create_r(XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME/2, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP); // for real input, range dimension has info only in positive half
@@ -235,73 +242,57 @@ void radar(void* pvParameter)
     //     TRACE_B("Failed to config rdm object!\n");
     // }
     // printf("RDM config : %s\n",ifx_error_to_string(ifx_error_get()));
-
-    xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME/MAX_FIFO_BREAK_COUNT)+200);
-
-    if (xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, true) != XENSIV_BGT60TRXX_STATUS_OK) 
-    {
-        TRACE_B("error stopping the frame.");
-    } 
-    else 
-    {
-        TRACE_B("frame started !!");
-    }  
     
     ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
     while(1)
     {
         radar_print_fifo_err();
-        radar_process_frame(device_handle, rai_handle, frame, rai_output); 
+        radar_process_frame(device_handle, frame); 
         // radar_led_blinky();
     }
 
     out:
     ifx_avian_destroy(device_handle);
     ifx_cube_destroy_r(frame);
-    ifx_cube_destroy_r(rai_output);
+    #if ANGLE_APP
+        ifx_cube_destroy_r(rai_output);
+    #endif
 }
 
-void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_RAI_t* rai_handle, ifx_Cube_R_t* frame, ifx_Cube_R_t* output)
+void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame)
 {
     if (frame_process_status)
-    {
-        
+    {    
         frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
-        // uint32_t range_idx=0;
+        #if ANGLE_APP
+            if(rai_process(rai_handle, frame, rai_output) != IFX_OK) 
+            {
+                printf("failed rai processing!\n"); 
+            }
 
-        if(rai_process(rai_handle, frame, output) != IFX_OK) 
-        {
-            printf("failed rai processing!\n"); 
-        }
-        // printf("rows : %d, cols : %d, slices : %d\n",output->rows, output->cols, output->slices); 
-        // printf("RAI processing : %s\n",ifx_error_to_string(ifx_error_get()));
-        
+            ifx_Matrix_R_t ridxMat;
+            ifx_cube_get_slice_r(rai_output, 10 , &ridxMat);
+
+            // // do peak search
+            uint32_t rmax;
+            uint32_t cmax;
+            rdm_peak_search(&ridxMat, &rmax, &cmax);
+            printf("idx : %d\n",cmax);
+
+            if (cmax < ifx_rai_get_rx_spectrum(rai_handle)->cols) 
+            {
+                if(angle_capon_process(angle_capon_handle, cmax, ifx_rai_get_rx_spectrum(rai_handle)))
+                {
+                    printf("Failed angle capon processing!\n"); 
+                }
+            }
+        #endif
+
         // if(rdm_range_idx(rdm_context, frame, &range_idx) != IFX_OK) 
         // {
         //     printf("Failed rdm processing!\n");
         // }
         // printf("RDM processing : %s\n",ifx_error_to_string(ifx_error_get()));
-
-        ifx_Matrix_R_t ridxMat;
-        ifx_cube_get_slice_r(output, 10 , &ridxMat);
-        // ifx_oscfar_run(cfar_handle, &ridxMat ,cfar_mat);
-        // printf("\nrows : %d, cols %d\n",ridxMat.rows, ridxMat.cols);
-        // ifx_oscfar_run(rdm_context->cfar_handle, rdm_context->rdm ,rdm_context->cfar_mat);
-        // // do peak search
-        uint32_t rmax;
-        uint32_t cmax;
-        rdm_peak_search(&ridxMat, &rmax, &cmax);
-        printf("idx : %d\n",cmax);
-        // printf("cols %d\n", ifx_rai_get_rx_spectrum(rai_handle)->cols);
-        // range_idx=6;
-        if (cmax < ifx_rai_get_rx_spectrum(rai_handle)->cols) 
-        {
-            if(angle_capon_process(angle_capon_handle, cmax, ifx_rai_get_rx_spectrum(rai_handle)))
-            {
-                printf("Failed angle capon processing!\n"); 
-            }
-//             // printf("Angle capon processing : %s\n",ifx_error_to_string(ifx_error_get()));
-        }
         
         frame_process_status = 0;
     }
