@@ -2,7 +2,7 @@
 #include "radar.h"
 
 #define ANGLE_APP 0
-#define VELOCITY_APP 0
+#define VELOCITY_APP 1
 
 #define ESP_INTR_FLAG_DEFAULT 0
 
