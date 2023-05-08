@@ -1,10 +1,20 @@
 #define XENSIV_BGT60TRXX_CONF_IMPL 1
-#include "radar.h"
+#include "bgt60tr13c.h"
 
-#define ANGLE_APP 0
-#define VELOCITY_APP 1
+// Function declaration 
+static void radar_gpio_init(void);
+static esp_err_t radar_configure_led(void);
+static esp_err_t radar_spi_init(void);
+static void radar_led_blinky(void);
+static int32_t radar_get_fifo_data(void);
+static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame);
+static void radar_print_fifo_err(void);
+static void radar_print_device_config(const ifx_Avian_Config_t* config);
+static void getArrData(uint16_t* dest,uint16_t* src);
+static void getEspRuntimeStatus(void);
 
-#define ESP_INTR_FLAG_DEFAULT 0
+// tasks declaration 
+void radar(void* pvParameter);
 
 // radar task 
 static xQueueHandle gpio_evt_queue = NULL;
@@ -58,7 +68,7 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     } 
 }
 
-void radar_gpio_init(void) {
+static void radar_gpio_init(void) {
 
   gpio_config_t io_conf_bgt60_rst = {};
   gpio_config_t io_conf_bgt60_cs = {};
@@ -110,7 +120,7 @@ void radar_gpio_init(void) {
   gpio_set_level(XNSIV_BGT60_RST_GPIO, 1);
 }
 
-esp_err_t radar_spi_init(void) 
+static esp_err_t radar_spi_init(void) 
 {
     esp_err_t ret;
     spi_bus_config_t buscfg={
@@ -259,7 +269,7 @@ void radar(void* pvParameter)
     #endif
 }
 
-void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame)
+static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame)
 {
     if (frame_process_status)
     {    
@@ -335,12 +345,12 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
     }
 }
 
-int32_t radar_get_fifo_data(void) 
+static int32_t radar_get_fifo_data(void) 
 {
     return xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA/MAX_FIFO_BREAK_COUNT);
 }
 
-void radar_print_fifo_err(void)
+static void radar_print_fifo_err(void)
 {
     switch (radar_fifo_status)
     {  
@@ -383,7 +393,7 @@ void getArrData(uint16_t* dest, uint16_t* src)
     }
 }
 
-void radar_print_device_config(const ifx_Avian_Config_t* config)
+static void radar_print_device_config(const ifx_Avian_Config_t* config)
 {
     printf("Device configuration:\n");
     printf("sample_rate_Hz:          %" PRIu32 "\n", config->sample_rate_Hz);
@@ -403,7 +413,7 @@ void radar_print_device_config(const ifx_Avian_Config_t* config)
     printf("\n");
 }
 
-esp_err_t radar_configure_led(void)
+static esp_err_t radar_configure_led(void)
 {
     esp_err_t err;
     err = gpio_reset_pin(XNSIV_BGT60_LED_RED);
@@ -414,7 +424,7 @@ esp_err_t radar_configure_led(void)
     return err;
 }
 
-void radar_led_blinky(void)
+static void radar_led_blinky(void)
 {
     static uint16_t delayCounter = 0;
     // ** GPIO TOGGLE
@@ -435,8 +445,20 @@ void radar_led_blinky(void)
 }
 
 char str[100];   
-void getEspRuntimeStatus(void)
+static void getEspRuntimeStatus(void)
 {    
     vTaskGetRunTimeStats(str);
     printf("%s\n",str);
+}
+
+TaskHandle_t radar_task_handle = NULL;
+esp_err_t radar_init(void)
+{
+    BaseType_t ret;
+    ret = xTaskCreatePinnedToCore(radar,"radar", 2048*3, NULL, 10, &radar_task_handle, 1);
+    if (pdPASS == ret) 
+    {
+        return ESP_OK;
+    }
+    return ESP_FAIL;
 }

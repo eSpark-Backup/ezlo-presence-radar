@@ -1,13 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "radar.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "bgt60tr13c.h"
 
-TaskHandle_t getFIFOHandle = NULL;
+static char* TAG = "radar_app";
 
 int app_main(int argc, char* argv[])
 { 
-  xTaskCreatePinnedToCore(radar,"radar", 2048*3, NULL, 10, &getFIFOHandle, 1);
+  ESP_ERROR_CHECK(radar_init());
 
   while(1) 
   {   

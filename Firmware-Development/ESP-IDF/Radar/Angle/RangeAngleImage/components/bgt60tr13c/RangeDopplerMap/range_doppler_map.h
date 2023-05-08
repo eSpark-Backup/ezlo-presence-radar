@@ -4,7 +4,6 @@
 #include "Base.h"
 #include "2DMTI.h"
 #include "SpectrumAxis.h"
-#include "RadarSegmentation.h"
 #include "RangeDopplerMap.h"
 #include "rdm_defaults.h"
 #include "Algo.h"

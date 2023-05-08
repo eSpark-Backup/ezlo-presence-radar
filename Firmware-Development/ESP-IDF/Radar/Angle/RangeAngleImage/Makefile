@@ -3,6 +3,6 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := signal_capture_BGT60TR13C
+PROJECT_NAME := radar
 
 include $(IDF_PATH)/make/project.mk
