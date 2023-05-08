@@ -1,5 +1,5 @@
 #define XENSIV_BGT60TRXX_CONF_IMPL 1
-#include "bgt60tr13c.h"
+#include "radar_app.h"
 
 // Function declaration 
 static void radar_gpio_init(void);
@@ -55,6 +55,14 @@ ifx_AngleCapon_t* angle_capon_handle=NULL;
 // rdm 
 rdm_t *rdm_context =NULL;
 #endif
+
+#if PRESENCE_APP | VELOCITY_APP
+// presence
+presence_t presence_handle;
+#endif
+
+// logs
+static const char* TAG = "radar bgt60tr13c";
 
 // radar interrupt handler
 static void IRAM_ATTR gpio_isr_handler(void* arg) 
@@ -184,7 +192,7 @@ void radar(void* pvParameter)
     
     if ((error = ifx_error_get()) != IFX_OK)
     {
-        TRACE_B("Failed to open device: %s\n", ifx_error_to_string(error));
+        ESP_LOGE(TAG, "failed to open device: %s\n", ifx_error_to_string(error));
         goto out;
     }
 
@@ -203,12 +211,40 @@ void radar(void* pvParameter)
 
     if (xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, true) != XENSIV_BGT60TRXX_STATUS_OK) 
     {
-        TRACE_B("error stopping the frame.");
+        ESP_LOGE(TAG, "error stopping the frame.");
     } 
     else 
     {
-        TRACE_B("frame started !!");
+        ESP_LOGI(TAG, "frame started !!");
     }  
+
+#if PRESENCE_APP | VELOCITY_APP
+    if (presence_init(&presence_handle) != IFX_OK) {
+        ESP_LOGE(TAG, "failed to init presence object!\n"); 
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));    
+    }
+
+    if (presence_config(&presence_handle, device_handle, &device_config) != IFX_OK) {
+        ESP_LOGE(TAG, "failed to config presene object!\n");  
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));      
+    }
+#endif
+
+#if VELOCITY_APP
+    rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
+    if (rdm_init(rdm_context) != IFX_OK)
+    {
+        ESP_LOGE(TAG, "failed to init rdm object!\n");
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
+    }
+
+    if (rdm_config(rdm_context, device_handle, &device_config) != IFX_OK)
+    {
+        ESP_LOGE(TAG, "failed to config rdm object!\n");
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
+    }
+    
+#endif
 
 #if ANGLE_APP
     ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
@@ -216,42 +252,30 @@ void radar(void* pvParameter)
 
     if (rai_init(&raiConfig) != IFX_OK)
     {
-        printf("failed to init rai object!\n");
+        ESP_LOGE(TAG, "failed to init rai object!\n");
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
-    printf("rai init : %s\n",ifx_error_to_string(ifx_error_get()));
 
     if (rai_config(&raiConfig, &rai_handle) != IFX_OK)
     {
-        printf("failed to config rai object!\n");
+        ESP_LOGE(TAG, "failed to config rai object!\n");
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
-    printf("rai config : %s\n",ifx_error_to_string(ifx_error_get()));
     
     if (angle_capon_init(&ang_cap_config) != IFX_OK)
     {
-        printf("failed to init angle capon object!\n");
+        ESP_LOGE(TAG, "failed to init angle capon object!\n");
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
     if (angle_capon_config(&ang_cap_config, &angle_capon_handle) != IFX_OK)
     {
-        printf("failed to config angle capon object!\n");
+        ESP_LOGE(TAG, "failed to config angle capon object!\n");
+        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
+        
     }
-    printf("angle capon config : %s\n",ifx_error_to_string(ifx_error_get()));
         
     rai_output = ifx_cube_create_r(NUM_OF_IMAGES, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP, NUM_OF_BEAMS); 
 #endif 
-
-#if VELOCITY_APP
-        rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
-        if (rdm_init(rdm_context) != IFX_OK)
-        {
-            TRACE_B("Failed to Init RDM object!\n");
-        }
-
-        if (rdm_config(rdm_context, device_handle, &device_config) != IFX_OK)
-        {
-            TRACE_B("Failed to config rdm object!\n");
-        }
-        printf("RDM config : %s\n",ifx_error_to_string(ifx_error_get()));
-#endif
     
     ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
     while(1)
@@ -266,6 +290,9 @@ void radar(void* pvParameter)
     ifx_cube_destroy_r(frame);
     #if ANGLE_APP
         ifx_cube_destroy_r(rai_output);
+    #endif
+    #if PRESENCE_APP | VELOCITY_APP
+    presence_cleanup(&presence_handle);
     #endif
 }
 
@@ -298,12 +325,23 @@ static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t*
         }
     #endif
 
-    #if VELOCITY_APP
-        if(rdm_process(rdm_context, frame) != IFX_OK) 
+    #if PRESENCE_APP | VELOCITY_APP
+        if(presence_process(&presence_handle, frame) != IFX_OK) {
+            ESP_LOGE(TAG, "failed processing presence!\n"); 
+        }  
+        else
         {
-            printf("Failed rdm processing!\n");
+        #if VELOCITY_APP
+            if (presence_handle.presence_status == IFX_PRESENCE_SENSING_PRESENT)
+            {
+                if(rdm_process(rdm_context, frame) != IFX_OK) 
+                {
+                    printf("Failed rdm processing!\n");
+                }
+            }  
+        #endif 
         }
-    #endif 
+    #endif
         frame_process_status = 0;
     }
 }

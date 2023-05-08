@@ -1,7 +1,6 @@
 #pragma once
 
 #include <inttypes.h>
-#include <math.h>
 #include "xensiv_bgt60trxx_esp32.h"
 #include "xensiv_bgt60trxx.h"
 #include "presence_radar_default.h"
@@ -16,9 +15,11 @@
 #include "RangeAngleImage/range_angle_image.h"
 #include "RangeDopplerMap/range_doppler_map.h"
 #include "AngleCapon/angle_capon.h"
+#include "Presence/presence.h"
 
 #define ANGLE_APP 0
 #define VELOCITY_APP 1
+#define PRESENCE_APP 0
 
 #define ESP_INTR_FLAG_DEFAULT 0
 

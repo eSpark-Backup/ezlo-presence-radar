@@ -16,6 +16,12 @@
 #define MAX_ANGLE 60.0
 #define D_BY_LAMBDA 0.5
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 ifx_Error_t rai_init(ifx_RAI_Config_t* rai_config);
 ifx_Error_t rai_config(ifx_RAI_Config_t* rai_config, ifx_RAI_t** handle);
 ifx_Error_t rai_process(ifx_RAI_t* handle, const ifx_Cube_R_t* input, ifx_Cube_R_t* output);
+#ifdef __cplusplus
+}
+#endif

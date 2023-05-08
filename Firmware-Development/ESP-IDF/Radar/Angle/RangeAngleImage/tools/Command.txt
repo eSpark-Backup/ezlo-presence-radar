@@ -1,0 +1,1 @@
+./bgt60-configurator-cli -c velocity.json -o velocity.h 

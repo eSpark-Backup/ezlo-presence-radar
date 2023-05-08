@@ -86,11 +86,11 @@
 #define RANGE_HYSTERESIS_PERCENT_DEFAULT 10
 //Below settings can be changed as per requirement;
 #define MAX_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)5.0) 
-#define MIN_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)0.50) 
+#define MIN_DETECTION_RANGE_M_DEFAULT ((ifx_Float_t)0.05) 
 
 
 #define PRESENCE_CONFIRM_COUNT_DEFAULT 10
-#define ABSENCE_CONFIRM_COUNT_DEFAULT 7
+#define ABSENCE_CONFIRM_COUNT_DEFAULT 5
 
 #define THRESHOLD_FACTOR_PRESENCE_PEAK_DEFAULT ((ifx_Float_t)3)
 #define THRESHOLD_FACTOR_ABSENCE_PEAK_DEFAULT  ((ifx_Float_t)4)
@@ -262,23 +262,6 @@ void ifx_presence_sensing_get_config_defaults(ifx_Radar_Sensor_t sensor_type, if
     device_config->num_chirps_per_frame = XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME;
     device_config->chirp_repetition_time_s = XENSIV_BGT60TRXX_CONF_CHIRP_REPETITION_TIME_S; // 505.64 µs
     device_config->frame_repetition_time_s = XENSIV_BGT60TRXX_CONF_FRAME_REPETITION_TIME_S;    // frame rate of 5 Hz
-    device_config->hp_cutoff_Hz = 80000;
-    device_config->aaf_cutoff_Hz = 500000;
-    device_config->mimo_mode = IFX_MIMO_OFF;
-    #endif
-
-    #if 0
-    device_config->sample_rate_Hz = 1000000;         // 1 MHz
-    device_config->rx_mask = (num_rx >= 3) ? 4 : 1;  // Use RX1-3 when device has at least 3 antennas, RX1 otherwise
-    device_config->tx_mask = 1;
-    device_config->tx_power_level = TX_POWER_LEVEL_UPPER;
-    device_config->if_gain_dB = 50;                  // 33 dB
-    device_config->start_frequency_Hz = 59000000000; // 60.02 GHz
-    device_config->end_frequency_Hz = 61000000000; // 61.02 GHz
-    device_config->num_samples_per_chirp = 128;
-    device_config->num_chirps_per_frame = 64;
-    device_config->chirp_repetition_time_s = 0.000306162f; // 505.64 µs
-    device_config->frame_repetition_time_s = 0.833121f;    // frame rate of 5 Hz
     device_config->hp_cutoff_Hz = 80000;
     device_config->aaf_cutoff_Hz = 500000;
     device_config->mimo_mode = IFX_MIMO_OFF;

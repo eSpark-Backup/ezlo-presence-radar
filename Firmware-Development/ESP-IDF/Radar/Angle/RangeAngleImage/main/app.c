@@ -3,9 +3,9 @@
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "bgt60tr13c.h"
+#include "radar_app.h"
 
-static char* TAG = "radar_app";
+static const char* TAG = "radar_app";
 
 int app_main(int argc, char* argv[])
 { 
