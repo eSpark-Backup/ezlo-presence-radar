@@ -1,5 +1,7 @@
 #include "range_doppler_map.h"
 
+static const char* TAG = "range_doppler_map";
+
 //----------------------------------------------------------------------------
 
 /**
@@ -56,21 +58,21 @@ ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian
     rdm_context->rdm_handle = ifx_rdm_create(&rdm_config);
     if ((ret = ifx_error_get()))
     {
-        printf("Here 1\n");
+        ESP_LOGE(TAG, "Unable to create rdm object");
         return ret;
     }
 
     rdm_context->rdm = ifx_mat_create_r(range_fft_size / 2, doppler_fft_size); // for real input, range dimension has info only in positive half
     if ((ret = ifx_error_get()))
     {
-        printf("Here 2\n");
+        ESP_LOGE(TAG, "Unable to create rdm matrix");
         return ret;
     }
 
     rdm_context->cfar_mat = ifx_mat_create_r(range_fft_size / 2, doppler_fft_size); // for real input, range dimension has info only in positive half
     if ((ret = ifx_error_get()))
     {
-        printf("Here cfar\n");
+        ESP_LOGE(TAG, "Unable to create rdm->cfar matrix");
         return ret;
     }
 
@@ -80,7 +82,7 @@ ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian
                                                  IFX_MAT_COLS(rdm_context->rdm));
     if ((ret = ifx_error_get()))
     {
-        printf("Here 3\n");
+        ESP_LOGE(TAG, "Unable to create mti object");
         return ret;
     }
 
@@ -88,7 +90,7 @@ ifx_Error_t rdm_config(rdm_t *rdm_context, ifx_Avian_Device_t *device, ifx_Avian
     rdm_context->range_spec = ifx_spectrum_axis_calc_range_axis(IFX_FFT_TYPE_R2C, range_fft_size, dev_config->num_samples_per_chirp, bandwidth_Hz);
     if ((ret = ifx_error_get()))
     {
-        printf("Here 4");
+        ESP_LOGE(TAG, "Unable to calculate axis of spectrum");
         return ret;
     }
 
@@ -147,7 +149,7 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
 {
     ifx_Error_t ret = 0;
     ifx_Matrix_R_t antenna_data;
-    ifx_cube_get_row_r(frame, 0, &antenna_data);
+    ifx_cube_get_row_r(frame, RX_ANTENNA_ID, &antenna_data);
     ifx_rdm_run_r(rdm_context->rdm_handle, &antenna_data, rdm_context->rdm);
     if ((ret = ifx_error_get()))
     {

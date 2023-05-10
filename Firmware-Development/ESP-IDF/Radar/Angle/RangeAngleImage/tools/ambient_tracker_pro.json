@@ -6,7 +6,7 @@
             "max_speed_m_s": 2.5,
             "speed_resolution_m_s": 0.0785,
             "tx_power_level": 31,
-            "rx_antennas": [1], 
+            "rx_antennas": [1,2,3], 
             "tx_antennas": [1],  
             "if_gain_dB": 33,
             "frame_repetition_time_s": 0.04,

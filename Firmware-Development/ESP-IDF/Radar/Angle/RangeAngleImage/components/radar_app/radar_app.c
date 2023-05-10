@@ -10,7 +10,7 @@ static int32_t radar_get_fifo_data(void);
 static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame);
 static void radar_print_fifo_err(void);
 static void radar_print_device_config(const ifx_Avian_Config_t* config);
-static void getArrData(uint16_t* dest,uint16_t* src);
+static void split_uint16_by_12bits(uint16_t* dest,uint16_t* src);
 static void getEspRuntimeStatus(void);
 
 // tasks declaration 
@@ -365,7 +365,7 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
 
     if (samples != samples1)
     {
-        getArrData(samples1, xensiv_bgt60trxx_esp32_get_data_ptr());
+        split_uint16_by_12bits(samples1, xensiv_bgt60trxx_esp32_get_data_ptr());
         if (!frame_process_status)
         {
             samples = samples1;
@@ -374,7 +374,7 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
     }
     else
     {
-        getArrData(samples2, xensiv_bgt60trxx_esp32_get_data_ptr());
+        split_uint16_by_12bits(samples2, xensiv_bgt60trxx_esp32_get_data_ptr());
         if (!frame_process_status)
         {
             samples = samples2;
@@ -412,7 +412,7 @@ static void radar_print_fifo_err(void)
     }
 }
 
-void getArrData(uint16_t* dest, uint16_t* src)
+void split_uint16_by_12bits(uint16_t* dest, uint16_t* src)
 {
     uint16_t index=0;
     for (uint16_t i = 0; i < TOTAL_DATA*12/16; i+=3)

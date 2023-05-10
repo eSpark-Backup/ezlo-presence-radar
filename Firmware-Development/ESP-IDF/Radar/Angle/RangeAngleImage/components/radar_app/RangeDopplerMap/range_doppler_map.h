@@ -1,5 +1,6 @@
 #pragma once
 #include <string.h>
+#include "esp_log.h"
 #include "Avian.h"
 #include "Base.h"
 #include "2DMTI.h"
@@ -7,6 +8,8 @@
 #include "RangeDopplerMap.h"
 #include "rdm_defaults.h"
 #include "Algo.h"
+
+#define RX_ANTENNA_ID   0   // This implementation uses only 1 Rx Antenna
 
 typedef struct
 {
