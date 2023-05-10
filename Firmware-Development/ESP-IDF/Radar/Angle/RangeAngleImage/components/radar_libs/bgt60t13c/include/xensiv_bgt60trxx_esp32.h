@@ -52,7 +52,7 @@ extern "C" {
 #define MAX_FIFO_BREAK_COUNT 4
 #define FIFO_RESET_COUNT 0
 
-#define AMBIENT_TRACKER_PRO 1
+#define PRESENCE_STANDARD_REVB 1
 
 typedef enum 
 {

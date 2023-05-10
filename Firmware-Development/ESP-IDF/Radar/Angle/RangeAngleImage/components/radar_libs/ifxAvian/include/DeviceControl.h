@@ -72,6 +72,16 @@ extern "C"
 #define     IFX_SIZE_STR_FMW_DESCRIPTION        100
 #define     IFX_SIZE_STR_SENSOR_DESCRIPTION     100
 
+typedef enum
+{
+   SYNCWORD1_OFFSET,
+   SYNCWORD0_OFFSET,
+   FRAME_CNT_OFFSET, // FRAME NO
+   SHAPE_GRP_OFFSET, // CHIRP NO 
+   CHIRP_LEN_OFFSET,
+   SADC_VAL_OFFSET,
+   DATA_OFFSET,
+} frame_header_offsets;
 /*
 ==============================================================================
    3. TYPES
