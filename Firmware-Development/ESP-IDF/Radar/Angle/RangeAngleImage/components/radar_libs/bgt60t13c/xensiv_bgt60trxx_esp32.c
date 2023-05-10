@@ -5,9 +5,6 @@
 #include "freertos/task.h"
 #include "presence_radar_default.h"
 
-#define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS)
-#define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
-
 void xensiv_bgt60trxx_esp32_rst_set(const void* iface, uint8_t val) {
     gpio_set_level(XNSIV_BGT60_RST_GPIO, (uint32_t)val);
 }

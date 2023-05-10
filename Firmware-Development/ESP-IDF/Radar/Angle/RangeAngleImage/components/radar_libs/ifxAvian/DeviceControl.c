@@ -19,6 +19,7 @@ extern "C"
 #include "Error.h"
 
 #include "presence_radar_default.h"
+#include "xensiv_bgt60trxx_esp32.h"
 
 ifx_Avian_Device_t *ifx_avian_create_dummy_from_xensiv(xensiv_bgt60trxx_t *bgt60)
 {
@@ -144,9 +145,6 @@ void ifx_avian_stop_acquisition(ifx_Avian_Device_t *handle)
    IFX_ERR_BRK_INTERNAL((err != XENSIV_BGT60TRXX_STATUS_OK));
 }
 
-#define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS)
-#define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
-
 ifx_Avian_Config_t cfg;
 
 ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t *frame, uint16_t *samples)
@@ -163,9 +161,20 @@ ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t 
    uint32_t sample_no = 0;
    uint32_t sample_idx = 0;
 
+   #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 1
+   uint32_t antenna1_data_index = 0;
+   #endif
+
    #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 2
    uint32_t antenna1_data_index = 0;
    uint32_t antenna2_data_index = SAMP_PER_FRAME / 2;
+   #endif
+
+   #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 3
+   uint32_t antenna1_data_index = 0;
+   uint32_t antenna2_data_index = SAMP_PER_FRAME / 3;
+   uint32_t antenna3_data_index = (SAMP_PER_FRAME / 3) * 2;
+   #endif
 
    for (uint16_t chirp_index = 0; chirp_index < cfg.num_chirps_per_frame; chirp_index++)
    {
@@ -189,25 +198,37 @@ ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t 
 
       sample_idx = sample_no + DATA_OFFSET;
 
+      
       for (uint32_t x = 0; x < frame->slices; x++)
       {
-         frame->d[antenna1_data_index] = samples[sample_idx + (2 * x)];
+      #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 1
+         frame->d[antenna1_data_index] = samples[sample_idx + x];
          antenna1_data_index++;
-      }
+      #endif
 
-      for (uint32_t x = 0; x < frame->slices; x++)
-      {
+      #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 2
+         frame->d[antenna1_data_index] = samples[sample_idx + (2 * x)];
          frame->d[antenna2_data_index] = samples[sample_idx + ((2 * x) + 1)];
+
+         antenna1_data_index++;
          antenna2_data_index++;
+      #endif
+
+      #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 3
+         frame->d[antenna1_data_index] = samples[sample_idx + (3 * x)];    
+         frame->d[antenna2_data_index] = samples[sample_idx + ((3 * x) + 1)];       
+         frame->d[antenna3_data_index] = samples[sample_idx + ((3 * x) + 2)];
+
+         antenna1_data_index++;
+         antenna2_data_index++;
+         antenna3_data_index++;
+      #endif
       }
+      
 
       sample_no += ((cfg.num_samples_per_chirp * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS) + DATA_OFFSET);
    }
-   #endif
 
-   #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 3
-   
-   #endif
    return frame;
 }
 
