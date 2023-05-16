@@ -286,21 +286,21 @@ ifx_RAI_t* ifx_rai_create(ifx_RAI_Config_t* config)
                          ifx_rai_destroy(h));
     }
 
-    //----------------------- DBF Handle -------------------------------------
-    IFX_ERR_HANDLE_N(h->dbf_handle = ifx_dbf_create(&config->dbf_config),
-                     ifx_rai_destroy(h));
+//     //----------------------- DBF Handle -------------------------------------
+//     IFX_ERR_HANDLE_N(h->dbf_handle = ifx_dbf_create(&config->dbf_config),
+//                      ifx_rai_destroy(h));
 
-    IFX_ERR_HANDLE_N(h->dbf_cube = ifx_cube_create_c(range_fft_size, doppler_fft_size, config->dbf_config.num_beams),
-                     ifx_rai_destroy(h));
+//     IFX_ERR_HANDLE_N(h->dbf_cube = ifx_cube_create_c(range_fft_size, doppler_fft_size, config->dbf_config.num_beams),
+//                      ifx_rai_destroy(h));
 
-    //----------------------- Internal Scratch Buffers -----------------------
-    IFX_ERR_HANDLE_N(h->snr_vec = ifx_vec_create_r(config->rdm_config.doppler_fft_config.fft_size),
-                     ifx_rai_destroy(h));
+//     //----------------------- Internal Scratch Buffers -----------------------
+//     IFX_ERR_HANDLE_N(h->snr_vec = ifx_vec_create_r(config->rdm_config.doppler_fft_config.fft_size),
+//                      ifx_rai_destroy(h));
 
-#ifdef USE_TEMP_MATRIX
-    IFX_ERR_HANDLE_N(h->temp_matrix = ifx_mat_create_r(range_fft_size, config->dbf_config.num_beams),
-                     ifx_rai_destroy(h));
-#endif
+// #ifdef USE_TEMP_MATRIX
+//     IFX_ERR_HANDLE_N(h->temp_matrix = ifx_mat_create_r(range_fft_size, config->dbf_config.num_beams),
+//                      ifx_rai_destroy(h));
+// #endif
 
     h->num_of_images = config->num_of_images;
     h->num_antenna_array = config->num_antenna_array;
@@ -366,31 +366,31 @@ void ifx_rai_run_r(ifx_RAI_t* handle,
         ifx_2dmti_run_c(handle->mti_handle_array[rx], &rdm_view, &rx_spectrum_view);
     }
     
-    ifx_dbf_run_c(handle->dbf_handle, handle->rx_spectrum_cube, handle->dbf_cube);
+    // ifx_dbf_run_c(handle->dbf_handle, handle->rx_spectrum_cube, handle->dbf_cube);
 
-    calculate_snr(handle);
+    // calculate_snr(handle);
 
-    // doppler FFT size
-    uint32_t* snr_sorted_idx = ifx_mem_alloc(rdm_view.cols*sizeof(uint32_t));
-    IFX_ERR_BRK_MEMALLOC(snr_sorted_idx);
+    // // doppler FFT size
+    // uint32_t* snr_sorted_idx = ifx_mem_alloc(rdm_view.cols*sizeof(uint32_t));
+    // IFX_ERR_BRK_MEMALLOC(snr_sorted_idx);
 
-    ssort(vDat(handle->snr_vec), vLen(handle->snr_vec), float_compare, IFX_SORT_DESCENDING, snr_sorted_idx);
+    // ssort(vDat(handle->snr_vec), vLen(handle->snr_vec), float_compare, IFX_SORT_DESCENDING, snr_sorted_idx);
 
-    for (uint32_t image = 0; image < handle->num_of_images; ++image)
-    {
-        uint32_t dopp_idx = snr_sorted_idx[image];
+    // for (uint32_t image = 0; image < handle->num_of_images; ++image)
+    // {
+    //     uint32_t dopp_idx = snr_sorted_idx[image];
 
-        // output: num_images (rows) x num_samples_per_frame (cols) x num_beams (slices)
-        // Get a view for constant row; rai_view num_samples_per_frame x num_beams
-        ifx_Matrix_R_t rai_view = { 0 };
-        ifx_cube_get_row_r(output, image, &rai_view);
+    //     // output: num_images (rows) x num_samples_per_frame (cols) x num_beams (slices)
+    //     // Get a view for constant row; rai_view num_samples_per_frame x num_beams
+    //     ifx_Matrix_R_t rai_view = { 0 };
+    //     ifx_cube_get_row_r(output, image, &rai_view);
 
-        ifx_cube_col_abs_r(handle->dbf_cube, dopp_idx, &rai_view);
-    }
+    //     ifx_cube_col_abs_r(handle->dbf_cube, dopp_idx, &rai_view);
+    // }
 
-    ifx_mem_free(snr_sorted_idx);
+    // ifx_mem_free(snr_sorted_idx);
 
-    qsort(vDat(handle->snr_vec), vLen(handle->snr_vec), sizeof(ifx_Float_t), cmpfunc);
+    // qsort(vDat(handle->snr_vec), vLen(handle->snr_vec), sizeof(ifx_Float_t), cmpfunc);
 }
 
 //----------------------------------------------------------------------------

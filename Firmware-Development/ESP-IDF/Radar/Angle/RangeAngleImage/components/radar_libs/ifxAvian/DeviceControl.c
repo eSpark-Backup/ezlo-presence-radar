@@ -151,13 +151,6 @@ ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t 
 {
    ifx_avian_get_config(handle, &cfg);
 
-   frame->rows = XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS; // No of antennas
-   frame->cols = cfg.num_chirps_per_frame;
-   frame->slices = cfg.num_samples_per_chirp;
-   frame->stride[0] = 1;
-   frame->stride[1] = frame->slices;
-   frame->stride[2] = frame->cols * frame->slices;
-
    uint32_t sample_no = 0;
    uint32_t sample_idx = 0;
 
@@ -190,7 +183,7 @@ ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t 
          return frame;
       }
 
-      if (samples[sample_no + CHIRP_LEN_OFFSET] != frame->slices) // XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP
+      if (samples[sample_no + CHIRP_LEN_OFFSET] != cfg.num_samples_per_chirp) // XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP
       {
          ESP_LOGE("FIFO", "Chirp Samples Mismatched, Expected : %d , Received : %d", frame->slices, samples[4]);
          return frame;
@@ -199,7 +192,7 @@ ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t 
       sample_idx = sample_no + DATA_OFFSET;
 
       
-      for (uint32_t x = 0; x < frame->slices; x++)
+      for (uint32_t x = 0; x < cfg.num_samples_per_chirp; x++)
       {
       #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 1
          frame->d[antenna1_data_index] = samples[sample_idx + x];

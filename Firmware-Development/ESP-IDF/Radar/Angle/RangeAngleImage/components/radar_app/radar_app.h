@@ -16,9 +16,10 @@
 #include "RangeDopplerMap/range_doppler_map.h"
 #include "AngleCapon/angle_capon.h"
 #include "Presence/presence.h"
+#include "angle_monopulse.h"
 
-#define ANGLE_APP 0
-#define VELOCITY_APP 1
+#define ANGLE_APP 1
+#define VELOCITY_APP 0
 #define PRESENCE_APP 0
 
 #define ESP_INTR_FLAG_DEFAULT 0

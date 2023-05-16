@@ -41,14 +41,9 @@ ifx_OSCFAR_t* cfar_handle;
 ifx_Matrix_R_t *cfar_mat;
 
 #if ANGLE_APP
-// range_angle_image
-ifx_RAI_t* rai_handle = NULL;
-ifx_Cube_R_t* rai_output = NULL;
-ifx_RAI_Config_t raiConfig;
 
-// angle_capon
-ifx_AngleCapon_Config_t ang_cap_config;
-ifx_AngleCapon_t* angle_capon_handle=NULL;
+ifx_Angle_t* angle_handle = NULL;
+ifx_Angle_Config_t angle_config;
 #endif
 
 #if VELOCITY_APP
@@ -250,31 +245,17 @@ void radar(void* pvParameter)
     ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
     ifx_avian_get_config(device_handle, dev_config);
 
-    if (rai_init(&raiConfig) != IFX_OK)
+    if (angle_monopulse_init(&angle_config) != IFX_OK)
     {
-        ESP_LOGE(TAG, "failed to init rai object!\n");
+        ESP_LOGE(TAG, "failed to init angle object!\n");
         ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
 
-    if (rai_config(&raiConfig, &rai_handle) != IFX_OK)
+    if (angle_monopulse_config(&angle_config, &angle_handle) != IFX_OK)
     {
-        ESP_LOGE(TAG, "failed to config rai object!\n");
+        ESP_LOGE(TAG, "failed to config angle object!\n");
         ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
-    
-    if (angle_capon_init(&ang_cap_config) != IFX_OK)
-    {
-        ESP_LOGE(TAG, "failed to init angle capon object!\n");
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-    }
-    if (angle_capon_config(&ang_cap_config, &angle_capon_handle) != IFX_OK)
-    {
-        ESP_LOGE(TAG, "failed to config angle capon object!\n");
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-        
-    }
-        
-    rai_output = ifx_cube_create_r(NUM_OF_IMAGES, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP, NUM_OF_BEAMS); 
 #endif 
     
     ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
@@ -289,7 +270,7 @@ void radar(void* pvParameter)
     ifx_avian_destroy(device_handle);
     ifx_cube_destroy_r(frame);
     #if ANGLE_APP
-        ifx_cube_destroy_r(rai_output);
+    angle_monopulse_cleanup(angle_handle);
     #endif
     #if PRESENCE_APP | VELOCITY_APP
     presence_cleanup(&presence_handle);
@@ -302,35 +283,25 @@ static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t*
     {    
         frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
     #if ANGLE_APP
-        if(rai_process(rai_handle, frame, rai_output) != IFX_OK) 
+        ifx_Float_t azimuth_angle, elevation_angle;
+        if(angle_monopulse_process(angle_handle, frame, &azimuth_angle, &elevation_angle) != IFX_OK) 
         {
-            printf("failed rai processing!\n"); 
+            printf("failed angle monopulse processing!\n"); 
+            ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
         }
-
-        ifx_Matrix_R_t ridxMat;
-        ifx_cube_get_slice_r(rai_output, 10 , &ridxMat);
-
-        // // do peak search
-        uint32_t rmax;
-        uint32_t cmax;
-        rdm_peak_search(&ridxMat, &rmax, &cmax);
-        printf("idx : %d\n",cmax);
-
-        if (cmax < ifx_rai_get_rx_spectrum(rai_handle)->cols) 
+        else
         {
-            if(angle_capon_process(angle_capon_handle, cmax, ifx_rai_get_rx_spectrum(rai_handle)))
-            {
-                printf("Failed angle capon processing!\n"); 
-            }
+            printf("Azimuth %0.2f ", azimuth_angle);
+            printf("Elevation %0.2f\n", elevation_angle);
         }
     #endif
 
     #if PRESENCE_APP | VELOCITY_APP
-        if(presence_process(&presence_handle, frame) != IFX_OK) {
-            ESP_LOGE(TAG, "failed processing presence!\n"); 
-        }  
-        else
-        {
+        // if(presence_process(&presence_handle, frame) != IFX_OK) {
+        //     ESP_LOGE(TAG, "failed processing presence!\n"); 
+        // }  
+        // else
+        // {
         #if VELOCITY_APP
             if (presence_handle.presence_status == IFX_PRESENCE_SENSING_PRESENT)
             {
@@ -340,7 +311,7 @@ static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t*
                 }
             }  
         #endif 
-        }
+        // }
     #endif
         frame_process_status = 0;
     }

@@ -6,14 +6,14 @@
 #include "../RangeDopplerMap/rdm_defaults.h"
 #include "presence_radar_default.h"
 
-#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 1// Zero padding of 4 gives good range resolution in Range spectrum
-#define DOPPLER_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * 1 // Zero padding of 4 gives good range resolution in Doppler spectrum
+#define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 4// Zero padding of 4 gives good range resolution in Range spectrum
+#define DOPPLER_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * 4 // Zero padding of 4 gives good range resolution in Doppler spectrum
 
-#define NUM_OF_IMAGES 32
+#define NUM_OF_IMAGES 1
 #define NUM_OF_BEAMS 31
 #define NUM_OF_ANTENNAS 2
-#define MIN_ANGLE -60.0
-#define MAX_ANGLE 60.0
+#define MIN_ANGLE -40.0
+#define MAX_ANGLE 40.0
 #define D_BY_LAMBDA 0.5
 
 #ifdef __cplusplus

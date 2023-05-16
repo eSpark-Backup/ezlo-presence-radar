@@ -120,7 +120,6 @@ ifx_Float_t ifx_anglemonopulse_scalar_run(const ifx_AngleMonopulse_t* handle,
         ATAN2(IFX_COMPLEX_IMAG(rx2), IFX_COMPLEX_REAL(rx2));
 
     d_phi = (rx1_ang - rx2_ang);
-
     if (d_phi <= -IFX_PI)
     {
         d_phi += 2 * IFX_PI;
