@@ -2,6 +2,7 @@
 
 #include "Types.h"
 #include "Cube.h"
+#include "DeviceConfig.h"
 #include "RangeDopplerMap.h"
 #include "AngleMonopulse.h"
 
@@ -16,6 +17,8 @@ typedef struct ifx_Angle_s
     ifx_Cube_C_t*         rdm_cube;             /**< 2D complex range doppler maps over rx antennas as a cube.*/
     ifx_Cube_C_t*         rx_spectrum_cube;     /**< ... */
     ifx_AngleMonopulse_t* angle_monopulse_handle;
+    ifx_Math_Axis_Spec_t range_spec;
+    ifx_Math_Axis_Spec_t speed_spec;
     ifx_Matrix_R_t* complex_to_real;
     ifx_Matrix_C_t *target_matrix, *calibration_matrix, *calibration_result;
 } ifx_Angle_t;
@@ -38,7 +41,7 @@ extern "C"
 #endif // __cplusplus
 
 ifx_Error_t angle_monopulse_init(ifx_Angle_Config_t* angle_config);
-ifx_Error_t angle_monopulse_config(ifx_Angle_Config_t* angle_config, ifx_Angle_t** handle);
+ifx_Error_t angle_monopulse_config(ifx_Angle_Config_t* angle_config, ifx_Angle_t** handle, ifx_Avian_Config_t* ifx_config);
 ifx_Error_t angle_monopulse_process(ifx_Angle_t* handle, const ifx_Cube_R_t* input, ifx_Float_t* azimuth_angle, ifx_Float_t* elevation_angle);
 void angle_monopulse_cleanup(ifx_Angle_t* handle);
 

@@ -44,12 +44,12 @@ static const ifx_RDM_Config_t rdm_config_obj =
     .doppler_fft_config = doppler_fft_config
 };
 
-ifx_Angle_t* ifx_angle_create(ifx_Angle_Config_t* config);
+ifx_Angle_t* ifx_angle_create(ifx_Angle_Config_t* config, ifx_Avian_Config_t* ifx_config);
 void ifx_angle_destroy(ifx_Angle_t* handle);
 void ifx_angle_run_r(ifx_Angle_t* handle, const ifx_Cube_R_t* input, ifx_Float_t* azimuth_angle, ifx_Float_t* elevation_angle);
 
 
-ifx_Angle_t* ifx_angle_create(ifx_Angle_Config_t* config)
+ifx_Angle_t* ifx_angle_create(ifx_Angle_Config_t* config, ifx_Avian_Config_t* ifx_config)
 {
     IFX_ERR_BRN_NULL(config);
 
@@ -92,6 +92,18 @@ ifx_Angle_t* ifx_angle_create(ifx_Angle_Config_t* config)
     IFX_ERR_HANDLE_N(h->calibration_result = ifx_mat_create_c(2, 1), ifx_angle_destroy(h));
 
     printf("stride[0] %d stride[1] %d\n",h->calibration_matrix->stride[0], h->calibration_matrix->stride[1]);
+
+    const ifx_Float_t bandwidth_Hz = ifx_devconf_get_bandwidth(ifx_config);
+    h->range_spec = ifx_spectrum_axis_calc_range_axis(IFX_FFT_TYPE_R2C, range_fft_size*2, ifx_config->num_samples_per_chirp, bandwidth_Hz);
+    if (ifx_error_get())
+    {
+        ESP_LOGE(TAG, "Unable to calculate axis of spectrum");
+    }
+
+    const ifx_Float_t center_freq_Hz = ifx_devconf_get_center_frequency(ifx_config);
+    const ifx_Float_t chirptime_s = ifx_devconf_get_chirp_time(ifx_config);
+    h->speed_spec = ifx_spectrum_axis_calc_speed_axis(IFX_FFT_TYPE_C2C, doppler_fft_size, center_freq_Hz, chirptime_s);
+
     h->calibration_matrix->d[0].data[0] = 1.0;
     h->calibration_matrix->d[0].data[1] = 0.0;
 
@@ -215,6 +227,13 @@ void ifx_angle_run_r(ifx_Angle_t* handle,
     // *elevation_angle = ifx_anglemonopulse_scalar_run(handle->angle_monopulse_handle, rxcomp[1], rxcomp[2]); // Without calibration 
     // printf("Elevation without calibration %0.2f\n" , *elevation_angle);
     *elevation_angle = ifx_anglemonopulse_scalar_run(handle->angle_monopulse_handle, handle->calibration_result->d[0], handle->calibration_result->d[1]);
+
+    // range
+    const ifx_Float_t range = rmax * handle->range_spec.value_bin_per_step;
+    printf("range %0.2f ", range);
+    // speed
+    const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(&rx1) / 2) - (ifx_Float_t)cmax) * handle->speed_spec.value_bin_per_step;
+    printf("speed %0.2f\n", speed);
 }
 
 ifx_Error_t angle_monopulse_init(ifx_Angle_Config_t* angle_config)
@@ -231,9 +250,9 @@ ifx_Error_t angle_monopulse_init(ifx_Angle_Config_t* angle_config)
     return ifx_error_get();
 }
 
-ifx_Error_t angle_monopulse_config(ifx_Angle_Config_t* angle_config, ifx_Angle_t** handle)
+ifx_Error_t angle_monopulse_config(ifx_Angle_Config_t* angle_config, ifx_Angle_t** handle, ifx_Avian_Config_t* ifx_config)
 {
-    *handle = ifx_angle_create(angle_config);
+    *handle = ifx_angle_create(angle_config, ifx_config);
     return ifx_error_get();
 }
 

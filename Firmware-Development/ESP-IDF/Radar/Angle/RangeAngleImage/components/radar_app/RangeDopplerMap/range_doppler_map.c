@@ -150,14 +150,6 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
     ifx_Error_t ret = 0;
     ifx_Matrix_R_t antenna_data;
     ifx_cube_get_row_r(frame, RX_ANTENNA_ID, &antenna_data);
-    // printf("rows : %d, cols : %d, stride[0] : %d, stride[1] : %d, stride[2] : %d\n", frame->rows, frame->cols, frame->stride[0], frame->stride[1], frame->stride[2]);
-    // antenna_data.d = frame->d;
-    // antenna_data.rows = 64;
-    // antenna_data.cols = 128;
-    // antenna_data.stride[0] = 1;
-    // antenna_data.stride[1] = 128;
-    // antenna_data.owns_d =0;
-    // printf("rows : %d, cols : %d, stride[0] : %d, stride[1] : %d\n", antenna_data.rows, antenna_data.cols, antenna_data.stride[0], antenna_data.stride[1]);
     ifx_rdm_run_r(rdm_context->rdm_handle, &antenna_data, rdm_context->rdm);
     if ((ret = ifx_error_get()))
     {

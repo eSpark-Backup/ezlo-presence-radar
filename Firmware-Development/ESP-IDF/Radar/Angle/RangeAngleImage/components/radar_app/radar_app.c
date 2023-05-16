@@ -242,16 +242,13 @@ void radar(void* pvParameter)
 #endif
 
 #if ANGLE_APP
-    ifx_Avian_Config_t* dev_config = (ifx_Avian_Config_t*)malloc(sizeof(ifx_Avian_Config_t));
-    ifx_avian_get_config(device_handle, dev_config);
-
     if (angle_monopulse_init(&angle_config) != IFX_OK)
     {
         ESP_LOGE(TAG, "failed to init angle object!\n");
         ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
 
-    if (angle_monopulse_config(&angle_config, &angle_handle) != IFX_OK)
+    if (angle_monopulse_config(&angle_config, &angle_handle, &device_config) != IFX_OK)
     {
         ESP_LOGE(TAG, "failed to config angle object!\n");
         ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
