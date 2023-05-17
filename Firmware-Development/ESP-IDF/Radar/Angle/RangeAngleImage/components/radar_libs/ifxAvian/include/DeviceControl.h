@@ -55,7 +55,6 @@ extern "C"
 
 #include "DeviceConfig.h"
 #include "Recording.h"
-#include "ifxRadarDeviceCommon.h"
 
 #include "xensiv_bgt60trxx.h"
 

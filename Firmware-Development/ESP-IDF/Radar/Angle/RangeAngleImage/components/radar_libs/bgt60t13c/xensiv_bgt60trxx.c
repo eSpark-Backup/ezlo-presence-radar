@@ -28,7 +28,6 @@
 #include "xensiv_bgt60trxx.h"
 #include "xensiv_bgt60trxx_esp32.h"
 
-#include "../debug/include/debug.h"
 // int64_t timeduration=0;
 #define XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES         (4U)
 #define XENSIV_BGT60TRXX_SOFT_RESET_DELAY_MS            (10U)

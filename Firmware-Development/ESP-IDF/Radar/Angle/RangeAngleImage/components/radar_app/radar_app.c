@@ -302,7 +302,6 @@ static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t*
 
 
             #if MOTION_ANGLE_APP
-            ifx_Float_t azimuth_angle, elevation_angle;
             if(ma_process(&ma_context, frame) != IFX_OK) 
             {
                 printf("failed motion angle processing!\n"); 

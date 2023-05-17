@@ -86,8 +86,6 @@ static ifx_MotionAngle_t *ifx_motionangle_create(ifx_MotionAngle_Config_t *confi
     IFX_ERR_HANDLE_N(h->calibration_matrix = ifx_mat_create_c(2, 2), ifx_motionangle_destroy(h));
     IFX_ERR_HANDLE_N(h->calibration_result = ifx_mat_create_c(2, 1), ifx_motionangle_destroy(h));
 
-    printf("stride[0] %d stride[1] %d\n", h->calibration_matrix->stride[0], h->calibration_matrix->stride[1]);
-
     const ifx_Float_t bandwidth_Hz = ifx_devconf_get_bandwidth(ifx_config);
     h->range_spec = ifx_spectrum_axis_calc_range_axis(IFX_FFT_TYPE_R2C, range_fft_size * 2, ifx_config->num_samples_per_chirp, bandwidth_Hz);
     if (ifx_error_get())

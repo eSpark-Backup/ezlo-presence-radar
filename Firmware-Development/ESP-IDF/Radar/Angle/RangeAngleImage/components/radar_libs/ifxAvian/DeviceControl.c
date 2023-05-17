@@ -15,11 +15,11 @@ extern "C"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "debug.h"
 #include "Error.h"
 
 #include "presence_radar_default.h"
 #include "xensiv_bgt60trxx_esp32.h"
+#include "esp_log.h"
 
 ifx_Avian_Device_t *ifx_avian_create_dummy_from_xensiv(xensiv_bgt60trxx_t *bgt60)
 {

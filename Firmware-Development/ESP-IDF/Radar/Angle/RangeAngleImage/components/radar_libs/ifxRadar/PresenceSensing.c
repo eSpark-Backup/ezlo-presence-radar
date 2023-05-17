@@ -55,7 +55,6 @@
 #include "RangeSpectrum.h"
 #include "SpectrumAxis.h"
 
-#include "debug.h"
 #include "presence_radar_default.h"
 /*
 ==============================================================================
@@ -320,7 +319,7 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
         IFX_ERROR_ARGUMENT_OUT_OF_BOUNDS);
     
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
     
     ifx_PresenceSensing_t* h = ifx_mem_calloc(1, sizeof(struct ifx_PresenceSensing_s));
     IFX_ERR_BRN_MEMALLOC(h);
@@ -363,12 +362,12 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
     };
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
     IFX_ERR_HANDLE_N(h->range_spectrum_handle = ifx_rs_create(&range_spectrum_config),
                  ifx_presence_sensing_destroy(h));
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));                 
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));                 
 
     ifx_rs_set_mode(h->range_spectrum_handle, config->range_spectrum_mode);
 
@@ -388,13 +387,13 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
                  ifx_presence_sensing_destroy(h));
     
     err = ifx_error_get();        
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
 
     IFX_ERR_HANDLE_N(ifx_window_init(&doppler_fft_window_config, h->doppler_fft_window),
               ifx_presence_sensing_destroy(h));
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));  
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));  
 
     // normalize such that the sum(doppler_fft_window) = 1
     const ifx_Float_t sum = ifx_vec_sum_r(h->doppler_fft_window);
@@ -402,7 +401,7 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
         ifx_vec_scale_r(h->doppler_fft_window, 1/sum, h->doppler_fft_window);
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));     
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));     
     /***************************** Doppler FFT ************************************/
     h->doppler_data.fft_data = ifx_vec_create_c(device_config->num_chirps_per_frame);
     h->doppler_fft_handle = ifx_fft_create(IFX_FFT_TYPE_C2C, config->doppler_fft_size);
@@ -411,13 +410,13 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
     h->doppler_data.abs_result = ifx_vec_create_r(config->doppler_fft_size);
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));         
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));         
     const ifx_Float_t center_rf_freq_Hz = ifx_devconf_get_center_frequency(device_config);
     
-    TRACE_B("center_rf_freq_Hz: %f", center_rf_freq_Hz);
+    // TRACE_B("center_rf_freq_Hz: %f", center_rf_freq_Hz);
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
 
     ifx_Float_t chirptime_s = ifx_devconf_get_chirp_time(device_config);
     
@@ -437,17 +436,17 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
         .aaf_cutoff_Hz = device_config->aaf_cutoff_Hz,
     };
      
-    TRACE_B("chirptime_s: %f", chirptime_s);
+    // TRACE_B("chirptime_s: %f", chirptime_s);
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
 
-    TRACE_B("config->doppler_fft_size: %d", config->doppler_fft_size);
+    // TRACE_B("config->doppler_fft_size: %d", config->doppler_fft_size);
 
     h->speed_resolution_m_s = ifx_spectrum_axis_calc_speed_per_bin(config->doppler_fft_size, center_rf_freq_Hz, chirptime_s);
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
     /********************************* Algorithm parameters **************************/
 
     h->doppler_data.doppler_threshold = 0.0002f;
@@ -457,7 +456,7 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
     h->range_resolution_m = dist_per_bin;
     
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
     
     ifx_Float_t active_zone_m = config->max_detection_range_m;
     ifx_Float_t min_range_m = config->min_detection_range_m;
@@ -474,12 +473,12 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
         .max_num_peaks = 1};
 
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err)); 
     // ifx_error_clear();
     IFX_ERR_HANDLE_N(h->presence_peak_handle = ifx_peak_search_create(&presence_peak_search_config),
                  ifx_presence_sensing_destroy(h));
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
 
     ifx_Peak_Search_Config_t absence_peak_search_config = {
         .value_per_bin = dist_per_bin,
@@ -493,7 +492,7 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
     IFX_ERR_HANDLE_N(h->absence_peak_handle = ifx_peak_search_create(&absence_peak_search_config),
                  ifx_presence_sensing_destroy(h));
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
     ifx_Peak_Search_Config_t absence_fine_peak_search_config = {
         .value_per_bin = dist_per_bin,
         .search_zone_start = min_range_m,
@@ -506,7 +505,7 @@ ifx_PresenceSensing_t* ifx_presence_sensing_create(const ifx_PresenceSensing_Con
     IFX_ERR_HANDLE_N(h->absence_fine_peak_handle = ifx_peak_search_create(&absence_fine_peak_search_config),
                  ifx_presence_sensing_destroy(h));
     err = ifx_error_get();    
-    TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
+    // TRACE_B("Error: %d:%s\n", err, ifx_error_to_string(err));
     h->peak_search_handle = h->absence_peak_handle;
 
     h->mti_handle = ifx_mti_create(config->mti_weight, IFX_VEC_LEN(h->range_spectrum_data.fft_spectrum_result));
