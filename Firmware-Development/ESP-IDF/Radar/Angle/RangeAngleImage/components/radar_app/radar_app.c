@@ -11,7 +11,6 @@ static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t*
 static void radar_print_fifo_err(void);
 static void radar_print_device_config(const ifx_Avian_Config_t* config);
 static void split_uint16_by_12bits(uint16_t* dest,uint16_t* src);
-static void getEspRuntimeStatus(void);
 
 // tasks declaration 
 void radar(void* pvParameter);
@@ -40,10 +39,8 @@ ifx_Cube_R_t* frame = NULL;
 ifx_OSCFAR_t* cfar_handle;
 ifx_Matrix_R_t *cfar_mat;
 
-#if ANGLE_APP
-
-ifx_Angle_t* angle_handle = NULL;
-ifx_Angle_Config_t angle_config;
+#if MOTION_ANGLE_APP
+ma_t ma_context;
 #endif
 
 #if VELOCITY_APP
@@ -51,7 +48,7 @@ ifx_Angle_Config_t angle_config;
 rdm_t *rdm_context =NULL;
 #endif
 
-#if PRESENCE_APP | VELOCITY_APP
+#if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
 // presence
 presence_t presence_handle;
 #endif
@@ -71,39 +68,47 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     } 
 }
 
-static void radar_gpio_init(void) {
+static void radar_gpio_init(void) 
+{
+  gpio_config_t io_conf_bgt60_rst = 
+  {
+    .pin_bit_mask = XNSIV_BGT60_RST_PIN_SEL,
+    .intr_type = GPIO_INTR_DISABLE,
+    .mode = GPIO_MODE_OUTPUT,
+    .pull_up_en = GPIO_PULLUP_ENABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE
+  };
 
-  gpio_config_t io_conf_bgt60_rst = {};
-  gpio_config_t io_conf_bgt60_cs = {};
-  gpio_config_t io_conf_bgt60_LEDs = {};
-  gpio_config_t io_conf_inputs = {};
+  gpio_config_t io_conf_bgt60_cs = 
+  {
+    .pin_bit_mask = XNSIV_BGT60_CS_PIN_SEL,
+    .intr_type = GPIO_INTR_DISABLE,
+    .mode = GPIO_MODE_OUTPUT,
+    .pull_up_en = GPIO_PULLUP_ENABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE
+  };
 
-  io_conf_bgt60_rst.pin_bit_mask = XNSIV_BGT60_RST_PIN_SEL;
-  io_conf_bgt60_rst.intr_type = GPIO_INTR_DISABLE;
-  io_conf_bgt60_rst.mode = GPIO_MODE_OUTPUT;
-  io_conf_bgt60_rst.pull_up_en = GPIO_PULLUP_ENABLE;
-  io_conf_bgt60_rst.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  gpio_config_t io_conf_bgt60_LEDs = 
+  {
+    .pin_bit_mask = XNSIV_BGT60_LEDS_PIN_SEL,
+    .intr_type = GPIO_INTR_DISABLE,
+    .mode = GPIO_MODE_OUTPUT,
+    .pull_up_en = GPIO_PULLUP_ENABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE
+  };
+
+  gpio_config_t io_conf_inputs = 
+  {
+    .pin_bit_mask = XNSIV_BGT60_IRQ_PIN_SEL | XNSIV_BGT60_BUTTON_PIN_SEL,
+    .intr_type = GPIO_INTR_POSEDGE,
+    .mode = GPIO_MODE_INPUT,
+    .pull_up_en = GPIO_PULLUP_DISABLE,
+    .pull_down_en = GPIO_PULLDOWN_ENABLE
+  };
+
   gpio_config(&io_conf_bgt60_rst);
-  
-  io_conf_bgt60_cs.pin_bit_mask = XNSIV_BGT60_CS_PIN_SEL;
-  io_conf_bgt60_cs.intr_type = GPIO_INTR_DISABLE;
-  io_conf_bgt60_cs.mode = GPIO_MODE_OUTPUT;
-  io_conf_bgt60_cs.pull_up_en = GPIO_PULLUP_ENABLE;
-  io_conf_bgt60_cs.pull_down_en = GPIO_PULLDOWN_DISABLE;
   gpio_config(&io_conf_bgt60_cs);
-  
-  io_conf_bgt60_LEDs.pin_bit_mask = XNSIV_BGT60_LEDS_PIN_SEL;
-  io_conf_bgt60_LEDs.intr_type = GPIO_INTR_DISABLE;
-  io_conf_bgt60_LEDs.mode = GPIO_MODE_OUTPUT;
-  io_conf_bgt60_LEDs.pull_up_en = GPIO_PULLUP_ENABLE;
-  io_conf_bgt60_LEDs.pull_down_en = GPIO_PULLDOWN_DISABLE;
   gpio_config(&io_conf_bgt60_LEDs);
-
-  io_conf_inputs.pin_bit_mask = XNSIV_BGT60_IRQ_PIN_SEL | XNSIV_BGT60_BUTTON_PIN_SEL;
-  io_conf_inputs.intr_type = GPIO_INTR_POSEDGE;
-  io_conf_inputs.mode = GPIO_MODE_INPUT;
-  io_conf_inputs.pull_up_en = GPIO_PULLUP_DISABLE;
-  io_conf_inputs.pull_down_en = GPIO_PULLDOWN_ENABLE;
   gpio_config(&io_conf_inputs);  
 
   //change gpio intrrupt type for one pin
@@ -213,7 +218,7 @@ void radar(void* pvParameter)
         ESP_LOGI(TAG, "frame started !!");
     }  
 
-#if PRESENCE_APP | VELOCITY_APP
+#if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
     if (presence_init(&presence_handle) != IFX_OK) {
         ESP_LOGE(TAG, "failed to init presence object!\n"); 
         ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));    
@@ -241,16 +246,16 @@ void radar(void* pvParameter)
     
 #endif
 
-#if ANGLE_APP
-    if (angle_monopulse_init(&angle_config) != IFX_OK)
+#if MOTION_ANGLE_APP
+    if (ma_init(&ma_context) != IFX_OK)
     {
-        ESP_LOGE(TAG, "failed to init angle object!\n");
+        ESP_LOGE(TAG, "failed to init motion angle object!\n");
         ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
 
-    if (angle_monopulse_config(&angle_config, &angle_handle, &device_config) != IFX_OK)
+    if (ma_config(&ma_context, &device_config) != IFX_OK)
     {
-        ESP_LOGE(TAG, "failed to config angle object!\n");
+        ESP_LOGE(TAG, "failed to config motion angle object!\n");
         ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     }
 #endif 
@@ -266,10 +271,10 @@ void radar(void* pvParameter)
     out:
     ifx_avian_destroy(device_handle);
     ifx_cube_destroy_r(frame);
-    #if ANGLE_APP
-    angle_monopulse_cleanup(angle_handle);
+    #if MOTION_ANGLE_APP
+    ma_cleanup(&ma_context);
     #endif
-    #if PRESENCE_APP | VELOCITY_APP
+    #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
     presence_cleanup(&presence_handle);
     #endif
 }
@@ -279,36 +284,40 @@ static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t*
     if (frame_process_status)
     {    
         frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
-    #if ANGLE_APP
-        ifx_Float_t azimuth_angle, elevation_angle;
-        if(angle_monopulse_process(angle_handle, frame, &azimuth_angle, &elevation_angle) != IFX_OK) 
-        {
-            printf("failed angle monopulse processing!\n"); 
-            ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-        }
+
+    #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
+        if(presence_process(&presence_handle, frame) != IFX_OK) {
+            ESP_LOGE(TAG, "failed processing presence!\n"); 
+        }  
         else
         {
-            printf("Azimuth %0.2f ", azimuth_angle);
-            printf("Elevation %0.2f\n", elevation_angle);
-        }
-    #endif
-
-    #if PRESENCE_APP | VELOCITY_APP
-        // if(presence_process(&presence_handle, frame) != IFX_OK) {
-        //     ESP_LOGE(TAG, "failed processing presence!\n"); 
-        // }  
-        // else
-        // {
-        #if VELOCITY_APP
             if (presence_handle.presence_status == IFX_PRESENCE_SENSING_PRESENT)
             {
-                if(rdm_process(rdm_context, frame) != IFX_OK) 
-                {
-                    printf("Failed rdm processing!\n");
-                }
-            }  
-        #endif 
-        // }
+            #if VELOCITY_APP
+            if(rdm_process(rdm_context, frame) != IFX_OK) 
+            {
+                printf("Failed rdm processing!\n");
+            } 
+            #endif 
+
+
+            #if MOTION_ANGLE_APP
+            ifx_Float_t azimuth_angle, elevation_angle;
+            if(ma_process(&ma_context, frame) != IFX_OK) 
+            {
+                printf("failed motion angle processing!\n"); 
+                ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
+            }
+            else
+            {
+                printf("Range %0.2f ", ma_context.result.range);
+                printf("Speed %0.2f ", ma_context.result.speed);
+                printf("Azimuth %0.2f ", ma_context.result.angle_azimuth);
+                printf("Elevation %0.2f\n", ma_context.result.angle_elevation);
+            }
+            #endif
+            }
+        }
     #endif
         frame_process_status = 0;
     }
@@ -422,10 +431,10 @@ static void radar_print_device_config(const ifx_Avian_Config_t* config)
 static esp_err_t radar_configure_led(void)
 {
     esp_err_t err;
-    err = gpio_reset_pin(XNSIV_BGT60_LED_RED);
-    err = gpio_reset_pin(XNSIV_BGT60_LED_GREEN);
-    err = gpio_set_direction(XNSIV_BGT60_LED_RED, GPIO_MODE_OUTPUT);
-    err = gpio_set_direction(XNSIV_BGT60_LED_GREEN, GPIO_MODE_OUTPUT);
+    err |= gpio_reset_pin(XNSIV_BGT60_LED_RED);
+    err |= gpio_reset_pin(XNSIV_BGT60_LED_GREEN);
+    err |= gpio_set_direction(XNSIV_BGT60_LED_RED, GPIO_MODE_OUTPUT);
+    err |= gpio_set_direction(XNSIV_BGT60_LED_GREEN, GPIO_MODE_OUTPUT);
 
     return err;
 }
@@ -448,13 +457,6 @@ static void radar_led_blinky(void)
     {
         delayCounter =0;
     }
-}
-
-char str[100];   
-static void getEspRuntimeStatus(void)
-{    
-    vTaskGetRunTimeStats(str);
-    printf("%s\n",str);
 }
 
 TaskHandle_t radar_task_handle = NULL;
