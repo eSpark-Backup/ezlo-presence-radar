@@ -14,8 +14,10 @@
 #include "presence_radar_default.h"
 #include "../RangeDopplerMap/rdm_defaults.h"
 #include "AngleMonopulse.h"
-#include "range_doppler_map.c"
+#include "range_doppler_map.h"
 #include "motion_angle.h"
+
+static const char* TAG = "motion_angle";
 
 static const ifx_PPFFT_Config_t range_fft_config =
     {

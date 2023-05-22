@@ -144,7 +144,6 @@ void rdm_peak_search(const ifx_Matrix_R_t *matrix, uint32_t *rmax, uint32_t *cma
     }
 }
 
-ifx_Float_t prevRange=0;
 ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
 {
     ifx_Error_t ret = 0;
@@ -171,11 +170,7 @@ ifx_Error_t rdm_process(rdm_t *rdm_context, ifx_Cube_R_t *frame)
     // speed
     const ifx_Float_t speed = (((ifx_Float_t)IFX_MAT_COLS(rdm_context->rdm) / 2) - (ifx_Float_t)cmax) * rdm_context->speed_spec.value_bin_per_step;
 
-    if (abs(speed) < 4  && ((abs(prevRange-range))<1.0))
-    {
-        printf("range_m:%0.3f, speed_m_s:%0.2f\n", range, speed);
-        prevRange = range;
-    }
+    printf("range_m:%0.3f, speed_m_s:%0.2f\n", range, speed);
 
     return (ifx_error_get());
 }

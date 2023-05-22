@@ -52,7 +52,7 @@ extern "C" {
 #define MAX_FIFO_BREAK_COUNT 4
 #define FIFO_RESET_COUNT 0
 
-#define PRESENCE_STANDARD_REVB 1
+#define AMBIENT_TRACKER_PRO 1
 
 typedef enum 
 {
@@ -65,7 +65,7 @@ typedef enum
 #define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
 
 #ifndef XNSIV_BGT60_SPI_HOST
-    #define     XNSIV_BGT60_SPI_HOST       SPI2_HOST
+    #define     XNSIV_BGT60_SPI_HOST       SPI3_HOST
 #endif
 
 #if THERMOSTAT_BOARD
@@ -249,6 +249,10 @@ void xensiv_bgt60trxx_esp32_assert(bool expr);
 uint16_t* xensiv_bgt60trxx_esp32_get_data_ptr(void);
 uint8_t xensiv_bgt60trxx_esp32_get_fifo_read_count(void);
 void xensiv_bgt60trxx_esp32_reset_fifo_count(void);
+bool xensiv_bgt60trxx_esp32_is_reading_fifo(void);
+void xensiv_bgt60trxx_esp32_enable_reading_fifo(void);
+void xensiv_bgt60trxx_esp32_disable_reading_fifo(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -2,12 +2,12 @@
 #include "radar_app.h"
 
 // Function declaration 
-static void radar_gpio_init(void);
+static esp_err_t radar_gpio_init(void);
 static esp_err_t radar_configure_led(void);
 static esp_err_t radar_spi_init(void);
 static void radar_led_blinky(void);
 static int32_t radar_get_fifo_data(void);
-static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame);
+static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame);
 static void radar_print_fifo_err(void);
 static void radar_print_device_config(const ifx_Avian_Config_t* config);
 static void split_uint16_by_12bits(uint16_t* dest,uint16_t* src);
@@ -16,7 +16,6 @@ static void split_uint16_by_12bits(uint16_t* dest,uint16_t* src);
 void radar(void* pvParameter);
 
 // radar task 
-static xQueueHandle gpio_evt_queue = NULL;
 static void IRAM_ATTR queue_ready(spi_transaction_t *trans);
 
 // bgt60tr13c
@@ -25,14 +24,13 @@ xensiv_bgt60trxx_t* xnsiv_bgt60tr13c = NULL;
 ifx_Avian_Device_t* device_handle = NULL;
 extern spi_transaction_t transaction; 
 bgt60trxx_fifo_status_t radar_fifo_status = 0;
-uint8_t fifoRead = 0;
 uint16_t no_of_bytes = 0;
-bool frame_process_status = 0;
+bool frame_process_status = false;
 
 // frame buffer
-uint16_t* samples = NULL;
-static uint16_t samples1[TOTAL_DATA];
-static uint16_t samples2[TOTAL_DATA];
+uint16_t* p_samples = NULL;
+uint16_t samples_buf1[TOTAL_DATA];
+uint16_t samples_buf2[TOTAL_DATA];
 ifx_Cube_R_t* frame = NULL;
 
 // cfar
@@ -54,78 +52,93 @@ presence_t presence_handle;
 #endif
 
 // logs
-static const char* TAG = "radar bgt60tr13c";
+static const char* TAG = "radar_app.c";
 
 // radar interrupt handler
 static void IRAM_ATTR gpio_isr_handler(void* arg) 
 {
-    uint32_t gpio_num = (uint32_t) arg;
+    uint32_t gpio_num = (uint32_t)arg;
 
-    if(gpio_num == XNSIV_BGT60_IRQ_GPIO) 
+    switch(gpio_num)
     {
-        xensiv_bgt60trxx_esp32_spi_cs_set(device_handle->m_xensiv_device_handle->iface, GPIO_LEVEL_LOW);
-        radar_get_fifo_data();
-    } 
+        case XNSIV_BGT60_IRQ_GPIO:
+            xensiv_bgt60trxx_esp32_spi_cs_set(device_handle->m_xensiv_device_handle->iface, GPIO_LEVEL_LOW);
+            if (XENSIV_BGT60TRXX_STATUS_OK != radar_get_fifo_data())
+            {
+                radar_fifo_status = FIFO_READ_FAILED;
+            }
+            break;
+
+        default:
+            break;
+    }
 }
 
-static void radar_gpio_init(void) 
+static esp_err_t radar_gpio_init(void) 
 {
-  gpio_config_t io_conf_bgt60_rst = 
-  {
-    .pin_bit_mask = XNSIV_BGT60_RST_PIN_SEL,
-    .intr_type = GPIO_INTR_DISABLE,
-    .mode = GPIO_MODE_OUTPUT,
-    .pull_up_en = GPIO_PULLUP_ENABLE,
-    .pull_down_en = GPIO_PULLDOWN_DISABLE
-  };
+    esp_err_t ret = ESP_OK;
+    gpio_config_t io_conf_bgt60_rst = 
+    {
+        .pin_bit_mask = XNSIV_BGT60_RST_PIN_SEL,
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE
+    };
 
-  gpio_config_t io_conf_bgt60_cs = 
-  {
-    .pin_bit_mask = XNSIV_BGT60_CS_PIN_SEL,
-    .intr_type = GPIO_INTR_DISABLE,
-    .mode = GPIO_MODE_OUTPUT,
-    .pull_up_en = GPIO_PULLUP_ENABLE,
-    .pull_down_en = GPIO_PULLDOWN_DISABLE
-  };
+    gpio_config_t io_conf_bgt60_cs = 
+    {
+        .pin_bit_mask = XNSIV_BGT60_CS_PIN_SEL,
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE
+    };
 
-  gpio_config_t io_conf_bgt60_LEDs = 
-  {
-    .pin_bit_mask = XNSIV_BGT60_LEDS_PIN_SEL,
-    .intr_type = GPIO_INTR_DISABLE,
-    .mode = GPIO_MODE_OUTPUT,
-    .pull_up_en = GPIO_PULLUP_ENABLE,
-    .pull_down_en = GPIO_PULLDOWN_DISABLE
-  };
+    gpio_config_t io_conf_bgt60_LEDs = 
+    {
+        .pin_bit_mask = XNSIV_BGT60_LEDS_PIN_SEL,
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE
+    };
 
-  gpio_config_t io_conf_inputs = 
-  {
-    .pin_bit_mask = XNSIV_BGT60_IRQ_PIN_SEL | XNSIV_BGT60_BUTTON_PIN_SEL,
-    .intr_type = GPIO_INTR_POSEDGE,
-    .mode = GPIO_MODE_INPUT,
-    .pull_up_en = GPIO_PULLUP_DISABLE,
-    .pull_down_en = GPIO_PULLDOWN_ENABLE
-  };
+    gpio_config_t io_conf_inputs = 
+    {
+        .pin_bit_mask = XNSIV_BGT60_IRQ_PIN_SEL, // | XNSIV_BGT60_BUTTON_PIN_SEL,
+        .intr_type = GPIO_INTR_POSEDGE,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_ENABLE
+    };
 
-  gpio_config(&io_conf_bgt60_rst);
-  gpio_config(&io_conf_bgt60_cs);
-  gpio_config(&io_conf_bgt60_LEDs);
-  gpio_config(&io_conf_inputs);  
+    ret = gpio_config(&io_conf_bgt60_rst);
+    ESP_RETURN_ON_ERROR(ret, TAG, "reset gpio not configured - invalid argument");
+    ret = gpio_config(&io_conf_bgt60_cs);
+    ESP_RETURN_ON_ERROR(ret, TAG, "chip select gpio not configured - invalid argument");
+    ret = gpio_config(&io_conf_bgt60_LEDs);
+    ESP_RETURN_ON_ERROR(ret, TAG, "led gpio's not configured - invalid argument");
+    ret = gpio_config(&io_conf_inputs);
+    ESP_RETURN_ON_ERROR(ret, TAG, "bgt60 irq and button gpio's not configured - invalid argument");  
 
-  //change gpio intrrupt type for one pin
-  gpio_set_intr_type(XNSIV_BGT60_IRQ_GPIO, GPIO_INTR_POSEDGE);
-//   gpio_set_intr_type(XNSIV_BGT60_BUTTON_GPIO, GPIO_INTR_POSEDGE);
+    gpio_set_intr_type(XNSIV_BGT60_IRQ_GPIO, GPIO_INTR_POSEDGE);  
+    // gpio_set_intr_type(XNSIV_BGT60_BUTTON_GPIO, GPIO_INTR_POSEDGE); 
 
-  //create a queue to handle gpio event from isr
-  gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    //install gpio isr service
+    ret = gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+    ESP_RETURN_ON_ERROR(ret, TAG, "unable to install isr service");
 
-  //install gpio isr service
-  gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
-  //hook isr handler for specific gpio pin
-  gpio_isr_handler_add(XNSIV_BGT60_IRQ_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_IRQ_GPIO);
-//   gpio_isr_handler_add(XNSIV_BGT60_BUTTON_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_BUTTON_GPIO);
+    //hook isr handler for specific gpio pin
+    ret = gpio_isr_handler_add(XNSIV_BGT60_IRQ_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_IRQ_GPIO);
+    ESP_RETURN_ON_ERROR(ret, TAG, "unable to assign isr handler to bgt60 irq gpio");
+    // ret = gpio_isr_handler_add(XNSIV_BGT60_BUTTON_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_BUTTON_GPIO);
+    // ESP_RETURN_ON_ERROR(ret, TAG, "unable to assign isr handler to button gpio");
 
-  // Disable Reset
-  gpio_set_level(XNSIV_BGT60_RST_GPIO, 1);
+    // Disable Reset
+    gpio_set_level(XNSIV_BGT60_RST_GPIO, 1);
+
+    return ret;
 }
 
 static esp_err_t radar_spi_init(void) 
@@ -152,11 +165,11 @@ static esp_err_t radar_spi_init(void)
     };    
 
     //Initialize the SPI bus
-    ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO); //SPI_DMA_CH_AUTO); //SPI_DMA_DISABLED);
-    ESP_ERROR_CHECK(ret);
+    ret = spi_bus_initialize(XNSIV_BGT60_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO); //SPI_DMA_CH_AUTO); //SPI_DMA_DISABLED);
+    ESP_RETURN_ON_ERROR(ret, TAG, "spi bus not initialized");
     
-    ret=spi_bus_add_device(SPI2_HOST, &devcfg, &xnsiv_bgt60_spi);
-    ESP_ERROR_CHECK(ret);
+    ret = spi_bus_add_device(XNSIV_BGT60_SPI_HOST, &devcfg, &xnsiv_bgt60_spi);
+    ESP_RETURN_ON_ERROR(ret, TAG, "spi bus not added");
 
     return ret;
 }
@@ -177,98 +190,105 @@ void bgt60_hard_reset(void)
 void radar(void* pvParameter)
 {
     ifx_Error_t error = IFX_OK;
+    esp_err_t ret = ESP_OK; 
+    int status = 0;
     ifx_Avian_Config_t device_config = {0};
-    xnsiv_bgt60tr13c = (xensiv_bgt60trxx_t *)malloc(sizeof(xensiv_bgt60trxx_t));
 
-    frame = ifx_cube_create_r(XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS, XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP);    
+    xnsiv_bgt60tr13c = (xensiv_bgt60trxx_t *)ifx_mem_alloc(sizeof(xensiv_bgt60trxx_t));
+    ESP_GOTO_ON_FALSE(xnsiv_bgt60tr13c, ESP_ERR_NO_MEM, out, TAG, "xensiv bgt60tr13c creation failed"); 
 
-    radar_gpio_init();
-    // radar_configure_led();
-    radar_spi_init();
+    ret = radar_gpio_init();
+    ESP_GOTO_ON_ERROR(ret, out, TAG, "radar gpio init failed");
+    
+    ret = radar_configure_led();
+    ESP_ERROR_CHECK_WITHOUT_ABORT(ret);
+
+    ret = radar_spi_init();
+    ESP_GOTO_ON_ERROR(ret, out, TAG, "radar spi init failed");
+
     bgt60_hard_reset();
 
     /* Open the device: Connect to the first radar sensor found. */
     device_handle = ifx_avian_create_dummy_from_xensiv(xnsiv_bgt60tr13c);
-    
-    if ((error = ifx_error_get()) != IFX_OK)
-    {
-        ESP_LOGE(TAG, "failed to open device: %s\n", ifx_error_to_string(error));
-        goto out;
-    }
+    ESP_GOTO_ON_FALSE(device_handle, ESP_ERR_NO_MEM, out, TAG, "failed to open device");
 
-    xensiv_bgt60trxx_init(device_handle->m_xensiv_device_handle, (void *)&xnsiv_bgt60_spi, false);
-    xensiv_bgt60trxx_config(device_handle->m_xensiv_device_handle, register_list, XENSIV_BGT60TRXX_CONF_NUM_REGS);
-    
+    status = xensiv_bgt60trxx_init(device_handle->m_xensiv_device_handle, (void *)&xnsiv_bgt60_spi, false); 
+    ESP_GOTO_ON_ERROR(status, out, TAG, "xensiv bgt60tr13c initialization failed"); // XENSIV_BGT60TRXX_STATUS_OK = ESP_OK
+
+    status = xensiv_bgt60trxx_config(device_handle->m_xensiv_device_handle, register_list, XENSIV_BGT60TRXX_CONF_NUM_REGS);
+    ESP_GOTO_ON_ERROR(status, out, TAG, "xensiv bgt60tr13c config failed"); // XENSIV_BGT60TRXX_STATUS_OK = ESP_OK
+
     uint32_t read_reg = 0;
-    xensiv_bgt60trxx_get_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, &read_reg);
-    read_reg |= XENSIV_BGT60TRXX_REG_SFCTL_PREFIX_EN_MSK | XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;  
-    xensiv_bgt60trxx_set_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, read_reg);
+    status = xensiv_bgt60trxx_get_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, &read_reg);
+    if(XENSIV_BGT60TRXX_STATUS_OK == status)
+    {
+        read_reg |= XENSIV_BGT60TRXX_REG_SFCTL_PREFIX_EN_MSK | XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;  
+        status = xensiv_bgt60trxx_set_reg(device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, read_reg);
+        if(XENSIV_BGT60TRXX_STATUS_OK != status)
+        {
+            ESP_LOGE(TAG, "unable to set XENSIV_BGT60TRXX_REG_SFCTL value");
+        }
+    } 
 
     ifx_avian_get_config(device_handle, &device_config);
     radar_print_device_config(&device_config);
 
-    xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME/MAX_FIFO_BREAK_COUNT)+200);
+    status = xensiv_bgt60trxx_set_fifo_limit(device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME/MAX_FIFO_BREAK_COUNT)+200);
+    if(XENSIV_BGT60TRXX_STATUS_OK != status)
+    {
+        ESP_LOGE(TAG, "unable to set fifo limit");
+    }
+    
 
-    if (xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, true) != XENSIV_BGT60TRXX_STATUS_OK) 
+    frame = ifx_cube_create_r(XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS, XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP); 
+    ESP_GOTO_ON_FALSE(frame, ESP_ERR_NO_MEM, out, TAG, "frame creation failed");
+
+    status = xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, true);
+    if(XENSIV_BGT60TRXX_STATUS_OK != status)
     {
-        ESP_LOGE(TAG, "error stopping the frame.");
-    } 
-    else 
-    {
-        ESP_LOGI(TAG, "frame started !!");
-    }  
+        ESP_LOGE(TAG, "unable to start frame");
+    }
 
 #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
-    if (presence_init(&presence_handle) != IFX_OK) {
-        ESP_LOGE(TAG, "failed to init presence object!\n"); 
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));    
-    }
+    error = presence_init(&presence_handle);
+    ESP_GOTO_ON_ERROR(error, out, TAG, "failed to init presence object!"); // IFX_OK = ESP_OK
 
-    if (presence_config(&presence_handle, device_handle, &device_config) != IFX_OK) {
-        ESP_LOGE(TAG, "failed to config presene object!\n");  
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));      
-    }
+    error = presence_config(&presence_handle, device_handle, &device_config);
+    ESP_GOTO_ON_ERROR(error, out, TAG, "failed to config presene object!"); // IFX_OK = ESP_OK
 #endif
 
 #if VELOCITY_APP
-    rdm_context = (rdm_t *)malloc(sizeof(rdm_t));
-    if (rdm_init(rdm_context) != IFX_OK)
-    {
-        ESP_LOGE(TAG, "failed to init rdm object!\n");
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-    }
+    rdm_context = (rdm_t *)ifx_mem_alloc(sizeof(rdm_t));
+    ESP_GOTO_ON_FALSE(rdm_context, ESP_ERR_NO_MEM, out, TAG, "rdm context creation failed"); 
 
-    if (rdm_config(rdm_context, device_handle, &device_config) != IFX_OK)
-    {
-        ESP_LOGE(TAG, "failed to config rdm object!\n");
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-    }
-    
+    error = rdm_init(rdm_context);
+    ESP_GOTO_ON_ERROR(error, out, TAG, "failed to init rdm object!"); // IFX_OK = ESP_OK
+
+    error = rdm_config(rdm_context, device_handle, &device_config);
+    ESP_GOTO_ON_ERROR(error, out, TAG, "failed to config rdm object!"); // IFX_OK = ESP_OK 
 #endif
 
 #if MOTION_ANGLE_APP
-    if (ma_init(&ma_context) != IFX_OK)
-    {
-        ESP_LOGE(TAG, "failed to init motion angle object!\n");
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-    }
+    error = ma_init(&ma_context);
+    ESP_GOTO_ON_ERROR(error, out, TAG, "failed to init motion angle object!"); // IFX_OK = ESP_OK
 
-    if (ma_config(&ma_context, &device_config) != IFX_OK)
-    {
-        ESP_LOGE(TAG, "failed to config motion angle object!\n");
-        ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-    }
+    error = ma_config(&ma_context, &device_config);
+    ESP_GOTO_ON_ERROR(error, out, TAG, "failed to config motion angle object!"); // IFX_OK = ESP_OK
 #endif 
-    
     ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
+    
     while(1)
     {
         // radar_print_fifo_err();
-        radar_process_frame(device_handle, frame); 
+        if (radar_process_frame(device_handle, frame) != IFX_OK)
+        {
+            ESP_LOGE(TAG, "failed to process radar frame");
+        }
         // radar_led_blinky();
     }
 
     out:
+    ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
     ifx_avian_destroy(device_handle);
     ifx_cube_destroy_r(frame);
     #if MOTION_ANGLE_APP
@@ -277,60 +297,54 @@ void radar(void* pvParameter)
     #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
     presence_cleanup(&presence_handle);
     #endif
+    vTaskDelete(NULL);
 }
 
-static void radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame)
+static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame)
 {
+    ifx_Error_t ret = IFX_OK;
     if (frame_process_status)
     {    
-        frame = ifx_avian_get_next_frame(device_handle ,frame ,samples);
+        frame = ifx_avian_get_next_frame(device_handle ,frame ,p_samples);
 
     #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
-        if(presence_process(&presence_handle, frame) != IFX_OK) {
-            ESP_LOGE(TAG, "failed processing presence!\n"); 
-        }  
-        else
+        ret = presence_process(&presence_handle, frame);
+        ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed processing presence!"); // IFX_OK = ESP_OK 
+
+        if (presence_handle.presence_status == IFX_PRESENCE_SENSING_PRESENT)
         {
-            if (presence_handle.presence_status == IFX_PRESENCE_SENSING_PRESENT)
-            {
             #if VELOCITY_APP
-            if(rdm_process(rdm_context, frame) != IFX_OK) 
-            {
-                printf("Failed rdm processing!\n");
-            } 
+            ret = rdm_process(rdm_context, frame);
+            ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed rdm processing!"); // IFX_OK = ESP_OK 
             #endif 
 
 
             #if MOTION_ANGLE_APP
-            if(ma_process(&ma_context, frame) != IFX_OK) 
-            {
-                printf("failed motion angle processing!\n"); 
-                ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
-            }
-            else
-            {
-                printf("Range %0.2f ", ma_context.result.range);
-                printf("Speed %0.2f ", ma_context.result.speed);
-                printf("Azimuth %0.2f ", ma_context.result.angle_azimuth);
-                printf("Elevation %0.2f\n", ma_context.result.angle_elevation);
-            }
+            ret = ma_process(&ma_context, frame);
+            ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed motion angle processing!"); // IFX_OK = ESP_OK 
+
+            printf("Range %0.2f ", ma_context.result.range);
+            printf("Speed %0.2f ", ma_context.result.speed);
+            printf("Azimuth %0.2f ", ma_context.result.angle_azimuth);
+            printf("Elevation %0.2f\n", ma_context.result.angle_elevation);
             #endif
-            }
-        }
+        }      
     #endif
-        frame_process_status = 0;
+        algo_err:
+        frame_process_status = false;
     }
+    return ret;
 }
 
 static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
 {
-    if (!fifoRead)
+    if (!xensiv_bgt60trxx_esp32_is_reading_fifo())
     {
         return;
     }
     
     xensiv_bgt60trxx_esp32_spi_cs_set(device_handle->m_xensiv_device_handle->iface, GPIO_LEVEL_HIGH);
-    fifoRead = 0;
+    xensiv_bgt60trxx_esp32_disable_reading_fifo();
 
     if (xensiv_bgt60trxx_esp32_get_fifo_read_count() < MAX_FIFO_BREAK_COUNT)
     {
@@ -339,29 +353,29 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
     xensiv_bgt60trxx_esp32_reset_fifo_count();
     radar_fifo_status = FIFO_READ_SUCCESS;
 
-    if (samples != samples1)
+    if (p_samples != samples_buf1)
     {
-        split_uint16_by_12bits(samples1, xensiv_bgt60trxx_esp32_get_data_ptr());
+        split_uint16_by_12bits(samples_buf1, xensiv_bgt60trxx_esp32_get_data_ptr());
         if (!frame_process_status)
         {
-            samples = samples1;
-            frame_process_status = 1;
+            p_samples = samples_buf1;
+            frame_process_status = true;
         }   
     }
     else
     {
-        split_uint16_by_12bits(samples2, xensiv_bgt60trxx_esp32_get_data_ptr());
+        split_uint16_by_12bits(samples_buf2, xensiv_bgt60trxx_esp32_get_data_ptr());
         if (!frame_process_status)
         {
-            samples = samples2;
-            frame_process_status = 1;
+            p_samples = samples_buf2;
+            frame_process_status = true;
         }  
     }
 }
 
 static int32_t radar_get_fifo_data(void) 
 {
-    return xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples1, TOTAL_DATA/MAX_FIFO_BREAK_COUNT);
+    return xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples_buf1, TOTAL_DATA/MAX_FIFO_BREAK_COUNT);
 }
 
 static void radar_print_fifo_err(void)
@@ -372,18 +386,18 @@ static void radar_print_fifo_err(void)
             break;
 
         case FIFO_READ_FAILED:
-            ESP_LOGE("FIFO","failed!");
-            radar_fifo_status= FIFO_NO_ERROR;
+            ESP_LOGE("fifo","read failed!");
+            radar_fifo_status = FIFO_NO_ERROR;
             break;
         
         case FIFO_READ_SUCCESS:
-            ESP_LOGI("FIFO","Read Successfull");
-            radar_fifo_status= FIFO_NO_ERROR; 
+            ESP_LOGI("fifo","read Successfull");
+            radar_fifo_status = FIFO_NO_ERROR; 
             break;
 
         default:
-            ESP_LOGE("FIFO","Unknown error"); 
-            radar_fifo_status= FIFO_NO_ERROR;
+            ESP_LOGE("fifo","unknown error"); 
+            radar_fifo_status = FIFO_NO_ERROR;
             break;
     }
 }
@@ -429,13 +443,16 @@ static void radar_print_device_config(const ifx_Avian_Config_t* config)
 
 static esp_err_t radar_configure_led(void)
 {
-    esp_err_t err;
-    err |= gpio_reset_pin(XNSIV_BGT60_LED_RED);
-    err |= gpio_reset_pin(XNSIV_BGT60_LED_GREEN);
-    err |= gpio_set_direction(XNSIV_BGT60_LED_RED, GPIO_MODE_OUTPUT);
-    err |= gpio_set_direction(XNSIV_BGT60_LED_GREEN, GPIO_MODE_OUTPUT);
+    esp_err_t ret;
+    ret = gpio_reset_pin(XNSIV_BGT60_LED_RED);
+    ESP_RETURN_ON_ERROR(ret, TAG, "reset pin - invalid gpio number for led red");
+    ret = gpio_reset_pin(XNSIV_BGT60_LED_GREEN);
+    ESP_RETURN_ON_ERROR(ret, TAG, "reset pin - invalid gpio number for led green");
 
-    return err;
+    gpio_set_direction(XNSIV_BGT60_LED_RED, GPIO_MODE_OUTPUT);
+    gpio_set_direction(XNSIV_BGT60_LED_GREEN, GPIO_MODE_OUTPUT);
+
+    return ret;
 }
 
 static void radar_led_blinky(void)

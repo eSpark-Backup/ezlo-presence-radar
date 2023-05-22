@@ -10,6 +10,7 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "esp_system.h"
+#include "esp_check.h"
 
 #include "RangeAngleImage/range_angle_image.h"
 #include "RangeDopplerMap/range_doppler_map.h"

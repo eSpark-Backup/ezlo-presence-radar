@@ -41,7 +41,7 @@ int32_t xensiv_bgt60trxx_esp32_spi_transfer(void* iface,
 spi_transaction_t transaction; 
 #define BUFF_SIZE TOTAL_DATA*12/16
 DMA_ATTR uint16_t data[BUFF_SIZE];
-extern uint8_t fifoRead;
+bool fifo_read_status;
 uint8_t fifo_read_count =0;
 
 int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
@@ -59,11 +59,26 @@ int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
     transaction.tx_buffer = (data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
     transaction.rx_buffer = (data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
     
-    fifoRead =1;
+    xensiv_bgt60trxx_esp32_enable_reading_fifo();
     fifo_read_count++;       
     err = spi_device_queue_trans(*(spi_device_handle_t *)iface, &transaction,portMAX_DELAY);        
 
     return err;
+}
+
+bool xensiv_bgt60trxx_esp32_is_reading_fifo(void)
+{
+    return fifo_read_status;
+}
+
+void xensiv_bgt60trxx_esp32_enable_reading_fifo(void)
+{
+    fifo_read_status = true;
+}
+
+void xensiv_bgt60trxx_esp32_disable_reading_fifo(void)
+{
+    fifo_read_status = false;
 }
 
 uint16_t* xensiv_bgt60trxx_esp32_get_data_ptr(void)

@@ -66,27 +66,6 @@ void ifx_avian_set_config(ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *
 
 void ifx_avian_get_config(ifx_Avian_Device_t *handle, ifx_Avian_Config_t *config)
 {
-
-   /**
-    * TODO : Config read from device itself
-    * Feeding known config at the moment.
-    */
-   /* default device configuration for presence sensing */
-   //  device_config->sample_rate_Hz = 1000000;         // 1 MHz
-   //  device_config->rx_mask = (num_rx >= 3) ? 4 : 1;  // Use RX1-3 when device has at least 3 antennas, RX1 otherwise
-   //  device_config->tx_mask = 1;
-   //  device_config->tx_power_level = TX_POWER_LEVEL_UPPER;
-   //  device_config->if_gain_dB = 33;                  // 33 dB
-   //  device_config->start_frequency_Hz = 60020000000; // 60.02 GHz
-   //  device_config->end_frequency_Hz = 61020000000; // 61.02 GHz
-   //  device_config->num_samples_per_chirp = 128;
-   //  device_config->num_chirps_per_frame = 64;
-   //  device_config->chirp_repetition_time_s = 0.00050564f; // 505.64 µs
-   //  device_config->frame_repetition_time_s = 0.2f;    // frame rate of 5 Hz
-   //  device_config->hp_cutoff_Hz = 80000;
-   //  device_config->aaf_cutoff_Hz = 500000;
-   //  device_config->mimo_mode = IFX_MIMO_OFF;
-
    config->sample_rate_Hz = XENSIV_BGT60TRXX_CONF_SAMPLE_RATE;
    config->rx_mask = 5;
    config->tx_mask = 1;
