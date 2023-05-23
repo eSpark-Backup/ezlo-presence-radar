@@ -64,6 +64,9 @@ typedef enum
 #define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS)
 #define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
 
+// samples spi buffer
+#define BUFF_SIZE TOTAL_DATA*12/16
+
 #ifndef XNSIV_BGT60_SPI_HOST
     #define     XNSIV_BGT60_SPI_HOST       SPI3_HOST
 #endif
@@ -246,7 +249,6 @@ uint32_t xensiv_bgt60trxx_esp32_word_reverse(uint32_t x);
  */
 void xensiv_bgt60trxx_esp32_assert(bool expr);
 
-uint16_t* xensiv_bgt60trxx_esp32_get_data_ptr(void);
 uint8_t xensiv_bgt60trxx_esp32_get_fifo_read_count(void);
 void xensiv_bgt60trxx_esp32_reset_fifo_count(void);
 bool xensiv_bgt60trxx_esp32_is_reading_fifo(void);

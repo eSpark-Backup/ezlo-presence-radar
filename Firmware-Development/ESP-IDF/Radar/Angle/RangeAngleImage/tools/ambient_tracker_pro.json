@@ -9,7 +9,7 @@
             "rx_antennas": [1,2,3], 
             "tx_antennas": [1],  
             "if_gain_dB": 33,
-            "frame_repetition_time_s": 0.04,
+            "frame_repetition_time_s": 0.05,
             "sample_rate_Hz": 1000000
         }
     }

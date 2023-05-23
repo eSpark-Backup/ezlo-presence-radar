@@ -27,15 +27,14 @@ bgt60trxx_fifo_status_t radar_fifo_status = 0;
 uint16_t no_of_bytes = 0;
 bool frame_process_status = false;
 
-// frame buffer
+// samples spi buffer
+DMA_ATTR uint16_t samples_spi_buf[BUFF_SIZE];
+// samples buffer pointers
 uint16_t* p_samples = NULL;
-uint16_t samples_buf1[TOTAL_DATA];
-uint16_t samples_buf2[TOTAL_DATA];
+uint16_t* samples_buf1 = NULL;
+uint16_t* samples_buf2 = NULL;
+// frame buffer pointer
 ifx_Cube_R_t* frame = NULL;
-
-// cfar
-ifx_OSCFAR_t* cfar_handle;
-ifx_Matrix_R_t *cfar_mat;
 
 #if MOTION_ANGLE_APP
 ma_t ma_context;
@@ -243,6 +242,11 @@ void radar(void* pvParameter)
     frame = ifx_cube_create_r(XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS, XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP); 
     ESP_GOTO_ON_FALSE(frame, ESP_ERR_NO_MEM, out, TAG, "frame creation failed");
 
+    samples_buf1 = (uint16_t*) ifx_mem_alloc(sizeof(uint16_t) * TOTAL_DATA);
+    ESP_GOTO_ON_FALSE(samples_buf1, ESP_ERR_NO_MEM, out, TAG, "samples buffer 1 memory allocation failed");
+    samples_buf2 = (uint16_t*) ifx_mem_alloc(sizeof(uint16_t) * TOTAL_DATA);
+    ESP_GOTO_ON_FALSE(samples_buf2, ESP_ERR_NO_MEM, out, TAG, "samples buffer 2 memory allocation failed");
+
     status = xensiv_bgt60trxx_start_frame(device_handle->m_xensiv_device_handle, true);
     if(XENSIV_BGT60TRXX_STATUS_OK != status)
     {
@@ -355,7 +359,7 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
 
     if (p_samples != samples_buf1)
     {
-        split_uint16_by_12bits(samples_buf1, xensiv_bgt60trxx_esp32_get_data_ptr());
+        split_uint16_by_12bits(samples_buf1, samples_spi_buf);
         if (!frame_process_status)
         {
             p_samples = samples_buf1;
@@ -364,7 +368,7 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
     }
     else
     {
-        split_uint16_by_12bits(samples_buf2, xensiv_bgt60trxx_esp32_get_data_ptr());
+        split_uint16_by_12bits(samples_buf2, samples_spi_buf);
         if (!frame_process_status)
         {
             p_samples = samples_buf2;
@@ -375,7 +379,7 @@ static void IRAM_ATTR queue_ready(spi_transaction_t *trans)
 
 static int32_t radar_get_fifo_data(void) 
 {
-    return xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples_buf1, TOTAL_DATA/MAX_FIFO_BREAK_COUNT);
+    return xensiv_bgt60trxx_get_fifo_data(device_handle->m_xensiv_device_handle, samples_spi_buf, TOTAL_DATA/MAX_FIFO_BREAK_COUNT);
 }
 
 static void radar_print_fifo_err(void)
@@ -391,7 +395,7 @@ static void radar_print_fifo_err(void)
             break;
         
         case FIFO_READ_SUCCESS:
-            ESP_LOGI("fifo","read Successfull");
+            ESP_LOGI("fifo","read successfull");
             radar_fifo_status = FIFO_NO_ERROR; 
             break;
 
