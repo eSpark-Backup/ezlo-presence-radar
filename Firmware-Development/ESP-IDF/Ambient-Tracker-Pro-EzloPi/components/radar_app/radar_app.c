@@ -317,7 +317,7 @@ void radar(void* pvParameter)
     while(1)
     {
         // radar_print_fifo_err();
-        vTaskDelay(20 / portTICK_RATE_MS); // To avoid
+        vTaskDelay(20 / portTICK_RATE_MS); // To avoid wdt
         if (ESP_OK == radar_get_data(&target_result))
         {
             #if MOTION_ANGLE_APP
@@ -325,7 +325,7 @@ void radar(void* pvParameter)
                 ESP_LOGI(TAG, "Range %0.2f Speed %0.2f Azimuth %0.2f Elevation %0.2f\n", target_result.range, target_result.speed, target_result.angle_azimuth, target_result.angle_elevation);
             #endif
         }
-        vTaskDelay(20 / portTICK_RATE_MS);
+        vTaskDelay(20 / portTICK_RATE_MS); // To avoid wdt
         // radar_led_blinky();
     }
 
@@ -353,7 +353,7 @@ static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Ta
             #endif 
 
             #if MOTION_ANGLE_APP
-            vTaskDelay(20 / portTICK_RATE_MS);
+            vTaskDelay(20 / portTICK_RATE_MS); // To avoid wdt
             ret = ma_process(&ma_context, target_result, frame);
             ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed motion angle processing!"); // IFX_OK = ESP_OK 
             #endif
