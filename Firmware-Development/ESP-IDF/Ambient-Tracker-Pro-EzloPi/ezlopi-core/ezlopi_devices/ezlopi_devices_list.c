@@ -1,0 +1,245 @@
+#include "ezlopi_actions.h"
+#include "ezlopi_devices_list.h"
+#include "ezlopi_factory_info.h"
+
+#include "digital_io.h"
+#include "dimmable_bulb.h"
+#include "0034_sens_bme680_sensor.h"
+#include "0035_SK6812.h"
+#include "0036_sens_ltr303_ambient.h"
+#include "0037_sens_pms5003_sensor.h"
+
+static s_ezlopi_device_t device_array[] = {
+
+#if (EZLOPI_SWITCH_BOX == EZLOPI_DEVICE_TYPE)
+#ifdef EZLOPI_SENSOR_0001_LED
+    {
+        .id = EZLOPI_SENSOR_0001_LED,
+        .func = digital_io,
+    },
+#endif
+#ifdef EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C
+    {
+        .id = EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C,
+        .func = gxhtc3_rh_t_sensor,
+    },
+#endif
+
+#else
+
+#ifdef EZLOPI_SENSOR_0001_LED
+    {
+        .id = EZLOPI_SENSOR_0001_LED,
+        .func = digital_io,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0002_RELAY
+    {
+        .id = EZLOPI_SENSOR_0002_RELAY,
+        .func = digital_io,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0003_PLUG
+    {
+        .id = EZLOPI_SENSOR_0003_PLUG,
+        .func = digital_io,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0012_BME280_I2C
+    {
+        .id = EZLOPI_SENSOR_0012_BME280_I2C,
+        .func = sensor_bme280,
+    },
+#endif
+
+// #ifdef EZLOPI_SENSOR_0017_POTENTIOMETER
+//     {
+//         .id = EZLOPI_SENSOR_0017_POTENTIOMETER,
+//         .func = sensor_ldr_analog_sensor,
+//     },
+// #endif
+
+#ifdef EZLOPI_SENSOR_0018_DOOR
+    {
+        .id = EZLOPI_SENSOR_0018_DOOR,
+        .func = door_hall_sensor,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0019_PIR
+    {
+        .id = EZLOPI_SENSOR_0019_PIR,
+        .func = sensor_pir,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0020_JOYSTICK_2_AXIS
+    {
+        .id = EZLOPI_SENSOR_0020_JOYSTICK_2_AXIS,
+        .func = joystick_2_axis,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0021_ULTRASONIC_HRLV_MAXSENSOR_EZ_MB1013
+    {
+        .id = EZLOPI_SENSOR_0021_ULTRASONIC_HRLV_MAXSENSOR_EZ_MB1013,
+        .func = ultrasonic_MB1013,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0022_DIMMABLE_BULB
+    {
+        .id = EZLOPI_SENSOR_0022_DIMMABLE_BULB,
+        .func = ezlopi_dimmable_bulb,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0023_TTP_223B_TOUCH_SENSOR
+    {
+        .id = EZLOPI_SENSOR_0023_TTP_223B_TOUCH_SENSOR,
+        .func = sensor_touch_ttp_223b,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0024_ULTRASONIC_HC_SR04_SENSOR
+    {
+        .id = EZLOPI_SENSOR_0024_ULTRASONIC_HC_SR04_SENSOR,
+        .func = ultrasonic_HC_SR04,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0025_LDR_DIGITAL_MODULE_SENSOR
+    {
+        .id = EZLOPI_SENSOR_0025_LDR_DIGITAL_MODULE_SENSOR,
+        .func = sensor_ldr_digital_module,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0027_WATER_LEAK
+    {
+        .id = EZLOPI_SENSOR_0027_WATER_LEAK,
+        .func = water_leak_sensor,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0028_SOUND_SENSOR_SPI
+    {
+        .id = EZLOPI_SENSOR_0028_SOUND_SENSOR_SPI,
+        .func = sound_sensor,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_1024_DEVICE_HEALTH
+    {
+        .id = EZLOPI_SENSOR_1024_DEVICE_HEALTH,
+        .func = device_health,
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C
+    {
+        .id = EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C,
+        .func = gxhtc3_rh_t_sensor,
+    },
+#endif
+
+
+#ifdef EZLOPI_SENSOR_0034_BME680_I2C
+    {
+        .id = EZLOPI_SENSOR_0034_BME680_I2C,
+        .func = bme680_sensor,
+    },
+#endif
+
+#ifdef EZLOPI_SK6812_LED
+    {
+        .id = EZLOPI_SK6812_LED,
+        .func = sk6812
+    },
+#endif
+
+#ifdef EZLOPI_SENSOR_LTR303_AMBIENT_I2C
+    {
+        .id = EZLOPI_SENSOR_LTR303_AMBIENT_I2C,
+        .func = ltr303_ambient_sensor,
+    },
+#endif
+#ifdef EZLOPI_SENSOR_PMS5003_UART
+    {
+        .id = EZLOPI_SENSOR_PMS5003_UART,
+        .func = pms5003_sensor,
+    },
+#endif
+#endif
+    /**
+     * @brief 'EZLOPI_SENSOR_NONE' must not be removed from this array.
+     * This is essential for terminating the loop termination of loop.
+     */
+    {
+        .id = EZLOPI_SENSOR_NONE,
+        .func = NULL,
+    },
+};
+
+s_ezlopi_device_t *ezlopi_devices_list_get_list(void)
+{
+    return device_array;
+}
+
+static l_ezlopi_configured_devices_t *configured_device = NULL;
+static l_ezlopi_configured_devices_t *ezlopi_device_list_create(s_ezlopi_device_t *device, s_ezlopi_device_properties_t *properties, void *user_arg);
+
+l_ezlopi_configured_devices_t *ezlopi_devices_list_get_configured_items(void)
+{
+    return configured_device;
+}
+
+int ezlopi_devices_list_add(s_ezlopi_device_t *device, s_ezlopi_device_properties_t *properties, void *user_arg)
+{
+    int ret = 0;
+    if (configured_device)
+    {
+        l_ezlopi_configured_devices_t *current_dev = configured_device;
+
+        while (NULL != current_dev->next)
+        {
+            current_dev = current_dev->next;
+        }
+
+        current_dev->next = ezlopi_device_list_create(device, properties, user_arg);
+        if (current_dev->next)
+        {
+            ret = 1;
+        }
+    }
+    else
+    {
+        configured_device = ezlopi_device_list_create(device, properties, user_arg);
+        if (configured_device)
+        {
+            ret = 1;
+        }
+    }
+
+    return ret;
+}
+
+static l_ezlopi_configured_devices_t *ezlopi_device_list_create(s_ezlopi_device_t *device, s_ezlopi_device_properties_t *properties, void *user_arg)
+{
+    l_ezlopi_configured_devices_t *device_list_element = (l_ezlopi_configured_devices_t *)malloc(sizeof(l_ezlopi_configured_devices_t));
+    if (device_list_element)
+    {
+        memset(device_list_element, 0, sizeof(l_ezlopi_configured_devices_t));
+        device_list_element->device = device;
+        device_list_element->properties = properties;
+        device_list_element->next = NULL;
+        if (user_arg)
+        {
+            device_list_element->user_arg = user_arg;
+        }
+    }
+    return device_list_element;
+}

@@ -1,0 +1,57 @@
+**/esptool
+**/espsecure
+**/deprecated
+build/*
+boards/*
+dependencies.lock
+sdkconfig.esp32.4mb
+sdkconfig.esp32c3
+sdkconfig.esp32c3.4mb
+sdkconfig.esp32s3.8mb
+sdkconfig.old
+
+build.sh
+burn_id.sh
+erase_flash.sh
+flash.sh
+test.sh
+
+**/*.zip
+**/*.bin
+build*/
+bin/*
+dlls/*
+docs/doxygen/*
+**/build/
+**/cmake-build-debug/
+**/.vscode
+**/.idea
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+
+# Python Tools for Visual Studio (PTVS)
+**/__pycache__/
+**/*.pyc
+
+# VS Code files for those working on multiple tools
+**/.vscode/*
+**/!.vscode/settings.json
+**/!.vscode/tasks.json
+**/!.vscode/launch.json
+**/!.vscode/extensions.json
+**/*.code-workspace
+
+# Local History for Visual Studio Code
+**/.history/
