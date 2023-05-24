@@ -43,7 +43,7 @@ static const ifx_RDM_Config_t rdm_configurations =
 
 static ifx_MotionAngle_t *ifx_motionangle_create(ifx_MotionAngle_Config_t *config, ifx_Avian_Config_t *ifx_config);
 static void ifx_motionangle_destroy(ifx_MotionAngle_t *handle);
-static void ifx_motionangle_run(ifx_MotionAngle_t *handle, const ifx_Cube_R_t *input, ifx_MotionAngle_Result_t *result);
+static void ifx_motionangle_run(ifx_MotionAngle_t *handle, const ifx_Cube_R_t *input, ifx_Target_Result_t* target_result);
 
 static ifx_MotionAngle_t *ifx_motionangle_create(ifx_MotionAngle_Config_t *config, ifx_Avian_Config_t *ifx_config)
 {
@@ -145,7 +145,7 @@ static void ifx_motionangle_destroy(ifx_MotionAngle_t *handle)
 }
 
 //---------------------------------------------------------------------------
-static void ifx_motionangle_run(ifx_MotionAngle_t *handle, const ifx_Cube_R_t *input, ifx_MotionAngle_Result_t *result)
+static void ifx_motionangle_run(ifx_MotionAngle_t *handle, const ifx_Cube_R_t *input, ifx_Target_Result_t* target_result)
 {
     IFX_ERR_BRK_NULL(handle);
     IFX_ERR_BRK_NULL(input);
@@ -223,13 +223,13 @@ static void ifx_motionangle_run(ifx_MotionAngle_t *handle, const ifx_Cube_R_t *i
     // printf("Elevation without calibration %0.2f\n" , *elevation_angle);
 
     // angle_azimuth
-    result->angle_azimuth = ifx_anglemonopulse_scalar_run(handle->angle_monopulse_handle, rxcomp[0], rxcomp[2]);
+    target_result->angle_azimuth = ifx_anglemonopulse_scalar_run(handle->angle_monopulse_handle, rxcomp[0], rxcomp[2]);
     // angle_elevation
-    result->angle_elevation = ifx_anglemonopulse_scalar_run(handle->angle_monopulse_handle, handle->calibration_result->d[0], handle->calibration_result->d[1]);
+    target_result->angle_elevation = ifx_anglemonopulse_scalar_run(handle->angle_monopulse_handle, handle->calibration_result->d[0], handle->calibration_result->d[1]);
     // range
-    result->range = rmax * handle->range_spec.value_bin_per_step;
+    target_result->range = rmax * handle->range_spec.value_bin_per_step;
     // speed
-    result->speed = (((ifx_Float_t)IFX_MAT_COLS(&rx1) / 2) - (ifx_Float_t)cmax) * handle->speed_spec.value_bin_per_step;
+    target_result->speed = (((ifx_Float_t)IFX_MAT_COLS(&rx1) / 2) - (ifx_Float_t)cmax) * handle->speed_spec.value_bin_per_step;
 }
 
 ifx_Error_t ma_init(ma_t *ma_context)
@@ -252,9 +252,9 @@ ifx_Error_t ma_config(ma_t *ma_context, ifx_Avian_Config_t *ifx_config)
     return ifx_error_get();
 }
 
-ifx_Error_t ma_process(ma_t *ma_context, const ifx_Cube_R_t *frame)
+ifx_Error_t ma_process(ma_t *ma_context,ifx_Target_Result_t* target_result, const ifx_Cube_R_t *frame)
 {
-    ifx_motionangle_run(ma_context->handle, frame, &ma_context->result);
+    ifx_motionangle_run(ma_context->handle, frame, target_result);
     return ifx_error_get();
 }
 

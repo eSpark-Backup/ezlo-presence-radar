@@ -7,7 +7,7 @@ static esp_err_t radar_configure_led(void);
 static esp_err_t radar_spi_init(void);
 static void radar_led_blinky(void);
 static int32_t radar_get_fifo_data(void);
-static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame);
+static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Target_Result_t* target_result, ifx_Cube_R_t* frame);
 static void radar_print_fifo_err(void);
 static void radar_print_device_config(const ifx_Avian_Config_t* config);
 static void split_uint16_by_12bits(uint16_t* dest,uint16_t* src);
@@ -48,6 +48,7 @@ rdm_t *rdm_context =NULL;
 #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
 // presence
 presence_t presence_handle;
+ifx_Target_Result_t target_result;
 #endif
 
 // logs
@@ -126,7 +127,10 @@ static esp_err_t radar_gpio_init(void)
 
     //install gpio isr service
     ret = gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
-    ESP_RETURN_ON_ERROR(ret, TAG, "unable to install isr service");
+    if ( !((ESP_ERR_INVALID_STATE == ret) || (ESP_OK == ret)) )
+    {
+        ESP_RETURN_ON_ERROR(ret, TAG, "unable to install isr service");
+    }  
 
     //hook isr handler for specific gpio pin
     ret = gpio_isr_handler_add(XNSIV_BGT60_IRQ_GPIO, gpio_isr_handler, (void*) XNSIV_BGT60_IRQ_GPIO);
@@ -186,7 +190,7 @@ void bgt60_hard_reset(void)
     vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
-void radar(void* pvParameter)
+esp_err_t radar_setup(void)
 {
     ifx_Error_t error = IFX_OK;
     esp_err_t ret = ESP_OK; 
@@ -236,8 +240,7 @@ void radar(void* pvParameter)
     if(XENSIV_BGT60TRXX_STATUS_OK != status)
     {
         ESP_LOGE(TAG, "unable to set fifo limit");
-    }
-    
+    } 
 
     frame = ifx_cube_create_r(XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS, XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME, XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP); 
     ESP_GOTO_ON_FALSE(frame, ESP_ERR_NO_MEM, out, TAG, "frame creation failed");
@@ -280,16 +283,7 @@ void radar(void* pvParameter)
     ESP_GOTO_ON_ERROR(error, out, TAG, "failed to config motion angle object!"); // IFX_OK = ESP_OK
 #endif 
     ESP_LOGI("HeapMemory : ", "%X", xPortGetFreeHeapSize());
-    
-    while(1)
-    {
-        // radar_print_fifo_err();
-        if (radar_process_frame(device_handle, frame) != IFX_OK)
-        {
-            ESP_LOGE(TAG, "failed to process radar frame");
-        }
-        // radar_led_blinky();
-    }
+    return ESP_OK;
 
     out:
     ESP_LOGE(TAG, "error: %s\n",ifx_error_to_string(ifx_error_get()));
@@ -301,12 +295,47 @@ void radar(void* pvParameter)
     #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
     presence_cleanup(&presence_handle);
     #endif
+    return ESP_FAIL;
+}
+
+esp_err_t radar_get_data(ifx_Target_Result_t* target_result)
+{
+    if (IFX_OK == radar_process_frame(device_handle, target_result, frame))
+    {
+        return ESP_OK;
+    }
+    return ESP_FAIL;
+}
+
+void radar(void* pvParameter)
+{
+    esp_err_t ret = ESP_OK;
+
+    ret = radar_setup();
+    ESP_GOTO_ON_ERROR(ret, delete, TAG, "failed to setup radar");
+
+    while(1)
+    {
+        // radar_print_fifo_err();
+        vTaskDelay(20 / portTICK_RATE_MS); // To avoid wdt
+        if (ESP_OK == radar_get_data(&target_result))
+        {
+            #if MOTION_ANGLE_APP
+            if (target_result.presence)
+                ESP_LOGI(TAG, "Range %0.2f Speed %0.2f Azimuth %0.2f Elevation %0.2f\n", target_result.range, target_result.speed, target_result.angle_azimuth, target_result.angle_elevation);
+            #endif
+        }
+        vTaskDelay(20 / portTICK_RATE_MS); // To avoid wdt
+        // radar_led_blinky();
+    }
+
+    delete:
     vTaskDelete(NULL);
 }
 
-static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cube_R_t* frame)
+static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Target_Result_t* target_result, ifx_Cube_R_t* frame)
 {
-    ifx_Error_t ret = IFX_OK;
+    ifx_Error_t ret = IFX_ERROR;
     if (frame_process_status)
     {    
         frame = ifx_avian_get_next_frame(device_handle ,frame ,p_samples);
@@ -317,22 +346,22 @@ static ifx_Error_t radar_process_frame(ifx_Avian_Device_t* device_handle, ifx_Cu
 
         if (presence_handle.presence_status == IFX_PRESENCE_SENSING_PRESENT)
         {
+            target_result->presence = true;
             #if VELOCITY_APP
             ret = rdm_process(rdm_context, frame);
             ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed rdm processing!"); // IFX_OK = ESP_OK 
             #endif 
 
-
             #if MOTION_ANGLE_APP
-            ret = ma_process(&ma_context, frame);
+            vTaskDelay(20 / portTICK_RATE_MS); // To avoid wdt
+            ret = ma_process(&ma_context, target_result, frame);
             ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed motion angle processing!"); // IFX_OK = ESP_OK 
-
-            printf("Range %0.2f ", ma_context.result.range);
-            printf("Speed %0.2f ", ma_context.result.speed);
-            printf("Azimuth %0.2f ", ma_context.result.angle_azimuth);
-            printf("Elevation %0.2f\n", ma_context.result.angle_elevation);
             #endif
-        }      
+        }
+        else
+        {
+            target_result->presence = false;
+        } 
     #endif
         algo_err:
         frame_process_status = false;
@@ -483,7 +512,7 @@ TaskHandle_t radar_task_handle = NULL;
 esp_err_t radar_init(void)
 {
     BaseType_t ret;
-    ret = xTaskCreatePinnedToCore(radar,"radar", 2048*3, NULL, 10, &radar_task_handle, 1);
+    ret = xTaskCreatePinnedToCore(radar,"radar", 2048*4, NULL, 10, &radar_task_handle, 1);
     if (pdPASS == ret) 
     {
         return ESP_OK;

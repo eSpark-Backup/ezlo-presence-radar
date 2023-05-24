@@ -9,12 +9,13 @@
 #define RANGE_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * 4// Zero padding of 4 gives good range resolution in Range spectrum
 #define DOPPLER_FFT_SIZE XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * 4 // Zero padding of 4 gives good range resolution in Doppler spectrum
 
-typedef struct ifx_MotionAngle_Result_s{
+typedef struct ifx_Target_Result_s{
    ifx_Float_t range;               /*!< Distance of object in [m], -1 if undefined/absence */
    ifx_Float_t angle_azimuth;       /*!< Azimuth angle of the closest object in degrees, 0 if undefined/absence */
    ifx_Float_t angle_elevation;     /*!< Elevation angle of the closest object in degrees, 0 if undefined/absence */
    ifx_Float_t speed;               /*!< Speed of object in [m/s], 0 if undefined/absence */
-} ifx_MotionAngle_Result_t;
+   bool presence;                   /* true : present , false : absent*/
+} ifx_Target_Result_t;
 
 typedef struct ifx_MotionAngle_s
 {
@@ -46,7 +47,6 @@ typedef struct ma_s
 {
     ifx_MotionAngle_t* handle;
     ifx_MotionAngle_Config_t config;
-    ifx_MotionAngle_Result_t result;
 } ma_t;
 
 #ifdef __cplusplus
@@ -56,7 +56,7 @@ extern "C"
 
 ifx_Error_t ma_init(ma_t* ma_context);
 ifx_Error_t ma_config(ma_t* ma_context, ifx_Avian_Config_t* ifx_config);
-ifx_Error_t ma_process(ma_t* ma_context, const ifx_Cube_R_t* frame);
+ifx_Error_t ma_process(ma_t* ma_context, ifx_Target_Result_t* target_result, const ifx_Cube_R_t* frame);
 void ma_cleanup(ma_t* ma_context);
 
 #ifdef __cplusplus

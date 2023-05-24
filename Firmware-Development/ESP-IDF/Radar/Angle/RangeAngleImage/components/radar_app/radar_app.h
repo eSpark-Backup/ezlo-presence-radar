@@ -31,7 +31,32 @@
 extern "C" {
 #endif
 
-// Functions
+/**
+ * @brief Setup radar parameters
+ * 
+ * @return esp_err_t 
+ *  - ESP_OK    : radar setup successfully 
+ *  - ESP_FAIL  : failed to setup radar
+ */
+esp_err_t radar_setup(void);
+
+/**
+ * @brief Get target's data 
+ * 
+ * @param[in] target_result pointer to target data structure 
+ * @return esp_err_t 
+ *  - ESP_OK    : frame processed succcessfully
+ *  - ESP_FAIL  : in case of failure in any of the stages of processing
+ */
+esp_err_t radar_get_data(ifx_Target_Result_t* target_result);
+
+/**
+ * @brief Initialize radar task for test
+ * 
+ * @return esp_err_t 
+ *  - ESP_OK    : task created successfully
+ *  - ESP_FAIL  : failed to create radar task
+ */
 esp_err_t radar_init(void);
 
 #ifdef __cplusplus
