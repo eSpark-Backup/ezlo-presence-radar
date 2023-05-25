@@ -10,16 +10,6 @@
 uint8_t _ss;
 uint8_t _rst;
 uint8_t _irq;
-SPIClass * spi = NULL;
-
-#ifdef ESP8266
-  // default ESP8266 frequency is 80 Mhz, thus divide by 4 is 20 MHz
-  const SPISettings _fastSPI = SPISettings(20000000L, MSBFIRST, SPI_MODE0);
-#else
-  const SPISettings _fastSPI = SPISettings(16000000L, MSBFIRST, SPI_MODE0);
-#endif
-const SPISettings _slowSPI = SPISettings(2000000L, MSBFIRST, SPI_MODE0);
-const SPISettings* _currentSPI = &_fastSPI;
 
 boolean _debounceClockEnabled = false;
 
@@ -77,31 +67,19 @@ void deca_usleep(uint8_t time_us) // wrapper for decawave sleep function
 }
 
 
-void spiBegin(SPIClass* dw3000Spi, uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst)
+void spiBegin(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst)
 {
-  /*DDR_SPI = _BV(DD_MOSI)|_BV(DD_SCK)|_BV(DD_SS); // Set MOSI, SCK and CS output
-  DDR_SPI &= ~_BV(DD_MISO); // make sure MISO is an input
-  SPCR0 = _BV(SPE)|_BV(MSTR); // Enable SPI functionality and Master SPI mode
-  SPCR0 &= ~_BV(DORD); // set SPI most significant bit first (this is default on ATMEGA328pb)
-  */
     // generous initial init/wake-up-idle delay
   delay(5);
   // Configure the IRQ pin as INPUT. Required for correct interrupt setting for ESP8266
       pinMode(irq, INPUT);
   // start SPI
-  spi = dw3000Spi;
-  spi->begin(sck, miso, mosi , -1);
-#ifndef ESP8266
-//  spi->usingInterrupt(digitalPinToInterrupt(irq)); // not every board support this, e.g. ESP8266
-#endif
+  // spi = dw3000Spi;
+  // spi->begin(sck, miso, mosi , -1);
+
   // pin and basic member setup_rst
   _rst        = rst;
   _irq        = irq;
-  //_deviceMode = IDLE_MODE;
-  // attach interrupt
-  //attachInterrupt(_irq, DW1000Class::handleInterrupt, CHANGE); // todo interrupt for ESP8266
-  // TODO throw error if pin is not a interrupt pin
-  //attachInterrupt(digitalPinToInterrupt(_irq), DW1000Class::handleInterrupt, RISING); // todo interrupt for ESP8266
 }
 
 void reselect(uint8_t ss) {
@@ -129,17 +107,17 @@ void readBytes(byte cmd, uint16_t offset, byte data[], uint16_t n) {
       headerLen += 2;
     }
   }
-  spi->beginTransaction(*_currentSPI);
-  digitalWrite(_ss, LOW);
-  for(i = 0; i < headerLen; i++) {
-    spi->transfer(header[i]); // send header
-  }
-  for(i = 0; i < n; i++) {
-    data[i] = spi->transfer(JUNK); // read values
-  }
-  delayMicroseconds(5);
-  digitalWrite(_ss, HIGH);
-  spi->endTransaction();
+  // spi->beginTransaction(*_currentSPI);
+  // digitalWrite(_ss, LOW);
+  // for(i = 0; i < headerLen; i++) {
+  //   spi->transfer(header[i]); // send header
+  // }
+  // for(i = 0; i < n; i++) {
+  //   data[i] = spi->transfer(JUNK); // read values
+  // }
+  // delayMicroseconds(5);
+  // digitalWrite(_ss, HIGH);
+  // spi->endTransaction();
 }
 
 // always 4 bytes
@@ -201,17 +179,17 @@ void writeBytes(byte cmd, uint16_t offset, byte data[], uint16_t data_size) {
       headerLen += 2;
     }
   }
-  spi->beginTransaction(*_currentSPI);
-  digitalWrite(_ss, LOW);
-  for(i = 0; i < headerLen; i++) {
-    spi->transfer(header[i]); // send header
-  }
-  for(i = 0; i < data_size; i++) {
-    spi->transfer(data[i]); // write values
-  }
-  delayMicroseconds(5);
-  digitalWrite(_ss, HIGH);
-  spi->endTransaction();
+  // spi->beginTransaction(*_currentSPI);
+  // digitalWrite(_ss, LOW);
+  // for(i = 0; i < headerLen; i++) {
+  //   spi->transfer(header[i]); // send header
+  // }
+  // for(i = 0; i < data_size; i++) {
+  //   spi->transfer(data[i]); // write values
+  // }
+  // delayMicroseconds(5);
+  // digitalWrite(_ss, HIGH);
+  // spi->endTransaction();
 }
 
 void enableClock(byte clock) {
@@ -219,15 +197,15 @@ void enableClock(byte clock) {
   memset(pmscctrl0, 0, LEN_PMSC_CTRL0);
   readBytes(PMSC, PMSC_CTRL0_SUB, pmscctrl0, LEN_PMSC_CTRL0);
   if(clock == AUTO_CLOCK) {
-    _currentSPI = &_fastSPI;
+    // _currentSPI = &_fastSPI;
     pmscctrl0[0] = AUTO_CLOCK;
     pmscctrl0[1] &= 0xFE;
   } else if(clock == XTI_CLOCK) {
-    _currentSPI = &_slowSPI;
+    // _currentSPI = &_slowSPI;
     pmscctrl0[0] &= 0xFC;
     pmscctrl0[0] |= XTI_CLOCK;
   } else if(clock == PLL_CLOCK) {
-    _currentSPI = &_fastSPI;
+    // _currentSPI = &_fastSPI;
     pmscctrl0[0] &= 0xFC;
     pmscctrl0[0] |= PLL_CLOCK;
   } else {
@@ -441,7 +419,7 @@ void spiSelect(uint8_t ss) {
   
   // read the temp and vbat readings from OTP that were recorded during production test
   // see 6.3.1 OTP memory map
-  byte buf_otp[4];
+  byte buf_otp[4] = {0};
   readBytesOTP(0x008, buf_otp); // the stored 3.3 V reading
   _vmeas3v3 = buf_otp[0];
   readBytesOTP(0x009, buf_otp); // the stored 23C reading
@@ -452,22 +430,22 @@ void spiSelect(uint8_t ss) {
 int readfromspi(uint16_t headerLength, uint8_t *headerBuffer, uint16_t readLength, uint8_t *readBuffer)
 {
 
-  spi->beginTransaction(*_currentSPI);
-  digitalWrite(_ss, LOW);
-  for(int i = 0; i < headerLength; i++) {
-    spi->transfer(headerBuffer[i]); // send header
-  }
-  for(int i = 0; i < readLength; i++) {
-    readBuffer[i] = spi->transfer(JUNK); // read values
-  }
-  delayMicroseconds(5);
-  digitalWrite(_ss, HIGH);
-  spi->endTransaction();
+  // spi->beginTransaction(*_currentSPI);
+  // digitalWrite(_ss, LOW);
+  // for(int i = 0; i < headerLength; i++) {
+  //   spi->transfer(headerBuffer[i]); // send header
+  // }
+  // for(int i = 0; i < readLength; i++) {
+  //   readBuffer[i] = spi->transfer(JUNK); // read values
+  // }
+  // delayMicroseconds(5);
+  // digitalWrite(_ss, HIGH);
+  // spi->endTransaction();
 
 
 
 
-  
+  // this is commented by library
   /*open_spi(); // we first open the SPI line by setting it to low
   for(int i=0; i<headerLength; i++) // write our header bytes to selected chip
   {
@@ -485,19 +463,19 @@ int readfromspi(uint16_t headerLength, uint8_t *headerBuffer, uint16_t readLengt
 
 int writetospi(uint16_t headerLength, uint8_t *headerBuffer, uint16_t bodyLength, uint8_t *bodyBuffer)
 {
-  spi->beginTransaction(*_currentSPI);
-  digitalWrite(_ss, LOW);
-  for(int i = 0; i < headerLength; i++) {
-    spi->transfer(headerBuffer[i]); // send header
-  }
-  for(int i = 0; i < bodyLength; i++) {
-    spi->transfer(bodyBuffer[i]); // write values
-  }
-  delayMicroseconds(5);
-  digitalWrite(_ss, HIGH);
-  spi->endTransaction();
+  // spi->beginTransaction(*_currentSPI);
+  // digitalWrite(_ss, LOW);
+  // for(int i = 0; i < headerLength; i++) {
+  //   spi->transfer(headerBuffer[i]); // send header
+  // }
+  // for(int i = 0; i < bodyLength; i++) {
+  //   spi->transfer(bodyBuffer[i]); // write values
+  // }
+  // delayMicroseconds(5);
+  // digitalWrite(_ss, HIGH);
+  // spi->endTransaction();
 
-  
+  // this is commented by library
   /*open_spi(); // we first open the SPI line by setting it to low
   for(int i=0; i<headerLength; i++) // write our header bytes to selected chip
   {
@@ -524,11 +502,12 @@ void wakeup_device_with_io() {
 }
 
 
-void port_set_dw_ic_spi_fastrate(SPIClass* dw3000Spi, uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst, uint8_t ss) {
-    spiBegin(dw3000Spi, mosi, miso, sck, irq, rst);
+void port_set_dw_ic_spi_fastrate(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst, uint8_t ss) {
+    spiBegin(mosi, miso, sck, irq, rst);
     spiSelect(ss);
 }
 
+#if 0
 uint32_t port_GetEXT_IRQStatus(void) {
 
 }
@@ -544,6 +523,7 @@ void port_DisableEXT_IRQ(void) {
 void port_EnableEXT_IRQ(void) {
 
 }
+#endif // for esp-idf
 
 /* DW IC IRQ handler definition. */
 static port_dwic_isr_t port_dwic_isr = NULL;

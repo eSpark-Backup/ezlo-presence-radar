@@ -12,5 +12,17 @@
     ],
     "idf.portWin": "COM10",
     "idf.pythonBinPathWin": "C:\\Users\\eSparkEDS\\.espressif\\python_env\\idf4.4_py3.8_env\\Scripts\\python.exe",
-    "idf.toolsPathWin": "C:\\Users\\eSparkEDS\\.espressif"
+    "idf.toolsPathWin": "C:\\Users\\eSparkEDS\\.espressif",
+    "files.associations": {
+        "array": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "regex": "cpp"
+    }
 }

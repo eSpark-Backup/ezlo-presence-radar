@@ -9,7 +9,9 @@
 #define PORT_H_
 
 #include "dw3000.h"
-#include "SPI.h"
+
+typedef uint8_t byte;
+typedef bool boolean;
 
 #define DDR_SPI DDRB
 #define DD_SCK DDB5
@@ -170,7 +172,7 @@ void writeByte(byte cmd, uint16_t offset, byte data);
 void reset();
 void softReset();
 void idle();
-void spiBegin(SPIClass* dw3000Spi, uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst);
+void spiBegin(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst);
 void spiSelect(uint8_t ss);
 void enableClock(byte clock);
 int writetospi(uint16_t headerLength,  uint8_t *headerBuffer, uint16_t bodyLength, uint8_t *bodyBuffer);
@@ -180,7 +182,7 @@ void Sleep(uint32_t d);
 void enableDebounceClock();
 void wakeup_device_with_io();
 
-void port_set_dw_ic_spi_fastrate(SPIClass* dw3000Spi, uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq = DEFAULT_IRQ, uint8_t rst = DEFAULT_RST, uint8_t ss = DEFAULT_SS);
+void port_set_dw_ic_spi_fastrate(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq = DEFAULT_IRQ, uint8_t rst = DEFAULT_RST, uint8_t ss = DEFAULT_SS);
 
 uint32_t port_GetEXT_IRQStatus(void);
 uint32_t port_CheckEXT_IRQ(void);
