@@ -28,6 +28,8 @@ typedef bool boolean;
 #define HIGH    1
 #define LOW     0
 
+#define NOP() asm volatile ("nop")
+
 #define OUTPUT  GPIO_MODE_OUTPUT
 #define INPUT   GPIO_MODE_INPUT
 
@@ -45,6 +47,22 @@ static inline esp_err_t digitalWrite(unsigned char pin, bool state){
 static inline esp_err_t pinMode(unsigned char pin, gpio_mode_t mode)
 {
   return gpio_set_direction((gpio_num_t)pin, mode);
+}
+
+static inline void IRAM_ATTR delayMicroseconds(uint32_t us)
+{
+    uint64_t m = (uint64_t)esp_timer_get_time();
+    if(us){
+        uint64_t e = (m + us);
+        if(m > e){ //overflow
+            while((uint64_t)esp_timer_get_time() > e){
+                NOP();
+            }
+        }
+        while((uint64_t)esp_timer_get_time() < e){
+            NOP();
+        }
+    }
 }
 
 #define __INLINE inline

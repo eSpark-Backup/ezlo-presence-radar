@@ -23,6 +23,13 @@
         "vector": "cpp",
         "string_view": "cpp",
         "initializer_list": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "cstddef": "cpp",
+        "bitset": "cpp",
+        "memory": "cpp",
+        "random": "cpp",
+        "future": "cpp",
+        "optional": "cpp",
+        "*.ipp": "cpp"
     }
 }

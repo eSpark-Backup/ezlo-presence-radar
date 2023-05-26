@@ -6,6 +6,7 @@
  */ 
 
 #include "dw3000_port.h"
+#include "driver/spi_master.h"
 
 uint8_t _ss;
 uint8_t _rst;
@@ -13,6 +14,7 @@ uint8_t _irq;
 
 boolean _debounceClockEnabled = false;
 
+spi_device_handle_t spi;
 /* SPI configs. */
 /*const SPISettings _fastSPI;
 const SPISettings _slowSPI;
@@ -74,8 +76,39 @@ void spiBegin(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst)
   // Configure the IRQ pin as INPUT. Required for correct interrupt setting for ESP8266
       pinMode(irq, INPUT);
   // start SPI
-  // spi = dw3000Spi;
-  // spi->begin(sck, miso, mosi , -1);
+    esp_err_t ret;
+
+    spi_bus_config_t buscfg = {
+        .mosi_io_num = mosi,
+        .miso_io_num = miso,
+        .sclk_io_num = sck,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 1000
+    };
+
+    spi_device_interface_config_t devcfg = {
+        .command_bits = 0,
+        .address_bits = 0,
+        .dummy_bits = 0,
+        .mode = 0,
+        .duty_cycle_pos = 0,
+        .cs_ena_pretrans = 0,
+        .cs_ena_posttrans = 0,
+        .clock_speed_hz = 1000000,
+        .flags = 0,
+        .queue_size = 1,
+        .pre_cb = NULL,
+        .post_cb = NULL
+    };
+
+    // Initialize the SPI bus
+    ret = spi_bus_initialize(SPI3_HOST, &buscfg, 0);
+    assert(ret == ESP_OK);
+
+    // Attach the SPI device to the bus
+    ret = spi_bus_add_device(SPI3_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
 
   // pin and basic member setup_rst
   _rst        = rst;
@@ -107,6 +140,25 @@ void readBytes(byte cmd, uint16_t offset, byte data[], uint16_t n) {
       headerLen += 2;
     }
   }
+
+  digitalWrite(_ss, LOW);
+  spi_transaction_t transaction = {0};
+  transaction.flags = 0;
+  transaction.cmd = 0;
+  transaction.length = headerLen * 8;
+  transaction.rxlength = 0;
+  transaction.user = NULL;
+  transaction.tx_buffer = header;
+  transaction.rx_buffer = NULL;
+  spi_device_transmit(spi, &transaction);
+  transaction.length = n * 8;
+  transaction.rxlength = n * 8;
+  transaction.tx_buffer = NULL;
+  transaction.rx_buffer = data;
+  spi_device_transmit(spi, &transaction);
+  delayMicroseconds(5);
+  digitalWrite(_ss, HIGH);
+
   // spi->beginTransaction(*_currentSPI);
   // digitalWrite(_ss, LOW);
   // for(i = 0; i < headerLen; i++) {
@@ -179,6 +231,24 @@ void writeBytes(byte cmd, uint16_t offset, byte data[], uint16_t data_size) {
       headerLen += 2;
     }
   }
+
+  digitalWrite(_ss, LOW);
+  spi_transaction_t transaction = {0};
+  transaction.flags = 0;
+  transaction.cmd = 0;
+  transaction.length = headerLen * 8;
+  transaction.rxlength = 0;
+  transaction.user = NULL;
+  transaction.tx_buffer = header;
+  transaction.rx_buffer = NULL;
+  spi_device_transmit(spi, &transaction);
+  transaction.length = data_size * 8;
+  transaction.tx_buffer = data;
+  transaction.rxlength = 0;
+  spi_device_transmit(spi, &transaction);
+  delayMicroseconds(5);
+  digitalWrite(_ss, HIGH);
+
   // spi->beginTransaction(*_currentSPI);
   // digitalWrite(_ss, LOW);
   // for(i = 0; i < headerLen; i++) {
@@ -401,6 +471,7 @@ void spiSelect(uint8_t ss) {
   // default network and node id
   writeValueToBytes(_networkAndAddress, 0xFF, LEN_PANADR);
   writeNetworkIdAndDeviceAddress();
+
   // default system configuration
   memset(_syscfg, 0, LEN_SYS_CFG);
   setDoubleBuffering(false);
@@ -442,7 +513,24 @@ int readfromspi(uint16_t headerLength, uint8_t *headerBuffer, uint16_t readLengt
   // digitalWrite(_ss, HIGH);
   // spi->endTransaction();
 
+  digitalWrite(_ss, LOW);
+  spi_transaction_t transaction = {0};
+  transaction.flags = 0;
+  transaction.cmd = 0;
+  transaction.length = headerLength * 8;
+  transaction.rxlength = 0;
+  transaction.user = NULL;
+  transaction.tx_buffer = headerBuffer;
+  transaction.rx_buffer = NULL;
+  spi_device_transmit(spi, &transaction);
 
+  transaction.length = readLength * 8;
+  transaction.rxlength = readLength * 8;
+  transaction.tx_buffer = NULL;
+  transaction.rx_buffer = readBuffer;
+  spi_device_transmit(spi, &transaction);
+  delayMicroseconds(5);
+  digitalWrite(_ss, HIGH);
 
 
   // this is commented by library
@@ -474,6 +562,22 @@ int writetospi(uint16_t headerLength, uint8_t *headerBuffer, uint16_t bodyLength
   // delayMicroseconds(5);
   // digitalWrite(_ss, HIGH);
   // spi->endTransaction();
+
+  digitalWrite(_ss, LOW);
+  spi_transaction_t transaction = {0};
+  transaction.flags = 0;
+  transaction.cmd = 0;
+  transaction.length = headerLength * 8;
+  transaction.rxlength = 0;
+  transaction.user = NULL;
+  transaction.tx_buffer = headerBuffer;
+  transaction.rx_buffer = NULL;
+  spi_device_transmit(spi, &transaction);
+  transaction.length = bodyLength * 8;
+  transaction.tx_buffer = bodyBuffer;
+  spi_device_transmit(spi, &transaction);
+  delayMicroseconds(5);
+  digitalWrite(_ss, HIGH);
 
   // this is commented by library
   /*open_spi(); // we first open the SPI line by setting it to low
