@@ -1,6 +1,6 @@
-#include "Stream.hpp"
+#include "ld2410_uart.h"
 
-esp_err_t Stream::setup(void)
+esp_err_t ld2410_uart_setup(void)
 {
     // Configure the UART parameters
     uart_config_t uart_config = {
@@ -22,26 +22,26 @@ esp_err_t Stream::setup(void)
 
     return ESP_OK;
 }
-int Stream::available(void)
+int ld2410_uart_available(void)
 {  
     size_t available;
     uart_get_buffered_data_len(UART_PORT_NUM, &available);
     return available;
 }
 
-size_t Stream::write(uint8_t byte)
+size_t ld2410_uart_write_byte(uint8_t byte)
 {
     uart_write_bytes(UART_PORT_NUM, &byte, 1);
     return 1;
 }
 
-size_t Stream::write(const uint8_t *buffer, size_t size)
+size_t ld2410_uart_write(const uint8_t *buffer, size_t size)
 {
     uart_write_bytes(UART_PORT_NUM, buffer, size);
     return size;
 }
 
-int Stream::read(void)  
+int ld2410_uart_read(void)  
 {
     uint8_t data = 0;
     if (uart_read_bytes(UART_PORT_NUM, &data, 1, pdMS_TO_TICKS(0))) 
@@ -52,69 +52,4 @@ int Stream::read(void)
     {
         return -1;
     }
-}
-
-size_t Stream::print(const char* buf)
-{
-    return 1;
-}
-
-size_t Stream::print(const char buf)
-{
-    return 1;
-}
-
-size_t Stream::print(float buf)
-{
-    return 1;
-}
-
-size_t Stream::print(double buf)
-{
-    return 1;
-}
-
-size_t Stream::print(uint32_t buf)
-{
-    return 1;
-}
-
-size_t Stream::print(uint16_t buf)
-{
-    return 1;
-}
-
-size_t Stream::print(uint8_t buf)
-{
-    return 1;
-}
-
-size_t Stream::print(uint8_t buf, uint8_t base)
-{
-    return 1;
-}
-
-size_t Stream::println(const char* buf)
-{
-    return 1;
-}
-
-size_t Stream::println(const char buf)
-{
-    return 1;
-}
-
-size_t Stream::println(float buf)
-{
-    return 1;
-}
-
-size_t Stream::println(uint32_t buf)
-{
-    return 1;
-}
-
-size_t Stream::println(uint8_t buf)
-{
-    return 1;
 }

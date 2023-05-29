@@ -1,3 +1,3 @@
-idf_component_register(SRCS "ld2410.cpp"
+idf_component_register(SRCS "ld2410.c"
                     INCLUDE_DIRS "."
-                    REQUIRES Stream)
+                    REQUIRES ld2410_uart)

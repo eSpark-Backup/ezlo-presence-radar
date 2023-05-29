@@ -15,13 +15,14 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "Stream.hpp"
+#include "ld2410_uart.h"
 
 typedef unsigned char byte;
 #define delay(x) vTaskDelay(x/portTICK_RATE_MS)
 #define millis() esp_timer_get_time()/1000
 
 #define LD2410_MAX_FRAME_LENGTH 40
+#define LD2410_DEBUG_INITIALIZATION
 //#define LD2410_DEBUG_DATA
 #define LD2410_DEBUG_COMMANDS
 //#define LD2410_DEBUG_PARSE
@@ -38,69 +39,31 @@ typedef enum
 	distance_525cm,
 	distance_600cm,
 } distance;
+	
+#ifdef __cplusplus
+extern "C" {
+#endif												//Destructor function
+bool ld2410_begin(bool waitForRadar);				//Start the ld2410 // defaults to true
+bool ld2410_isConnected();
+bool ld2410_read();
+bool ld2410_presenceDetected();
+bool ld2410_stationaryTargetDetected();
+uint16_t ld2410_stationaryTargetDistance();
+uint8_t ld2410_stationaryTargetEnergy();
+bool ld2410_movingTargetDetected();
+uint16_t ld2410_movingTargetDistance();
+uint8_t ld2410_movingTargetEnergy();
+bool ld2410_requestFirmwareVersion();				//Request the firmware version
+bool ld2410_requestCurrentConfiguration();			//Request current configuration
 
-class ld2410	{
-
-	public:
-		ld2410();														//Constructor function
-		~ld2410();														//Destructor function
-		bool begin(Stream* , bool waitForRadar = true);					//Start the ld2410
-		void debug(Stream &);											//Start debugging on a stream
-		bool isConnected();
-		bool read();
-		bool presenceDetected();
-		bool stationaryTargetDetected();
-		uint16_t stationaryTargetDistance();
-		uint8_t stationaryTargetEnergy();
-		bool movingTargetDetected();
-		uint16_t movingTargetDistance();
-		uint8_t movingTargetEnergy();
-		bool requestFirmwareVersion();									//Request the firmware version
-		uint8_t firmware_major_version = 0;								//Reported major version
-		uint8_t firmware_minor_version = 0;								//Reported minor version
-		uint32_t firmware_bugfix_version = 0;							//Reported bugfix version (coded as hex)
-		bool requestCurrentConfiguration();								//Request current configuration
-		uint8_t max_gate = 0;
-		uint8_t max_moving_gate = 0;
-		uint8_t max_stationary_gate = 0;
-		uint16_t sensor_idle_time = 0;
-		uint8_t motion_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
-		uint8_t stationary_sensitivity[9] = {0,0,0,0,0,0,0,0,0};
-		bool requestRestart();
-		bool requestFactoryReset();
-		bool requestStartEngineeringMode();
-		bool requestEndEngineeringMode();
-		bool setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
-		bool setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
-		bool setGateSensitivityThreshold(uint8_t* moving, uint8_t* stationary);
-	protected:
-	private:
-		Stream *radar_uart_ = nullptr;
-		Stream *debug_uart_ = nullptr;									//The stream used for the debugging
-		uint32_t radar_uart_timeout = 100;								//How long to give up on receiving some useful data from the LD2410
-		uint32_t radar_uart_last_packet_ = 0;							//Time of the last packet from the radar
-		uint32_t radar_uart_last_command_ = 0;							//Time of the last command sent to the radar
-		uint32_t radar_uart_command_timeout_ = 100;						//Timeout for sending commands
-		uint8_t latest_ack_ = 0;
-		bool latest_command_success_ = false;
-		uint8_t radar_data_frame_[LD2410_MAX_FRAME_LENGTH];				//Store the incoming data from the radar, to check it's in a valid format
-		uint8_t radar_data_frame_position_ = 0;							//Where in the frame we are currently writing
-		bool frame_started_ = false;									//Whether a frame is currently being read
-		bool ack_frame_ = false;										//Whether the incoming frame is LIKELY an ACK frame
-		bool waiting_for_ack_ = false;									//Whether a command has just been sent
-		uint8_t target_type_ = 0;
-		uint16_t moving_target_distance_ = 0;
-		uint8_t moving_target_energy_ = 0;
-		uint16_t stationary_target_distance_ = 0;
-		uint8_t stationary_target_energy_ = 0;
-		
-		bool read_frame_();												//Try to read a frame from the UART
-		bool parse_data_frame_();										//Is the current data frame valid?
-		bool parse_command_frame_();									//Is the current command frame valid?
-		void print_frame_();											//Print the frame for debugging
-		void send_command_preamble_();									//Commands have the same preamble
-		void send_command_postamble_();									//Commands have the same postamble
-		bool enter_configuration_mode_();								//Necessary before sending any command
-		bool leave_configuration_mode_();								//Will not read values without leaving command mode
-};
+bool ld2410_requestRestart();
+bool ld2410_requestFactoryReset();
+bool ld2410_requestStartEngineeringMode();
+bool ld2410_requestEndEngineeringMode();
+bool ld2410_setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer);	//Realistically gate values are 0-8 but sent as uint16_t
+bool ld2410_setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary);
+// bool ld2410_setGateSensitivityThreshold(uint8_t* moving, uint8_t* stationary);
+#ifdef __cplusplus
+}
+#endif	
 #endif
