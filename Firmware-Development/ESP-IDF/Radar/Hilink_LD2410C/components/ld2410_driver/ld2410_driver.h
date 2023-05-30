@@ -29,15 +29,15 @@ typedef unsigned char byte;
 
 typedef enum
 {
-	distance_0cm = 0,
-	distance_75cm,
-	distance_150cm,
-	distance_225cm,
-	distance_300cm,
-	distance_375cm,
-	distance_450cm,
-	distance_525cm,
-	distance_600cm,
+	DISTANCE_0CM = 0,
+	DISTANCE_75CM,
+	DISTANCE_150CM,
+	DISTANCE_225CM,
+	DISTANCE_300CM,
+	DISTANCE_375CM,
+	DISTANCE_450CM,
+	DISTANCE_525CM,
+	DISTANCE_600CM,
 } distance;
 	
 #ifdef __cplusplus
