@@ -10,8 +10,6 @@
  *	Released under LGPL-2.1 see https://github.com/ncmreynolds/ld2410/LICENSE for full license
  *
  */
-#ifndef ld2410_cpp
-#define ld2410_cpp
 #include "ld2410.h"
 
 uint8_t firmware_major_version = 0;								//Reported major version
@@ -52,19 +50,22 @@ static bool ld2410_enter_configuration_mode_();								//Necessary before sendin
 static bool ld2410_leave_configuration_mode_();								//Will not read values without leaving command mode
 
 /*	Function definition	*/
-bool ld2410_begin(bool waitForRadar)	
+bool ld2410_begin(bool wait_for_radar)	
 {
-	ld2410_uart_setup();
+	if (ESP_OK != ld2410_uart_setup())
+	{
+		return false;
+	}
 	
 	#ifdef LD2410_DEBUG_INITIALIZATION
-		printf("ld2410 started\n");
+		printf("ld2410 started");
 	#endif
-	if(waitForRadar)
+	if(wait_for_radar)
 	{
 		#ifdef LD2410_DEBUG_INITIALIZATION
 			printf("\nLD2410 firmware: ");
 		#endif
-		if(ld2410_requestFirmwareVersion())
+		if(ld2410_request_firmware_version())
 		{
 			#ifdef LD2410_DEBUG_INITIALIZATION
 				printf(" v%d.%d.%d\n",firmware_major_version, firmware_minor_version, firmware_bugfix_version);
@@ -88,7 +89,7 @@ bool ld2410_begin(bool waitForRadar)
 	return false;
 }
 
-bool ld2410_isConnected()
+bool ld2410_is_connected()
 {
 	if(millis() - radar_uart_last_packet_ < radar_uart_timeout)	//Use the last reading
 	{
@@ -106,12 +107,12 @@ bool ld2410_read()
 	return ld2410_read_frame_();
 }
 
-bool ld2410_presenceDetected()
+bool ld2410_presence_detected()
 {
 	return target_type_ != 0;
 }
 
-bool ld2410_stationaryTargetDetected()
+bool ld2410_stationary_target_detected()
 {
 	if((target_type_ & 0x02) && stationary_target_distance_ > 0 && stationary_target_energy_ > 0)
 	{
@@ -120,7 +121,7 @@ bool ld2410_stationaryTargetDetected()
 	return false;
 }
 
-uint16_t ld2410_stationaryTargetDistance()
+uint16_t ld2410_stationary_target_distance()
 {
 	//if(stationary_target_energy_ > 0)
 	{
@@ -129,7 +130,7 @@ uint16_t ld2410_stationaryTargetDistance()
 	//return 0;
 }
 
-uint8_t ld2410_stationaryTargetEnergy()
+uint8_t ld2410_stationary_target_energy()
 {
 	//if(stationary_target_distance_ > 0)
 	{
@@ -138,7 +139,7 @@ uint8_t ld2410_stationaryTargetEnergy()
 	//return 0;
 }
 
-bool ld2410_movingTargetDetected()
+bool ld2410_moving_target_detected()
 {
 	if((target_type_ & 0x01) && moving_target_distance_ > 0 && moving_target_energy_ > 0)
 	{
@@ -147,7 +148,7 @@ bool ld2410_movingTargetDetected()
 	return false;
 }
 
-uint16_t ld2410_movingTargetDistance()
+uint16_t ld2410_moving_target_distance()
 {
 	//if(moving_target_energy_ > 0)
 	{
@@ -156,7 +157,7 @@ uint16_t ld2410_movingTargetDistance()
 	//return 0;
 }
 
-uint8_t ld2410_movingTargetEnergy()
+uint8_t ld2410_moving_target_energy()
 {
 	//if(moving_target_distance_ > 0)
 	{
@@ -175,7 +176,7 @@ static bool ld2410_read_frame_()
 			if(byte_read_ == 0xF4)
 			{
 				#ifdef LD2410_DEBUG_DATA
-					printf("\nRcvd : 00 "));
+					printf("\nRcvd : 00 ");
 				#endif
 				radar_data_frame_[radar_data_frame_position_++] = byte_read_;
 				frame_started_ = true;
@@ -202,7 +203,7 @@ static bool ld2410_read_frame_()
 					{
 						printf("0");
 					}
-					printf("%x "radar_data_frame_position_);
+					printf("%x ", radar_data_frame_position_);
 				}
 				#endif
 				#ifdef LD2410_DEBUG_COMMANDS
@@ -688,7 +689,7 @@ static bool ld2410_leave_configuration_mode_()
 	return false;
 }
 
-bool ld2410_requestStartEngineeringMode()
+bool ld2410_request_start_engineering_mode()
 {
 	ld2410_send_command_preamble_();
 	//Request firmware
@@ -734,7 +735,7 @@ bool ld2410_requestEndEngineeringMode()
 	return false;
 }
 
-bool ld2410_requestCurrentConfiguration()
+bool ld2410_request_current_configuration()
 {
 	if(ld2410_enter_configuration_mode_())
 	{
@@ -765,7 +766,7 @@ bool ld2410_requestCurrentConfiguration()
 	return false;
 }
 
-bool ld2410_requestFirmwareVersion()
+bool ld2410_request_firmware_version()
 {
 	if(ld2410_enter_configuration_mode_())
 	{
@@ -856,7 +857,7 @@ bool ld2410_requestFactoryReset()
 	return false;
 }
 
-bool ld2410_setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivityTimer)
+bool ld2410_set_max_values(uint16_t moving, uint16_t stationary, uint16_t inactivity_timer)
 {
 	if(ld2410_enter_configuration_mode_())
 	{
@@ -880,8 +881,8 @@ bool ld2410_setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivi
 		ld2410_uart_write_byte((byte) 0x00);
 		ld2410_uart_write_byte((byte) 0x02);	//Inactivity timer command
 		ld2410_uart_write_byte((byte) 0x00);
-		ld2410_uart_write_byte((byte)(inactivityTimer & 0x00FF));	//Inactivity timer
-		ld2410_uart_write_byte((byte)((inactivityTimer & 0xFF00)>>8));
+		ld2410_uart_write_byte((byte)(inactivity_timer & 0x00FF));	//Inactivity timer
+		ld2410_uart_write_byte((byte)((inactivity_timer & 0xFF00)>>8));
 		ld2410_uart_write_byte((byte) 0x00);	//Spacer
 		ld2410_uart_write_byte((byte) 0x00);
 		ld2410_send_command_postamble_();
@@ -904,7 +905,7 @@ bool ld2410_setMaxValues(uint16_t moving, uint16_t stationary, uint16_t inactivi
 	return false;
 }
 
-bool ld2410_setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t stationary)
+bool ld2410_set_gate_sensitivity_threshold(uint8_t gate, uint8_t moving, uint8_t stationary)
 {
 	if(ld2410_enter_configuration_mode_())
 	{
@@ -951,14 +952,13 @@ bool ld2410_setGateSensitivityThreshold(uint8_t gate, uint8_t moving, uint8_t st
 	ld2410_leave_configuration_mode_();
 	return false;
 }
-#endif
 
-// bool ld2410_setGateSensitivityThreshold(uint8_t* moving, uint8_t* stationary)
-// {
-// 	bool ret = false;
-// 	for (uint8_t gate = 0; gate < 9; gate++)
-// 	{
-// 		ret = ld2410_setGateSensitivityThreshold(gate, moving[gate], stationary[gate]);
-// 	}
-// 	return ret;
-// }
+bool ld2410_set_gates_sensitivity_threshold(uint8_t* moving, uint8_t* stationary)
+{
+	bool ret = false;
+	for (uint8_t gate = 0; gate < 9; gate++)
+	{
+		ret = ld2410_set_gate_sensitivity_threshold(gate, moving[gate], stationary[gate]);
+	}
+	return ret;
+}

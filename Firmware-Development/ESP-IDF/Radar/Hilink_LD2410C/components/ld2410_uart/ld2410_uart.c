@@ -1,7 +1,10 @@
 #include "ld2410_uart.h"
 
+static const char* TAG = "ld2410 uart";
+
 esp_err_t ld2410_uart_setup(void)
 {
+    esp_err_t ret = ESP_OK;
     // Configure the UART parameters
     uart_config_t uart_config = {
         .baud_rate = 256000,
@@ -10,41 +13,38 @@ esp_err_t ld2410_uart_setup(void)
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
     };
-    uart_param_config(UART_PORT_NUM, &uart_config);
+    ret = uart_param_config(UART_PORT_NUM, &uart_config);
+    ESP_RETURN_ON_ERROR(ret, TAG, "uart param config - parameter error");
 
     // Set UART pins
-    uart_set_pin(UART_PORT_NUM, RADAR_TX_PIN, RADAR_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    ret = uart_set_pin(UART_PORT_NUM, RADAR_TX_PIN, RADAR_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    ESP_RETURN_ON_ERROR(ret, TAG, "uart set pin - parameter error");
 
     // Install UART driver using an event queue here
     const int uart_buffer_size = (1024 * 2);
     QueueHandle_t uart_queue;
-    uart_driver_install(UART_PORT_NUM, uart_buffer_size, uart_buffer_size, 10, &uart_queue, 0);
+    ret = uart_driver_install(UART_PORT_NUM, uart_buffer_size, uart_buffer_size, 10, &uart_queue, 0);
+    ESP_RETURN_ON_ERROR(ret, TAG, "uart driver not initialized");
 
-    return ESP_OK;
+    return ret;
 }
 int ld2410_uart_available(void)
 {  
     size_t available;
-    uart_get_buffered_data_len(UART_PORT_NUM, &available);
+    uart_get_buffered_data_len(UART_PORT_NUM, &available); // returns true always if there is no parameter error
     return available;
 }
 
 size_t ld2410_uart_write_byte(uint8_t byte)
 {
-    uart_write_bytes(UART_PORT_NUM, &byte, 1);
+    uart_write_bytes(UART_PORT_NUM, &byte, 1); // returns true always if there is no parameter error
     return 1;
-}
-
-size_t ld2410_uart_write(const uint8_t *buffer, size_t size)
-{
-    uart_write_bytes(UART_PORT_NUM, buffer, size);
-    return size;
 }
 
 int ld2410_uart_read(void)  
 {
     uint8_t data = 0;
-    if (uart_read_bytes(UART_PORT_NUM, &data, 1, pdMS_TO_TICKS(0))) 
+    if (uart_read_bytes(UART_PORT_NUM, &data, 1, pdMS_TO_TICKS(0)) == 1) 
     {
         return data;
     } 
