@@ -10,7 +10,7 @@
  *	Released under LGPL-2.1 see https://github.com/ncmreynolds/ld2410/LICENSE for full license
  *
  */
-#include "ld2410.h"
+#include "ld2410_driver.h"
 
 uint8_t firmware_major_version = 0;								//Reported major version
 uint8_t firmware_minor_version = 0;								//Reported minor version
