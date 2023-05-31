@@ -6,7 +6,7 @@
 #include "driver/uart.h"
 #include "ld2410.h"
 
-
+ld2410_outputs_t ld2410_output;
 void app_main(void)
 {
     esp_err_t ret = ESP_OK;
@@ -15,6 +15,6 @@ void app_main(void)
     while (1) 
     {
         if (ESP_OK == ret)
-            ld2410_get_data();
+            ld2410_get_data(&ld2410_output);
     }
 }

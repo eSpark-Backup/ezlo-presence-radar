@@ -16,7 +16,15 @@ esp_err_t ld2410_setup(void)
         // uint8_t mov_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20}; // Gate 0 to 8 sensitivity : sensitivity range 0-100
         // uint8_t still_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20}; // Gate 0 to 8 sensitivity : sensitivity range 0-100
         // ld2410_set_gates_sensitivity_threshold(mov_sensitivity, still_sensitivity);
-        ld2410_set_template(BASIC_TEMPLATE_CLOSE_RANGE);
+        ld2410_settings_t settings = 
+        {
+            .max_still_distance = DISTANCE_525CM,
+            .max_move_distance = DISTANCE_525CM,
+            .min_still_distance = DISTANCE_300CM,
+            .min_move_distance = DISTANCE_300CM,
+            .no_one_duration = 5
+        };
+        ld2410_set_template(CUSTOM_TEMPLATE, &settings);
         return ESP_OK;
     }
     else
@@ -26,13 +34,17 @@ esp_err_t ld2410_setup(void)
     return ESP_FAIL;
 }
 
-esp_err_t ld2410_set_template(ld2410_template_t template)
+esp_err_t ld2410_set_template(ld2410_template_t template, ld2410_settings_t* p_settings)
 {
     ld2410_settings_t settings = 
     {
-        .mov_sensitivity = {20, 20, 20, 20, 20, 20, 20, 20, 20},    // Gate 0 to 8 sensitivity : sensitivity range 0-100
-        .still_sensitivity = {20, 20, 20, 20, 20, 20, 20, 20, 20},  // Gate 0 to 8 sensitivity : sensitivity range 0-100
+        .max_still_distance = DISTANCE_600CM,
+        .max_move_distance = DISTANCE_600CM,
+        .no_one_duration = 5
     };
+    uint8_t move_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20};    // Gate 0 to 8 sensitivity : sensitivity range 0-100
+    uint8_t still_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20};  // Gate 0 to 8 sensitivity : sensitivity range 0-100
+    
     switch (template)
     {
         case SLEEP_TEMPLATE_CLOSE_RANGE:
@@ -90,6 +102,28 @@ esp_err_t ld2410_set_template(ld2410_template_t template)
             break;
         
         case CUSTOM_TEMPLATE:
+            if (p_settings)
+            {
+                settings.no_one_duration = p_settings->no_one_duration;
+                settings.max_still_distance = p_settings->max_still_distance;
+                settings.max_move_distance = p_settings->max_move_distance;
+                for (uint8_t i = 0; i < p_settings->min_still_distance; i++)
+                {
+                    still_sensitivity[i] = 100;
+                }
+                for (uint8_t i = 8; i > p_settings->max_still_distance; i--)
+                {
+                    still_sensitivity[i] = 100;
+                }
+                for (uint8_t i = 0; i < p_settings->min_move_distance; i++)
+                {
+                    move_sensitivity[i] = 100;
+                }
+                for (uint8_t i = 8; i > p_settings->max_move_distance; i--)
+                {
+                    move_sensitivity[i] = 100;
+                }
+            }
             
             break;
         
@@ -97,13 +131,27 @@ esp_err_t ld2410_set_template(ld2410_template_t template)
             ESP_LOGE(TAG, "unknown template");
             return ESP_FAIL;
             break;
+    } 
+
+    printf("no_one_duration : %d max_still_distance : %d max_move_distance : %d\n", settings.no_one_duration, settings.max_still_distance, settings.max_move_distance);
+    printf("still_sensitivity : ");
+    for (uint8_t i = 0; i < 9; i++)
+    {
+        printf("%d ", still_sensitivity[i]);
     }
+    printf("\nmove_sensitivity : ");
+    for (uint8_t i = 0; i < 9; i++)
+    {
+        printf("%d ", still_sensitivity[i]);
+    }
+    printf("\n");
+    
     if (!ld2410_set_max_values(settings.max_move_distance, settings.max_still_distance, settings.no_one_duration)) // (max_moving_distance, max_still_distance, no_one_duration in seconds)
     {
         ESP_LOGE(TAG, "unable to set configuations");
         return ESP_FAIL;
     }
-    if (!ld2410_set_gates_sensitivity_threshold(settings.mov_sensitivity, settings.still_sensitivity))
+    if (!ld2410_set_gates_sensitivity_threshold(move_sensitivity, still_sensitivity))
     {
         ESP_LOGE(TAG, "unable to set gates sensitivity");
         return ESP_FAIL;
@@ -111,8 +159,13 @@ esp_err_t ld2410_set_template(ld2410_template_t template)
     return ESP_OK;
 }
 
-esp_err_t ld2410_get_data(void)
+esp_err_t ld2410_get_data(ld2410_outputs_t* output)
 {
+    if (NULL == output)
+    {
+        return ESP_FAIL;
+    }
+    
     esp_err_t ret = ESP_OK;
     if (!ld2410_read())
     {
@@ -124,20 +177,24 @@ esp_err_t ld2410_get_data(void)
         last_reading = millis();
         if(ld2410_presence_detected())
         {
+            output->presence = true;
             if(ld2410_stationary_target_detected())
             {
-                printf("Stationary target: %d ", ld2410_stationary_target_distance());
+                output->stationary_target_distance = ld2410_stationary_target_distance();
+                printf("Stationary target: %d ", output->stationary_target_distance);
                 printf("cm energy: %d ", ld2410_stationary_target_energy());
             }
             if(ld2410_moving_target_detected())
             {
-                printf("Moving target: %d ", ld2410_moving_target_distance());
+                output->moving_target_distance = ld2410_moving_target_distance();
+                printf("Moving target: %d ", output->moving_target_distance);
                 printf("cm energy: %d ", ld2410_moving_target_energy());
             }
             printf("\n");
         }
         else
         {
+            output->presence = false;
             printf("No target\n");
         }
     }

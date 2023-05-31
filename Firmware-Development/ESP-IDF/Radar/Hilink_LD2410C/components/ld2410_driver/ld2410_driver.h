@@ -27,7 +27,7 @@ typedef unsigned char byte;
 // #define LD2410_DEBUG_COMMANDS
 // #define LD2410_DEBUG_PARSE
 
-typedef enum
+typedef enum distance
 {
 	DISTANCE_0CM = 0,
 	DISTANCE_75CM,
@@ -38,7 +38,7 @@ typedef enum
 	DISTANCE_450CM,
 	DISTANCE_525CM,
 	DISTANCE_600CM,
-} distance;
+} distance_t;
 	
 #ifdef __cplusplus
 extern "C" {
