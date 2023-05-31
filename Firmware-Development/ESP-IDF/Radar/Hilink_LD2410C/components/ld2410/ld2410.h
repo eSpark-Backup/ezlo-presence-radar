@@ -2,6 +2,8 @@
 
 #include "ld2410_driver.h"
 
+#define TEST_SETTINGS 1
+
 typedef enum ld2410_template
 {
     SLEEP_TEMPLATE_CLOSE_RANGE,

@@ -133,6 +133,7 @@ esp_err_t ld2410_set_template(ld2410_template_t template, ld2410_settings_t* p_s
             break;
     } 
 
+    #if TEST_SETTINGS
     printf("no_one_duration : %d max_still_distance : %d max_move_distance : %d\n", settings.no_one_duration, settings.max_still_distance, settings.max_move_distance);
     printf("still_sensitivity : ");
     for (uint8_t i = 0; i < 9; i++)
@@ -145,6 +146,7 @@ esp_err_t ld2410_set_template(ld2410_template_t template, ld2410_settings_t* p_s
         printf("%d ", still_sensitivity[i]);
     }
     printf("\n");
+    #endif
     
     if (!ld2410_set_max_values(settings.max_move_distance, settings.max_still_distance, settings.no_one_duration)) // (max_moving_distance, max_still_distance, no_one_duration in seconds)
     {
