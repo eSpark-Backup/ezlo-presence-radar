@@ -28,6 +28,5 @@ extern "C" void app_main(void)
     printf("ERROR %d\n",ret);
     delay(1000);
   }
-  
-  
+
 }

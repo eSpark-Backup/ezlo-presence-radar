@@ -573,6 +573,8 @@ int writetospi(uint16_t headerLength, uint8_t *headerBuffer, uint16_t bodyLength
   transaction.tx_buffer = headerBuffer;
   transaction.rx_buffer = NULL;
   spi_device_transmit(spi, &transaction);
+  transaction.rx_buffer = NULL;
+  transaction.rxlength = 0;
   transaction.length = bodyLength * 8;
   transaction.tx_buffer = bodyBuffer;
   spi_device_transmit(spi, &transaction);

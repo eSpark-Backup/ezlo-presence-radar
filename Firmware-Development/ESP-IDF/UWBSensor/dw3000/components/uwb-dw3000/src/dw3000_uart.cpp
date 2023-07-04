@@ -14,16 +14,15 @@ void UART_init(void)
 
 void UART_putc(char data)
 {
-  // Serial.print(data);
+  printf("%c",data);
 }
 
 void UART_puts(char* s)
 {
-  // Serial.print(s);
+  printf(s);
 }
 
 void test_run_info(unsigned char * s)
 {
-    // UART_puts((char *)s);
-    // UART_puts("\r\n");
+  printf("%s\r\n",s);
 }
