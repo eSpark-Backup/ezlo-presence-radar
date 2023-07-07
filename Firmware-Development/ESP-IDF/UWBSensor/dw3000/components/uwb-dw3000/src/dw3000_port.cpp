@@ -95,7 +95,7 @@ void spiBegin(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst)
         .duty_cycle_pos = 0,
         .cs_ena_pretrans = 0,
         .cs_ena_posttrans = 0,
-        .clock_speed_hz = 1000000,
+        .clock_speed_hz = 16000000,
         .flags = 0,
         .queue_size = 1,
         .pre_cb = NULL,
