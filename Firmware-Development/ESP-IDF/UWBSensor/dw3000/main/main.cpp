@@ -67,8 +67,21 @@ static dwt_config_t config = {
     DWT_PDOA_M0       /* PDOA mode off */
 };
 
-static uint8_t tx_poll_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', 'E', 0xE0, 0, 0};
-static uint8_t rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+// static uint8_t tx_poll_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', 'E', 0xE0, 0, 0};
+// static uint8_t rx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#define NO_OF_ANCHORS 3
+double anchor_distance[NO_OF_ANCHORS] = {0};
+
+static uint8_t tx_poll_msg[NO_OF_ANCHORS][12] = {
+                                      {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', '1', 0xE0, 0, 0},
+                                      {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', '2', 0xE0, 0, 0},
+                                      {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', '3', 0xE0, 0, 0}
+                                    };
+static uint8_t rx_resp_msg[NO_OF_ANCHORS][20] = {
+                                      {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', '1', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 
+                                      {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', '2', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                                      {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', '3', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+                                    };
 static uint8_t frame_seq_nb = 0;
 static uint8_t rx_buffer[20];
 static uint32_t status_reg = 0;
@@ -123,77 +136,83 @@ void setup()
   printf("Range RX\n");
   printf("Setup over........\n");
 }
-
+ 
 void loop()
 {
-  /* Write frame data to DW IC and prepare transmission. See NOTE 7 below. */
-  tx_poll_msg[ALL_MSG_SN_IDX] = frame_seq_nb;
-  dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
-  dwt_writetxdata(sizeof(tx_poll_msg), tx_poll_msg, 0); /* Zero offset in TX buffer. */
-  dwt_writetxfctrl(sizeof(tx_poll_msg), 0, 1);          /* Zero offset in TX buffer, ranging. */
-
-  /* Start transmission, indicating that a response is expected so that reception is enabled automatically after the frame is sent and the delay
-   * set by dwt_setrxaftertxdelay() has elapsed. */
-  dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
-
-  /* We assume that the transmission is achieved correctly, poll for reception of a frame or error/timeout. See NOTE 8 below. */
-  while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
+  for (size_t anchor_no = 0; anchor_no < NO_OF_ANCHORS; anchor_no++)
   {
-  };
+    /* Write frame data to DW IC and prepare transmission. See NOTE 7 below. */
+    tx_poll_msg[anchor_no][ALL_MSG_SN_IDX] = frame_seq_nb;
+    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
+    dwt_writetxdata(sizeof(tx_poll_msg)/ NO_OF_ANCHORS, tx_poll_msg[anchor_no], 0); /* Zero offset in TX buffer. */
+    dwt_writetxfctrl(sizeof(tx_poll_msg)/ NO_OF_ANCHORS, 0, 1);          /* Zero offset in TX buffer, ranging. */
 
-  /* Increment frame sequence number after transmission of the poll message (modulo 256). */
-  frame_seq_nb++;
+    /* Start transmission, indicating that a response is expected so that reception is enabled automatically after the frame is sent and the delay
+    * set by dwt_setrxaftertxdelay() has elapsed. */
+    dwt_starttx(DWT_START_TX_IMMEDIATE | DWT_RESPONSE_EXPECTED);
 
-  if (status_reg & SYS_STATUS_RXFCG_BIT_MASK)
-  {
-    uint32_t frame_len;
-
-    /* Clear good RX frame event in the DW IC status register. */
-    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK);
-
-    /* A frame has been received, read it into the local buffer. */
-    frame_len = dwt_read32bitreg(RX_FINFO_ID) & RXFLEN_MASK;
-    if (frame_len <= sizeof(rx_buffer))
+    /* We assume that the transmission is achieved correctly, poll for reception of a frame or error/timeout. See NOTE 8 below. */
+    while (!((status_reg = dwt_read32bitreg(SYS_STATUS_ID)) & (SYS_STATUS_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR)))
     {
-      dwt_readrxdata(rx_buffer, frame_len, 0);
+    };
 
-      /* Check that the frame is the expected response from the companion "SS TWR responder" example.
-       * As the sequence number field of the frame is not relevant, it is cleared to simplify the validation of the frame. */
-      rx_buffer[ALL_MSG_SN_IDX] = 0;
-      if (memcmp(rx_buffer, rx_resp_msg, ALL_MSG_COMMON_LEN) == 0)
+    /* Increment frame sequence number after transmission of the poll message (modulo 256). */
+    frame_seq_nb++;
+
+    if (status_reg & SYS_STATUS_RXFCG_BIT_MASK)
+    {
+      uint32_t frame_len;
+
+      /* Clear good RX frame event in the DW IC status register. */
+      dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_RXFCG_BIT_MASK);
+
+      /* A frame has been received, read it into the local buffer. */
+      frame_len = dwt_read32bitreg(RX_FINFO_ID) & RXFLEN_MASK;
+      if (frame_len <= sizeof(rx_buffer))
       {
-        uint32_t poll_tx_ts, resp_rx_ts, poll_rx_ts, resp_tx_ts;
-        int32_t rtd_init, rtd_resp;
-        float clockOffsetRatio;
+        dwt_readrxdata(rx_buffer, frame_len, 0);
 
-        /* Retrieve poll transmission and response reception timestamps. See NOTE 9 below. */
-        poll_tx_ts = dwt_readtxtimestamplo32();
-        resp_rx_ts = dwt_readrxtimestamplo32();
+        /* Check that the frame is the expected response from the companion "SS TWR responder" example.
+        * As the sequence number field of the frame is not relevant, it is cleared to simplify the validation of the frame. */
+        rx_buffer[ALL_MSG_SN_IDX] = 0;
 
-        /* Read carrier integrator value and calculate clock offset ratio. See NOTE 11 below. */
-        clockOffsetRatio = ((float)dwt_readclockoffset()) / (uint32_t)(1 << 26);
+          if (memcmp(rx_buffer, rx_resp_msg[anchor_no], ALL_MSG_COMMON_LEN) == 0)
+          {        
+            uint32_t poll_tx_ts, resp_rx_ts, poll_rx_ts, resp_tx_ts;
+            int32_t rtd_init, rtd_resp;
+            float clockOffsetRatio;
 
-        /* Get timestamps embedded in response message. */
-        resp_msg_get_ts(&rx_buffer[RESP_MSG_POLL_RX_TS_IDX], &poll_rx_ts);
-        resp_msg_get_ts(&rx_buffer[RESP_MSG_RESP_TX_TS_IDX], &resp_tx_ts);
+            /* Retrieve poll transmission and response reception timestamps. See NOTE 9 below. */
+            poll_tx_ts = dwt_readtxtimestamplo32();
+            resp_rx_ts = dwt_readrxtimestamplo32();
 
-        /* Compute time of flight and distance, using clock offset ratio to correct for differing local and remote clock rates */
-        rtd_init = resp_rx_ts - poll_tx_ts;
-        rtd_resp = resp_tx_ts - poll_rx_ts;
+            /* Read carrier integrator value and calculate clock offset ratio. See NOTE 11 below. */
+            clockOffsetRatio = ((float)dwt_readclockoffset()) / (uint32_t)(1 << 26);
 
-        tof = ((rtd_init - rtd_resp * (1 - clockOffsetRatio)) / 2.0) * DWT_TIME_UNITS;
-        distance = tof * SPEED_OF_LIGHT;
+            /* Get timestamps embedded in response message. */
+            resp_msg_get_ts(&rx_buffer[RESP_MSG_POLL_RX_TS_IDX], &poll_rx_ts);
+            resp_msg_get_ts(&rx_buffer[RESP_MSG_RESP_TX_TS_IDX], &resp_tx_ts);
 
-        /* Display computed distance on LCD. */
-        snprintf(dist_str, sizeof(dist_str), "DIST: %3.2f m", distance);
-        test_run_info((unsigned char *)dist_str);
+            /* Compute time of flight and distance, using clock offset ratio to correct for differing local and remote clock rates */
+            rtd_init = resp_rx_ts - poll_tx_ts;
+            rtd_resp = resp_tx_ts - poll_rx_ts;
+
+            tof = ((rtd_init - rtd_resp * (1 - clockOffsetRatio)) / 2.0) * DWT_TIME_UNITS;
+            distance = tof * SPEED_OF_LIGHT;
+
+            /* Display computed distance on LCD. */
+            printf("Receiver %d\t", anchor_no);
+            snprintf(dist_str, sizeof(dist_str), "DIST: %3.2f m", distance);
+            test_run_info((unsigned char *)dist_str);
+            anchor_distance[anchor_no] = distance;
+        }         
       }
     }
-  }
-  else
-  {
-    /* Clear RX error/timeout events in the DW IC status register. */
-    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+    else
+    {
+      /* Clear RX error/timeout events in the DW IC status register. */
+      dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
+    }
   }
 
   /* Execute a delay between ranging exchanges. */
@@ -228,8 +247,9 @@ static dwt_config_t config = {
     DWT_PDOA_M0       /* PDOA mode off */
 };
 
-static uint8_t rx_poll_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', 'E', 0xE0, 0, 0};
-static uint8_t tx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static uint8_t rx_poll_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', '2', 0xE0, 0, 0};
+// static uint8_t tx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', 'A', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+static uint8_t tx_resp_msg[] = {0x41, 0x88, 0, 0xCA, 0xDE, 'V', 'E', 'W', '2', 0xE1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static uint8_t frame_seq_nb = 0;
 static uint8_t rx_buffer[20];
 static uint32_t status_reg = 0;
@@ -352,7 +372,6 @@ void loop()
         
         if (ret == DWT_SUCCESS)
         {
-          printf("ret = %d\n", ret);
           /* Poll DW IC until TX frame sent event set. See NOTE 6 below. */
           while (!(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS_BIT_MASK))
           {
@@ -363,7 +382,7 @@ void loop()
 
           /* Increment frame sequence number after transmission of the poll message (modulo 256). */
           frame_seq_nb++;
-          printf("Frame Transmitted s\n");
+          printf("Frame Transmitted\n");
           
           // Serial.println(status_reg);
         }
