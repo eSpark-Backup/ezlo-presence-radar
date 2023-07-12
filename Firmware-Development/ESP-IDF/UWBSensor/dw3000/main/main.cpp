@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "driver/spi_master.h"
 #include "dw3000.h"
+#include "trilateration.hpp"
 
 #define TAG
 
@@ -40,15 +41,15 @@ extern "C" void app_main(void)
 #ifdef TAG
 
 #define RNG_DELAY_MS 1000
-#define TX_ANT_DLY 16385
-#define RX_ANT_DLY 16385
+#define TX_ANT_DLY 16375
+#define RX_ANT_DLY 16375
 #define ALL_MSG_COMMON_LEN 10
 #define ALL_MSG_SN_IDX 2
 #define RESP_MSG_POLL_RX_TS_IDX 10
 #define RESP_MSG_RESP_TX_TS_IDX 14
 #define RESP_MSG_TS_LEN 4
-#define POLL_TX_TO_RESP_RX_DLY_UUS 400
-#define RESP_RX_TIMEOUT_UUS 400
+#define POLL_TX_TO_RESP_RX_DLY_UUS 100
+#define RESP_RX_TIMEOUT_UUS 1000
 
 /* Default communication configuration. We use default non-STS DW mode. */
 static dwt_config_t config = {
@@ -213,7 +214,21 @@ void loop()
       /* Clear RX error/timeout events in the DW IC status register. */
       dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
     }
+    Sleep(50);
   }
+
+  // test();
+  // return;
+  // Anchor Point2Ds
+  Point3D anchor1 = {0.0f, 0.0f, 0.0f};
+  Point3D anchor2 = {0.7f, 0.0f, 0.0f};
+  Point3D anchor3 = {0.0f, 0.5f, 0.0f};
+
+  // Perform trilateration
+  // Point3D target = trilaterate3d(anchor1, anchor2, anchor3, anchor_distance[0], anchor_distance[1], anchor_distance[2]);
+
+  // Print the coordinates of the target Point2D
+  
 
   /* Execute a delay between ranging exchanges. */
   Sleep(RNG_DELAY_MS);
