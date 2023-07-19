@@ -16,5 +16,7 @@ void app_main(void)
     {
         if (ESP_OK == ret)
             ld2410_get_data(&ld2410_output);
+
+        vTaskDelay(100/ portTICK_RATE_MS);
     }
 }

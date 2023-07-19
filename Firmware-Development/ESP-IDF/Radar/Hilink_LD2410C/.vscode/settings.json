@@ -1,6 +1,8 @@
 {
     "idf.adapterTargetName": "esp32s3",
     "files.associations": {
-        "ld2410_uart.h": "c"
+        "ld2410_uart.h": "c",
+        "string.h": "c",
+        "ezlopi_uart.h": "c"
     }
 }

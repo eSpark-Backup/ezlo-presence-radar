@@ -11,6 +11,9 @@
  *
  */
 #include "ld2410_driver.h"
+#include "ezlopi_uart.h"
+
+static bool ld2410_process_frame_(unsigned char *data, size_t buffer_size);
 
 uint8_t firmware_major_version = 0;								//Reported major version
 uint8_t firmware_minor_version = 0;								//Reported minor version
@@ -49,13 +52,117 @@ static void ld2410_send_command_postamble_();									//Commands have the same p
 static bool ld2410_enter_configuration_mode_();								//Necessary before sending any command
 static bool ld2410_leave_configuration_mode_();								//Will not read values without leaving command mode
 
-/*	Function definition	*/
-bool ld2410_begin(bool wait_for_radar)	
+#define DATA_BUF_LENGTH 23
+void func(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, void* user_args)
 {
-	if (ESP_OK != ld2410_uart_setup())
+	static uint8_t buf[DATA_BUF_LENGTH] ={0};
+	static uint8_t count =0;
+
+	if (uart_object_handle->buf_size+ count >= DATA_BUF_LENGTH)
 	{
-		return false;
+		uint8_t size_to_copy = DATA_BUF_LENGTH - count;
+		memcpy(buf+count, buffer, size_to_copy);	
+		ld2410_process_frame_(buf, DATA_BUF_LENGTH);
+		uint8_t remaining_buf = uart_object_handle->buf_size - size_to_copy;
+		count =0;
+		if (remaining_buf)
+		{
+			memcpy(buf, buffer+size_to_copy, remaining_buf);
+			count = remaining_buf;
+		}
 	}
+	else
+	{
+		memcpy(buf+count, buffer, uart_object_handle->buf_size);
+		count += uart_object_handle->buf_size;
+	}
+}
+
+static bool ld2410_process_frame_(unsigned char *data, size_t buffer_size)
+{
+	bool ret = false;
+
+	for (; radar_data_frame_position_ < buffer_size; radar_data_frame_position_++)
+	{
+		radar_data_frame_[radar_data_frame_position_] = data[radar_data_frame_position_];
+	}
+
+	if (false == frame_started_)
+	{
+		if (0xF4 == radar_data_frame_[0])
+		{
+			frame_started_ = true;
+			ack_frame_ = false;
+		}
+		else if (0xFD == radar_data_frame_[0])
+		{
+			frame_started_ = true;
+			ack_frame_ = true;
+		}
+	}
+
+	if (radar_data_frame_[0] 								== 0xFD &&
+		radar_data_frame_[1] 								== 0xFC &&
+		radar_data_frame_[2] 								== 0xFB &&
+		radar_data_frame_[3] 								== 0xFA &&
+		radar_data_frame_[radar_data_frame_position_ - 4] 	== 0x04 &&
+		radar_data_frame_[radar_data_frame_position_ - 3] 	== 0x03 &&
+		radar_data_frame_[radar_data_frame_position_ - 2] 	== 0x02 &&
+		radar_data_frame_[radar_data_frame_position_ - 1] 	== 0x01)
+	{
+		if (ld2410_parse_command_frame_())
+		{
+			printf("\tCommand parsed successfully!\n");
+			ret = true;
+		}
+		else
+		{
+			printf("\tError parsing command!!\n");
+			ret = false;
+		}
+	}
+
+	else if(radar_data_frame_[0]                              == 0xF4 &&	//Data frame end state
+			radar_data_frame_[1]                              == 0xF3 &&
+			radar_data_frame_[2]                              == 0xF2 &&
+			radar_data_frame_[3]                              == 0xF1 &&
+			radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
+			radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
+			radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
+			radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5)
+	{
+		if (ld2410_parse_data_frame_())
+		{
+			printf("\tData parsed successfully!!\n");
+			ret = true;
+		}
+		else
+		{
+			printf("\tError parsing data!!\n");
+			ret = false;
+		}
+	}
+	else
+	{
+		printf("Buffer overflow occured!!\n");
+	}
+
+	frame_started_ = false;
+	radar_data_frame_position_ = 0;
+
+	return ret;
+}
+
+/*	Function definition	*/
+bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_object_handle_t* ezlo_ld2410_uart_handle)	
+{
+	// if (ESP_OK != ld2410_uart_setup())
+	// {
+	// 	return false;
+	// }
+	*ezlo_ld2410_uart_handle = ezlopi_uart_init(256000, RADAR_TX_PIN, RADAR_RX_PIN, func, NULL);
+	printf("Uart task handle 0x%X\n", (uint32_t)(*ezlo_ld2410_uart_handle)->taskHandle);
+	vTaskSuspend((*ezlo_ld2410_uart_handle)->taskHandle);
 	
 	#ifdef LD2410_DEBUG_INITIALIZATION
 		printf("ld2410 started");

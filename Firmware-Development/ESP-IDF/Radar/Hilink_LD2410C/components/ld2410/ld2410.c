@@ -1,15 +1,18 @@
 #include "ld2410.h"
+#include "trace.h"
 
 static const char* TAG = "ld2410";
-static uint32_t last_reading = 0;
+s_ezlopi_uart_object_handle_t ezlo_ld2410_uart_handle = NULL;
 
 esp_err_t ld2410_setup(void)
 {
     printf("\nConnect LD2410 radar TX to GPIO: %d\n", RADAR_RX_PIN);
     printf("Connect LD2410 radar RX to GPIO: %d\n", RADAR_TX_PIN);
     printf("LD2410 radar sensor initialising:\n");
-    if(ld2410_begin(true))
+    printf("handle : 0x%X\n", (uint32_t)ezlo_ld2410_uart_handle);
+    if(ld2410_begin(true, &ezlo_ld2410_uart_handle))
     {
+        printf("handle : 0x%X\n", (uint32_t)ezlo_ld2410_uart_handle->taskHandle);
         printf("OK\n");
         // ld2410_set_max_values(DISTANCE_600CM, DISTANCE_525CM, 5); // (max_moving_distance, max_still_distance, no_one_duration in seconds)
 
@@ -20,11 +23,13 @@ esp_err_t ld2410_setup(void)
         {
             .max_still_distance = DISTANCE_525CM,
             .max_move_distance = DISTANCE_525CM,
-            .min_still_distance = DISTANCE_300CM,
-            .min_move_distance = DISTANCE_300CM,
+            .min_still_distance = DISTANCE_0CM,
+            .min_move_distance = DISTANCE_0CM,
             .no_one_duration = 5
         };
         ld2410_set_template(CUSTOM_TEMPLATE, &settings);
+        // vTaskDelay(100/ portTICK_RATE_MS);
+        vTaskResume(ezlo_ld2410_uart_handle->taskHandle);
         return ESP_OK;
     }
     else
@@ -167,38 +172,26 @@ esp_err_t ld2410_get_data(ld2410_outputs_t* output)
     {
         return ESP_FAIL;
     }
-    
-    esp_err_t ret = ESP_OK;
-    if (!ld2410_read())
+
+    if(ld2410_presence_detected())
     {
-        ret = ESP_FAIL;
+        output->presence = true;
+        if(ld2410_stationary_target_detected())
+        {
+            output->stationary_target_distance = ld2410_stationary_target_distance();
+            TRACE_I("Stationary target: %d cm | energy: %d", output->stationary_target_distance, ld2410_stationary_target_energy());
+        }
+        if(ld2410_moving_target_detected())
+        {
+            output->moving_target_distance = ld2410_moving_target_distance();
+            TRACE_I("Moving target: %d cm | energy: %d", output->moving_target_distance, ld2410_moving_target_energy());
+        }
+    }
+    else
+    {
+        output->presence = false;
+        TRACE_I("No target\n");
     }
 
-    if(ld2410_is_connected() && millis() - last_reading > 300)  //Report every 300ms
-    {
-        last_reading = millis();
-        if(ld2410_presence_detected())
-        {
-            output->presence = true;
-            if(ld2410_stationary_target_detected())
-            {
-                output->stationary_target_distance = ld2410_stationary_target_distance();
-                printf("Stationary target: %d ", output->stationary_target_distance);
-                printf("cm energy: %d ", ld2410_stationary_target_energy());
-            }
-            if(ld2410_moving_target_detected())
-            {
-                output->moving_target_distance = ld2410_moving_target_distance();
-                printf("Moving target: %d ", output->moving_target_distance);
-                printf("cm energy: %d ", ld2410_moving_target_energy());
-            }
-            printf("\n");
-        }
-        else
-        {
-            output->presence = false;
-            printf("No target\n");
-        }
-    }
-    return ret;
+    return ESP_OK;
 }

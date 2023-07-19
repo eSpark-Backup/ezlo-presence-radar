@@ -16,6 +16,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ld2410_uart.h"
+#include "ezlopi_uart.h"
 
 typedef unsigned char byte;
 #define delay(x) vTaskDelay(x/portTICK_RATE_MS)
@@ -44,7 +45,7 @@ typedef enum distance
 extern "C" {
 #endif		
 
-bool ld2410_begin(bool wait_for_radar);				//Start the ld2410 // defaults to true
+bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_object_handle_t* ezlo_ld2410_uart_handle);				//Start the ld2410 // defaults to true
 bool ld2410_is_connected();
 bool ld2410_read();
 bool ld2410_presence_detected();
