@@ -154,13 +154,13 @@ static bool ld2410_process_frame_(unsigned char *data, size_t buffer_size)
 }
 
 /*	Function definition	*/
-bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_object_handle_t* ezlo_ld2410_uart_handle)	
+bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_t uart_settings, s_ezlopi_uart_object_handle_t* ezlo_ld2410_uart_handle)	
 {
 	// if (ESP_OK != ld2410_uart_setup())
 	// {
 	// 	return false;
 	// }
-	*ezlo_ld2410_uart_handle = ezlopi_uart_init(256000, RADAR_TX_PIN, RADAR_RX_PIN, func, NULL);
+	*ezlo_ld2410_uart_handle = ezlopi_uart_init(uart_settings.baudrate, uart_settings.tx, uart_settings.rx, func, NULL);
 	printf("Uart task handle 0x%X\n", (uint32_t)(*ezlo_ld2410_uart_handle)->taskHandle);
 	vTaskSuspend((*ezlo_ld2410_uart_handle)->taskHandle);
 	

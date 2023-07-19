@@ -10,7 +10,13 @@ ld2410_outputs_t ld2410_output;
 void app_main(void)
 {
     esp_err_t ret = ESP_OK;
-    ret = ld2410_setup();
+    s_ezlopi_uart_t uart_settings = 
+    {
+        .baudrate = 256000,
+        .tx = RADAR_TX_PIN,
+        .rx = RADAR_RX_PIN
+    };
+    ret = ld2410_setup(uart_settings);
 
     while (1) 
     {

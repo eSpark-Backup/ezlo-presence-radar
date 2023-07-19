@@ -4,21 +4,15 @@
 static const char* TAG = "ld2410";
 s_ezlopi_uart_object_handle_t ezlo_ld2410_uart_handle = NULL;
 
-esp_err_t ld2410_setup(void)
+esp_err_t ld2410_setup(s_ezlopi_uart_t uart_settings)
 {
     printf("\nConnect LD2410 radar TX to GPIO: %d\n", RADAR_RX_PIN);
     printf("Connect LD2410 radar RX to GPIO: %d\n", RADAR_TX_PIN);
     printf("LD2410 radar sensor initialising:\n");
-    printf("handle : 0x%X\n", (uint32_t)ezlo_ld2410_uart_handle);
-    if(ld2410_begin(true, &ezlo_ld2410_uart_handle))
+    if(ld2410_begin(true, uart_settings, &ezlo_ld2410_uart_handle))
     {
-        printf("handle : 0x%X\n", (uint32_t)ezlo_ld2410_uart_handle->taskHandle);
         printf("OK\n");
-        // ld2410_set_max_values(DISTANCE_600CM, DISTANCE_525CM, 5); // (max_moving_distance, max_still_distance, no_one_duration in seconds)
 
-        // uint8_t mov_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20}; // Gate 0 to 8 sensitivity : sensitivity range 0-100
-        // uint8_t still_sensitivity[9] = {20, 20, 20, 20, 20, 20, 20, 20, 20}; // Gate 0 to 8 sensitivity : sensitivity range 0-100
-        // ld2410_set_gates_sensitivity_threshold(mov_sensitivity, still_sensitivity);
         ld2410_settings_t settings = 
         {
             .max_still_distance = DISTANCE_525CM,
@@ -27,9 +21,9 @@ esp_err_t ld2410_setup(void)
             .min_move_distance = DISTANCE_0CM,
             .no_one_duration = 5
         };
+        ld2410_stop_reading();
         ld2410_set_template(CUSTOM_TEMPLATE, &settings);
-        // vTaskDelay(100/ portTICK_RATE_MS);
-        vTaskResume(ezlo_ld2410_uart_handle->taskHandle);
+        ld2410_start_reading();
         return ESP_OK;
     }
     else
@@ -211,4 +205,14 @@ esp_err_t ld2410_get_data(ld2410_outputs_t* output)
     }
 
     return ESP_OK;
+}
+
+void ld2410_start_reading()
+{
+    vTaskResume(ezlo_ld2410_uart_handle->taskHandle);
+}
+
+void ld2410_stop_reading()
+{
+    vTaskSuspend(ezlo_ld2410_uart_handle->taskHandle);
 }

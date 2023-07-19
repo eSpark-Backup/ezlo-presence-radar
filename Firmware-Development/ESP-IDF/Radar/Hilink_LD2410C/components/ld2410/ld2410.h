@@ -43,6 +43,8 @@ typedef struct ld2410_outputs
     bool presence;
 } ld2410_outputs_t;
 
-esp_err_t ld2410_setup(void);
+esp_err_t ld2410_setup(s_ezlopi_uart_t ld2410_setup);
 esp_err_t ld2410_get_data(ld2410_outputs_t* output);
 esp_err_t ld2410_set_template(ld2410_template_t template, ld2410_settings_t* p_settings);
+void ld2410_start_reading();
+void ld2410_stop_reading();
