@@ -28,6 +28,9 @@ typedef unsigned char byte;
 // #define LD2410_DEBUG_COMMANDS
 // #define LD2410_DEBUG_PARSE
 
+#define RESET_ERROR 0
+#define ALIGNMENT_ERROR 1
+
 typedef enum distance
 {
 	DISTANCE_0CM = 0,

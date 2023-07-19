@@ -55,14 +55,33 @@ static bool ld2410_leave_configuration_mode_();								//Will not read values wi
 #define DATA_BUF_LENGTH 23
 void func(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, void* user_args)
 {
+	static uint8_t error = 0;
 	static uint8_t buf[DATA_BUF_LENGTH] ={0};
 	static uint8_t count =0;
 
+	if (ALIGNMENT_ERROR == error)
+	{
+		for (uint8_t x =0; x < uart_object_handle->buf_size; x++)
+		{
+			if (0xF4 == buffer[x])
+			{
+				uart_object_handle->buf_size -= x;
+				buffer+=x;
+				count =0;
+				error = RESET_ERROR;
+				break;
+			}
+		}
+	}
+	
 	if (uart_object_handle->buf_size+ count >= DATA_BUF_LENGTH)
 	{
 		uint8_t size_to_copy = DATA_BUF_LENGTH - count;
 		memcpy(buf+count, buffer, size_to_copy);	
-		ld2410_process_frame_(buf, DATA_BUF_LENGTH);
+		if(!ld2410_process_frame_(buf, DATA_BUF_LENGTH))
+		{
+			error = ALIGNMENT_ERROR;
+		}
 		uint8_t remaining_buf = uart_object_handle->buf_size - size_to_copy;
 		count =0;
 		if (remaining_buf)
