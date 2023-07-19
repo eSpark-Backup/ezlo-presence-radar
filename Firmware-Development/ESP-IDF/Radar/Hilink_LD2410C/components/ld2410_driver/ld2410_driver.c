@@ -53,7 +53,7 @@ static bool ld2410_enter_configuration_mode_();								//Necessary before sendin
 static bool ld2410_leave_configuration_mode_();								//Will not read values without leaving command mode
 
 #define DATA_BUF_LENGTH 23
-void func(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, void* user_args)
+static void ld2410_callback(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, void* user_args)
 {
 	static uint8_t error = 0;
 	static uint8_t buf[DATA_BUF_LENGTH] ={0};
@@ -73,7 +73,7 @@ void func(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, voi
 			}
 		}
 	}
-	
+
 	if (uart_object_handle->buf_size+ count >= DATA_BUF_LENGTH)
 	{
 		uint8_t size_to_copy = DATA_BUF_LENGTH - count;
@@ -179,7 +179,7 @@ bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_t uart_settings, s_ezlopi_u
 	// {
 	// 	return false;
 	// }
-	*ezlo_ld2410_uart_handle = ezlopi_uart_init(uart_settings.baudrate, uart_settings.tx, uart_settings.rx, func, NULL);
+	*ezlo_ld2410_uart_handle = ezlopi_uart_init(uart_settings.baudrate, uart_settings.tx, uart_settings.rx, ld2410_callback, NULL);
 	printf("Uart task handle 0x%X\n", (uint32_t)(*ezlo_ld2410_uart_handle)->taskHandle);
 	vTaskSuspend((*ezlo_ld2410_uart_handle)->taskHandle);
 	
