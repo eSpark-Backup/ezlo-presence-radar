@@ -181,10 +181,27 @@ esp_err_t ld2410_get_data(ld2410_outputs_t* output)
             output->stationary_target_distance = ld2410_stationary_target_distance();
             TRACE_I("Stationary target: %d cm | energy: %d", output->stationary_target_distance, ld2410_stationary_target_energy());
         }
+
         if(ld2410_moving_target_detected())
         {
-            output->moving_target_distance = ld2410_moving_target_distance();
-            TRACE_I("Moving target: %d cm | energy: %d", output->moving_target_distance, ld2410_moving_target_energy());
+            uint16_t new_distance = ld2410_moving_target_distance();
+            if (output->moving_target_distance < new_distance)
+            {
+                output->direction = MOVING_AWAY;
+                TRACE_E(stringify(MOVING_AWAY));
+            }
+            else if (output->moving_target_distance > new_distance)
+            {
+                output->direction = APPROACHING;
+                TRACE_E(stringify(APPROACHING));
+            }
+            
+            output->moving_target_distance = new_distance;
+            TRACE_I("Moving target: %d cm | energy: %d", output->moving_target_distance, new_distance);
+        }
+        else
+        {
+            output->direction = STATIONARY;
         }
     }
     else

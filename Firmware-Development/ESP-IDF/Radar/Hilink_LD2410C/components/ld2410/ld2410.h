@@ -3,6 +3,7 @@
 #include "ld2410_driver.h"
 
 #define TEST_SETTINGS 1
+#define stringify(s) #s
 
 typedef enum ld2410_template
 {
@@ -27,11 +28,19 @@ typedef struct ld2410_settings
     uint16_t    no_one_duration;
 } ld2410_settings_t;
 
+typedef enum target_direction
+{
+    STATIONARY,
+    APPROACHING,
+    MOVING_AWAY
+} target_direction_t;
+
 typedef struct ld2410_outputs
 {
-   bool     presence;
-   uint16_t moving_target_distance; // in cm
-   uint16_t stationary_target_distance; // in cm
+    uint16_t moving_target_distance; // in cm
+    uint16_t stationary_target_distance; // in cm
+    target_direction_t direction;
+    bool presence;
 } ld2410_outputs_t;
 
 esp_err_t ld2410_setup(void);
