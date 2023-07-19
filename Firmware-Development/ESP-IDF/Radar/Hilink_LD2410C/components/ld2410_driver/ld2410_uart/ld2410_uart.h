@@ -5,6 +5,7 @@
 #include "esp_check.h"
 #include "string.h"
 
+#define LD2410_BAUDRATE 256000
 #define RADAR_TX_PIN GPIO_NUM_12
 #define RADAR_RX_PIN GPIO_NUM_13
 

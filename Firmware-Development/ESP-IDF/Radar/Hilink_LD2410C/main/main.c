@@ -12,7 +12,7 @@ void app_main(void)
     esp_err_t ret = ESP_OK;
     s_ezlopi_uart_t uart_settings = 
     {
-        .baudrate = 256000,
+        .baudrate = LD2410_BAUDRATE,
         .tx = RADAR_TX_PIN,
         .rx = RADAR_RX_PIN
     };
