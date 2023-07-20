@@ -138,8 +138,12 @@ void setup()
   printf("Setup over........\n");
 }
  
+ #define PRECISION 1
+ #define ERROR_OFFSET 0
 void loop()
 {
+  memset(anchor_distance, 0, sizeof(anchor_distance)); 
+  for (size_t precision = 0; precision < PRECISION; precision++){
   for (size_t anchor_no = 0; anchor_no < NO_OF_ANCHORS; anchor_no++)
   {
     /* Write frame data to DW IC and prepare transmission. See NOTE 7 below. */
@@ -202,10 +206,10 @@ void loop()
             distance = tof * SPEED_OF_LIGHT;
 
             /* Display computed distance on LCD. */
-            printf("Receiver %d\t", anchor_no);
-            snprintf(dist_str, sizeof(dist_str), "DIST: %3.2f m", distance);
-            test_run_info((unsigned char *)dist_str);
-            anchor_distance[anchor_no] = distance;
+            // printf("Receiver %d\t", anchor_no);
+            // snprintf(dist_str, sizeof(dist_str), "DIST: %3.2f m", distance);
+            // test_run_info((unsigned char *)dist_str);
+            anchor_distance[anchor_no] += (distance + ERROR_OFFSET);
         }         
       }
     }
@@ -214,19 +218,26 @@ void loop()
       /* Clear RX error/timeout events in the DW IC status register. */
       dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
     }
-    Sleep(50);
   }
+}
 
   // test();
   // return;
   // Anchor Point2Ds
+  printf("Distance (%3.2f, %3.2f, %3.2f) m\n", anchor_distance[0]/PRECISION, anchor_distance[1]/PRECISION, anchor_distance[2]/PRECISION);
   Point3D anchor1 = {0.0f, 0.0f, 0.0f};
   Point3D anchor2 = {0.7f, 0.0f, 0.0f};
   Point3D anchor3 = {0.0f, 0.5f, 0.0f};
 
   // Perform trilateration
-  // Point3D target = trilaterate3d(anchor1, anchor2, anchor3, anchor_distance[0], anchor_distance[1], anchor_distance[2]);
-
+  // if (((anchor_distance[0]/PRECISION) < 0.7) && ((anchor_distance[0]/PRECISION) < 0.7) && ((anchor_distance[0]/PRECISION) < 0.7))
+  // {
+  //   Point3D target = trilaterate3d(anchor1, anchor2, anchor3, (anchor_distance[0]/PRECISION) , (anchor_distance[1]/PRECISION), (anchor_distance[2]/PRECISION));
+  // }
+  // else 
+  // {
+    Point3D target = trilaterate3d(anchor1, anchor2, anchor3, anchor_distance[0]/PRECISION, anchor_distance[1]/PRECISION, anchor_distance[2]/PRECISION);
+  // }
   // Print the coordinates of the target Point2D
   
 

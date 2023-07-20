@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include "math.h"
 #include "trilateration.hpp"
 
 Point2D trilaterate2d(Point2D anchor1, Point2D anchor2, Point2D anchor3, float range1, float range2, float range3) {
@@ -74,7 +75,11 @@ Point3D trilaterate3d(Point3D anchor1, Point3D anchor2, Point3D anchor3, float r
     target.x = x1 + x * exx + y * eyx + z * ezx;
     target.y = y1 + x * exy + y * eyy + z * ezy;
     target.z = z1 + x * exz + y * eyz + z * ezz;
-    printf ("Target coordinates: (%0.2f, %0.2f, %0.2f)\n",target.x, target.y, target.z);
+    if (!isnan(target.x))
+    {
+        printf ("Target coordinates: (%0.2f, %0.2f, %0.2f)\n\n", target.x, target.y, target.z);
+    }
+    
     return target;
 }
 
