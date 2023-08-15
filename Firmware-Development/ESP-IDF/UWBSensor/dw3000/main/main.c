@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "driver/spi_master.h"
 #include "dw3000.h"
-#include "trilateration.hpp"
+#include "trilateration.h"
 
 #define TAG
 
@@ -17,7 +17,7 @@ const uint8_t PIN_SS = SPI_CS_UWB; // spi select pin
 void setup();
 void loop();
 
-extern "C" void app_main(void)
+void app_main(void)
 {
   spiBegin(SPI_MOSI_UWB, SPI_MISO_UWB, SPI_SCK_UWB, PIN_IRQ, PIN_RST);
   spiSelect(PIN_SS);
@@ -225,18 +225,18 @@ void loop()
   // return;
   // Anchor Point2Ds
   printf("Distance (%3.2f, %3.2f, %3.2f) m\n", anchor_distance[0]/PRECISION, anchor_distance[1]/PRECISION, anchor_distance[2]/PRECISION);
-  Point3D anchor1 = {0.0f, 0.0f, 0.0f};
-  Point3D anchor2 = {0.7f, 0.0f, 0.0f};
-  Point3D anchor3 = {0.0f, 0.5f, 0.0f};
+  point_3d_t anchor1 = {0.0f, 0.0f, 0.0f};
+  point_3d_t anchor2 = {0.7f, 0.0f, 0.0f};
+  point_3d_t anchor3 = {0.0f, 0.5f, 0.0f};
 
   // Perform trilateration
   // if (((anchor_distance[0]/PRECISION) < 0.7) && ((anchor_distance[0]/PRECISION) < 0.7) && ((anchor_distance[0]/PRECISION) < 0.7))
   // {
-  //   Point3D target = trilaterate3d(anchor1, anchor2, anchor3, (anchor_distance[0]/PRECISION) , (anchor_distance[1]/PRECISION), (anchor_distance[2]/PRECISION));
+  //   point_3d_t target = trilaterate3d(anchor1, anchor2, anchor3, (anchor_distance[0]/PRECISION) , (anchor_distance[1]/PRECISION), (anchor_distance[2]/PRECISION));
   // }
   // else 
   // {
-    Point3D target = trilaterate3d(anchor1, anchor2, anchor3, anchor_distance[0]/PRECISION, anchor_distance[1]/PRECISION, anchor_distance[2]/PRECISION);
+  point_3d_t target = trilaterate3d(anchor1, anchor2, anchor3, anchor_distance[0]/PRECISION, anchor_distance[1]/PRECISION, anchor_distance[2]/PRECISION);
   // }
   // Print the coordinates of the target Point2D
   

@@ -182,7 +182,8 @@ void Sleep(uint32_t d);
 void enableDebounceClock();
 void wakeup_device_with_io();
 
-void port_set_dw_ic_spi_fastrate(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq = DEFAULT_IRQ, uint8_t rst = DEFAULT_RST, uint8_t ss = DEFAULT_SS);
+void port_set_dw_ic_spi_fastrate(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq, uint8_t rst, uint8_t ss);
+// void port_set_dw_ic_spi_fastrate(uint8_t mosi, uint8_t miso, uint8_t sck, uint8_t irq = DEFAULT_IRQ, uint8_t rst = DEFAULT_RST, uint8_t ss = DEFAULT_SS); 
 
 uint32_t port_GetEXT_IRQStatus(void);
 uint32_t port_CheckEXT_IRQ(void);
