@@ -5,3 +5,4 @@ EULA
 LICENSE
 sdkconfig.old
 sdkconfig.ci
+.vscode/
