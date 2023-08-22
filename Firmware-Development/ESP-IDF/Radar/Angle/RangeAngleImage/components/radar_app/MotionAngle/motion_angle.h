@@ -54,10 +54,17 @@ extern "C"
 {
 #endif // __cplusplus
 
+typedef struct {
+    double x;
+    double y;
+} CartesianPoint;
+
 ifx_Error_t ma_init(ma_t* ma_context);
 ifx_Error_t ma_config(ma_t* ma_context, ifx_Avian_Config_t* ifx_config);
 ifx_Error_t ma_process(ma_t* ma_context, ifx_Target_Result_t* target_result, const ifx_Cube_R_t* frame);
 void ma_cleanup(ma_t* ma_context);
+int ma_get_segment(double x, double y, double limit);
+CartesianPoint polarToCartesian(double r, double theta_deg) ;
 
 #ifdef __cplusplus
 } // extern "C"

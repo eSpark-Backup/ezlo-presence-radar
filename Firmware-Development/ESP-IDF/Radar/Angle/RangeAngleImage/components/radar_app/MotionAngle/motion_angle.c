@@ -99,6 +99,7 @@ static ifx_MotionAngle_t *ifx_motionangle_create(ifx_MotionAngle_Config_t *confi
     const ifx_Float_t chirptime_s = ifx_devconf_get_chirp_time(ifx_config);
     h->speed_spec = ifx_spectrum_axis_calc_speed_axis(IFX_FFT_TYPE_C2C, doppler_fft_size, center_freq_Hz, chirptime_s);
 
+    #if 0
     // Calibration Matrix R1C1
     h->calibration_matrix->d[0].data[0] = 1.0;
     h->calibration_matrix->d[0].data[1] = 0.0;
@@ -114,7 +115,23 @@ static ifx_MotionAngle_t *ifx_motionangle_create(ifx_MotionAngle_Config_t *confi
     // Calibration Matrix R2C2
     h->calibration_matrix->d[3].data[0] = 0.4868;
     h->calibration_matrix->d[3].data[1] = 0.7859;
+    #else
+    // Calibration Matrix R1C1
+    h->calibration_matrix->d[0].data[0] = 1.0;
+    h->calibration_matrix->d[0].data[1] = 0.0;
 
+    // Calibration Matrix R1C2
+    h->calibration_matrix->d[1].data[0] = 0.0;
+    h->calibration_matrix->d[1].data[1] = 0.0;
+
+    // Calibration Matrix R2C1
+    h->calibration_matrix->d[2].data[0] = 0.0;
+    h->calibration_matrix->d[2].data[1] = 0.0;
+
+    // Calibration Matrix R2C2
+    h->calibration_matrix->d[3].data[0] = -0.7332;
+    h->calibration_matrix->d[3].data[1] = -0.68;
+    #endif
     h->num_antenna_array = config->num_antenna_array;
     return h;
 }
@@ -255,10 +272,79 @@ ifx_Error_t ma_config(ma_t *ma_context, ifx_Avian_Config_t *ifx_config)
 ifx_Error_t ma_process(ma_t *ma_context,ifx_Target_Result_t* target_result, const ifx_Cube_R_t *frame)
 {
     ifx_motionangle_run(ma_context->handle, frame, target_result);
+    if (target_result->angle_azimuth < 0)
+    {
+        target_result->angle_azimuth = 90 - target_result->angle_azimuth;
+    }
+    CartesianPoint point = polarToCartesian(target_result->range, target_result->angle_azimuth);
+    printf("x : %0.2f, y : %0.2f\n", point.x, point.y);
+    printf("Segment %d\n", ma_get_segment(point.x, point.y, 4.8));
     return ifx_error_get();
 }
 
 void ma_cleanup(ma_t *ma_context)
 {
     ifx_motionangle_destroy(ma_context->handle);
+}
+
+int ma_get_segment(double x, double y, double limit) 
+{
+    double absX = x < 0 ? -x : x;
+    double absY = y < 0 ? -y : y;
+
+    if (absX <= limit && absY <= limit) 
+    {
+        if (x >= 0 && y >= 0) 
+        {
+            if (x <= limit / 2 && y <= limit / 2) 
+            {
+                return 3;
+            } 
+            else if (x <= limit / 2 && y > limit / 2 && y < limit) 
+            {
+                return 4;
+            } 
+            else if (x > limit / 2 && y > limit / 2 && y < limit)
+            {
+                return 2;
+            }
+            else if (x > limit / 2 && y <= limit / 2)
+            {
+                return 1;
+            }
+        }
+        else if (x <= 0 && y >= 0) 
+        {
+            if (absX <= limit / 2 && absY <= limit / 2) 
+            {
+                return 5;
+            } 
+            else if (absX <= limit / 2 && absY > limit / 2 && absY < limit) 
+            {
+                return 6;
+            } 
+            else if (absX > limit / 2 && absY > limit / 2 && absY < limit)
+            {
+                return 8;
+            }
+            else if (absX > limit / 2 && absY <= limit / 2)
+            {
+                return 7;
+            }
+        } 
+    }
+
+    return 0;
+}
+
+CartesianPoint polarToCartesian(double r, double theta_deg) {
+    // Convert theta to radians
+    double theta_rad = theta_deg * M_PI / 180.0;
+
+    // Calculate Cartesian coordinates
+    CartesianPoint point;
+    point.x = r * cos(theta_rad);
+    point.y = r * sin(theta_rad);
+
+    return point;
 }
