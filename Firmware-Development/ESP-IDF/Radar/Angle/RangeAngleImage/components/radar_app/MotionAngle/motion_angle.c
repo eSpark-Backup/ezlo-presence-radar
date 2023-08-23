@@ -276,7 +276,7 @@ ifx_Error_t ma_process(ma_t *ma_context,ifx_Target_Result_t* target_result, cons
     {
         target_result->angle_azimuth = 90 - target_result->angle_azimuth;
     }
-    CartesianPoint point = polarToCartesian(target_result->range, target_result->angle_azimuth);
+    cartesian_point_t point = polar_to_cartesian(target_result->range, target_result->angle_azimuth);
     printf("x : %0.2f, y : %0.2f\n", point.x, point.y);
     printf("Segment %d\n", ma_get_segment(point.x, point.y, 4.8));
     return ifx_error_get();
@@ -287,7 +287,7 @@ void ma_cleanup(ma_t *ma_context)
     ifx_motionangle_destroy(ma_context->handle);
 }
 
-int ma_get_segment(double x, double y, double limit) 
+uint8_t ma_get_segment(double x, double y, double limit) 
 {
     double absX = x < 0 ? -x : x;
     double absY = y < 0 ? -y : y;
@@ -337,14 +337,14 @@ int ma_get_segment(double x, double y, double limit)
     return 0;
 }
 
-CartesianPoint polarToCartesian(double r, double theta_deg) {
+cartesian_point_t polar_to_cartesian(double radius, double theta_deg) {
     // Convert theta to radians
     double theta_rad = theta_deg * M_PI / 180.0;
 
     // Calculate Cartesian coordinates
-    CartesianPoint point;
-    point.x = r * cos(theta_rad);
-    point.y = r * sin(theta_rad);
+    cartesian_point_t point;
+    point.x = radius * cos(theta_rad);
+    point.y = radius * sin(theta_rad);
 
     return point;
 }
