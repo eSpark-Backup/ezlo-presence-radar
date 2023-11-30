@@ -20,9 +20,16 @@ void app_main(void)
 
     while (1) 
     {
+        static int count = 0;
+        count++;
         if (ESP_OK == ret)
+        {
             ld2410_get_data(&ld2410_output);
-
-        vTaskDelay(100/ portTICK_RATE_MS);
+            if (0 == (count % 100))
+            {
+                ld2410_set_template(SLEEP_TEMPLATE_LONG_RANGE, NULL);
+            }
+        }
+        vTaskDelay( 100 / portTICK_RATE_MS );
     }
 }

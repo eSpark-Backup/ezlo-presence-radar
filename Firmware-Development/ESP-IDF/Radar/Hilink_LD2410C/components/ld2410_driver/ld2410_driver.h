@@ -15,7 +15,6 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "ld2410_uart.h"
 #include "ezlopi_uart.h"
 
 typedef unsigned char byte;
@@ -48,7 +47,7 @@ typedef enum distance
 extern "C" {
 #endif		
 
-bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_t uart_settings, s_ezlopi_uart_object_handle_t* ezlo_ld2410_uart_handle);				//Start the ld2410 // defaults to true
+bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_t uart_settings);				//Start the ld2410 // defaults to true
 bool ld2410_is_connected();
 bool ld2410_read();
 bool ld2410_presence_detected();
@@ -68,7 +67,8 @@ bool ld2410_request_end_engineering_mode();
 bool ld2410_set_max_values(uint16_t moving, uint16_t stationary, uint16_t inactivity_timer);	//Realistically gate values are 0-8 but sent as uint16_t
 bool ld2410_set_gate_sensitivity_threshold(uint8_t gate, uint8_t moving, uint8_t stationary);
 bool ld2410_set_gates_sensitivity_threshold(uint8_t* moving, uint8_t* stationary);
-
+void ld2410_driver_start_reading();
+void ld2410_driver_stop_reading();
 #ifdef __cplusplus
 }
 #endif	

@@ -1,9 +1,14 @@
 #pragma once
 
 #include "ld2410_driver.h"
+#include "driver/gpio.h"
 
 #define TEST_SETTINGS 1
 #define stringify(s) #s
+
+#define LD2410_BAUDRATE 256000
+#define RADAR_TX_PIN GPIO_NUM_12
+#define RADAR_RX_PIN GPIO_NUM_13
 
 typedef enum ld2410_template
 {

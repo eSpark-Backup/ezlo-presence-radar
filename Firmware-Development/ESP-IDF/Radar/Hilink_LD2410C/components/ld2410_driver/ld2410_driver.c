@@ -13,7 +13,7 @@
 #include "ld2410_driver.h"
 #include "ezlopi_uart.h"
 
-static bool ld2410_process_frame_(unsigned char *data, size_t buffer_size);
+s_ezlopi_uart_object_handle_t ezlo_ld2410_uart_handle = NULL;
 
 uint8_t firmware_major_version = 0;								//Reported major version
 uint8_t firmware_minor_version = 0;								//Reported minor version
@@ -43,7 +43,8 @@ static uint8_t moving_target_energy_ = 0;
 static uint16_t stationary_target_distance_ = 0;
 static uint8_t stationary_target_energy_ = 0;
 
-static bool ld2410_read_frame_();												//Try to read a frame from the UART
+static size_t ld2410_uart_write_byte(uint8_t byte);
+static bool ld2410_read_frame_(uint8_t l_byte);												//Try to read a frame from the UART
 static bool ld2410_parse_data_frame_();										//Is the current data frame valid?
 static bool ld2410_parse_command_frame_();									//Is the current command frame valid?
 static void ld2410_print_frame_();											//Print the frame for debugging
@@ -55,133 +56,16 @@ static bool ld2410_leave_configuration_mode_();								//Will not read values wi
 #define DATA_BUF_LENGTH 23
 static void ld2410_callback(uint8_t* buffer, s_ezlopi_uart_object_handle_t uart_object_handle, void* user_args)
 {
-	static uint8_t error = 0;
-	static uint8_t buf[DATA_BUF_LENGTH] ={0};
-	static uint8_t count =0;
-
-	if (ALIGNMENT_ERROR == error)
+	for (size_t i = 0; i < uart_object_handle->buf_size; i++)
 	{
-		for (uint8_t x =0; x < uart_object_handle->buf_size; x++)
-		{
-			if (0xF4 == buffer[x])
-			{
-				uart_object_handle->buf_size -= x;
-				buffer+=x;
-				count =0;
-				error = RESET_ERROR;
-				break;
-			}
-		}
+		ld2410_read_frame_(buffer[i]);
 	}
-
-	if (uart_object_handle->buf_size+ count >= DATA_BUF_LENGTH)
-	{
-		uint8_t size_to_copy = DATA_BUF_LENGTH - count;
-		memcpy(buf+count, buffer, size_to_copy);	
-		if(!ld2410_process_frame_(buf, DATA_BUF_LENGTH))
-		{
-			error = ALIGNMENT_ERROR;
-		}
-		uint8_t remaining_buf = uart_object_handle->buf_size - size_to_copy;
-		count =0;
-		if (remaining_buf)
-		{
-			memcpy(buf, buffer+size_to_copy, remaining_buf);
-			count = remaining_buf;
-		}
-	}
-	else
-	{
-		memcpy(buf+count, buffer, uart_object_handle->buf_size);
-		count += uart_object_handle->buf_size;
-	}
-}
-
-static bool ld2410_process_frame_(unsigned char *data, size_t buffer_size)
-{
-	bool ret = false;
-
-	for (; radar_data_frame_position_ < buffer_size; radar_data_frame_position_++)
-	{
-		radar_data_frame_[radar_data_frame_position_] = data[radar_data_frame_position_];
-	}
-
-	if (false == frame_started_)
-	{
-		if (0xF4 == radar_data_frame_[0])
-		{
-			frame_started_ = true;
-			ack_frame_ = false;
-		}
-		else if (0xFD == radar_data_frame_[0])
-		{
-			frame_started_ = true;
-			ack_frame_ = true;
-		}
-	}
-
-	if (radar_data_frame_[0] 								== 0xFD &&
-		radar_data_frame_[1] 								== 0xFC &&
-		radar_data_frame_[2] 								== 0xFB &&
-		radar_data_frame_[3] 								== 0xFA &&
-		radar_data_frame_[radar_data_frame_position_ - 4] 	== 0x04 &&
-		radar_data_frame_[radar_data_frame_position_ - 3] 	== 0x03 &&
-		radar_data_frame_[radar_data_frame_position_ - 2] 	== 0x02 &&
-		radar_data_frame_[radar_data_frame_position_ - 1] 	== 0x01)
-	{
-		if (ld2410_parse_command_frame_())
-		{
-			printf("\tCommand parsed successfully!\n");
-			ret = true;
-		}
-		else
-		{
-			printf("\tError parsing command!!\n");
-			ret = false;
-		}
-	}
-
-	else if(radar_data_frame_[0]                              == 0xF4 &&	//Data frame end state
-			radar_data_frame_[1]                              == 0xF3 &&
-			radar_data_frame_[2]                              == 0xF2 &&
-			radar_data_frame_[3]                              == 0xF1 &&
-			radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
-			radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
-			radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
-			radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5)
-	{
-		if (ld2410_parse_data_frame_())
-		{
-			printf("\tData parsed successfully!!\n");
-			ret = true;
-		}
-		else
-		{
-			printf("\tError parsing data!!\n");
-			ret = false;
-		}
-	}
-	else
-	{
-		printf("Buffer overflow occured!!\n");
-	}
-
-	frame_started_ = false;
-	radar_data_frame_position_ = 0;
-
-	return ret;
 }
 
 /*	Function definition	*/
-bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_t uart_settings, s_ezlopi_uart_object_handle_t* ezlo_ld2410_uart_handle)	
+bool ld2410_begin(bool wait_for_radar, s_ezlopi_uart_t uart_settings)	
 {
-	// if (ESP_OK != ld2410_uart_setup())
-	// {
-	// 	return false;
-	// }
-	*ezlo_ld2410_uart_handle = ezlopi_uart_init(uart_settings.baudrate, uart_settings.tx, uart_settings.rx, ld2410_callback, NULL);
-	printf("Uart task handle 0x%X\n", (uint32_t)(*ezlo_ld2410_uart_handle)->taskHandle);
-	vTaskSuspend((*ezlo_ld2410_uart_handle)->taskHandle);
+	ezlo_ld2410_uart_handle = ezlopi_uart_init(uart_settings.baudrate, uart_settings.tx, uart_settings.rx, ld2410_callback, NULL);
 	
 	#ifdef LD2410_DEBUG_INITIALIZATION
 		printf("ld2410 started");
@@ -221,16 +105,7 @@ bool ld2410_is_connected()
 	{
 		return true;
 	}
-	if(ld2410_read_frame_())	//Try and read a frame if the current reading is too old
-	{
-		return true;
-	}
 	return false;
-}
-
-bool ld2410_read()
-{
-	return ld2410_read_frame_();
 }
 
 bool ld2410_presence_detected()
@@ -292,125 +167,122 @@ uint8_t ld2410_moving_target_energy()
 	//return 0;
 }
 
-static bool ld2410_read_frame_()
+static bool ld2410_read_frame_(uint8_t l_byte)
 {
-	if(ld2410_uart_available())
+	if(frame_started_ == false)
 	{
-		if(frame_started_ == false)
+		uint8_t byte_read_ = l_byte;
+		if(byte_read_ == 0xF4)
 		{
-			uint8_t byte_read_ = ld2410_uart_read();
-			if(byte_read_ == 0xF4)
+			#ifdef LD2410_DEBUG_DATA
+				printf("\nRcvd : 00 ");
+			#endif
+			radar_data_frame_[radar_data_frame_position_++] = byte_read_;
+			frame_started_ = true;
+			ack_frame_ = false;
+		}
+		else if(byte_read_ == 0xFD)
+		{
+			#ifdef LD2410_DEBUG_COMMANDS
+				printf("\nRcvd : 00 ");
+			#endif
+			radar_data_frame_[radar_data_frame_position_++] = byte_read_;
+			frame_started_ = true;
+			ack_frame_ = true;
+		}
+	}
+	else
+	{
+		if(radar_data_frame_position_ < LD2410_MAX_FRAME_LENGTH)
+		{
+			#ifdef LD2410_DEBUG_DATA
+			if(ack_frame_ == false)
 			{
-				#ifdef LD2410_DEBUG_DATA
-					printf("\nRcvd : 00 ");
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = byte_read_;
-				frame_started_ = true;
-				ack_frame_ = false;
+				if(radar_data_frame_position_ < 0x10)
+				{
+					printf("0");
+				}
+				printf("%x ", radar_data_frame_position_);
 			}
-			else if(byte_read_ == 0xFD)
+			#endif
+			#ifdef LD2410_DEBUG_COMMANDS
+			if(ack_frame_ == true)
 			{
-				#ifdef LD2410_DEBUG_COMMANDS
-					printf("\nRcvd : 00 ");
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = byte_read_;
-				frame_started_ = true;
-				ack_frame_ = true;
+				if(radar_data_frame_position_ < 0x10)
+				{
+					printf("0");
+				}
+				printf("%x ",radar_data_frame_position_);
+			}
+			#endif
+			radar_data_frame_[radar_data_frame_position_++] = l_byte;
+			if(radar_data_frame_position_ > 7)	//Can check for start and end
+			{
+				if(	radar_data_frame_[0]                              == 0xF4 &&	//Data frame end state
+					radar_data_frame_[1]                              == 0xF3 &&
+					radar_data_frame_[2]                              == 0xF2 &&
+					radar_data_frame_[3]                              == 0xF1 &&
+					radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
+					radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
+					radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
+					radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5
+				)
+				{
+					if(ld2410_parse_data_frame_())
+					{
+						#ifdef LD2410_DEBUG_DATA
+							printf("parsed data OK\n");
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+						return true;
+					}
+					else
+					{
+						#ifdef LD2410_DEBUG_DATA
+							printf("failed to parse data\n");
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+					}
+				}
+				else if(radar_data_frame_[0]                              == 0xFD &&	//Command frame end state
+						radar_data_frame_[1]                              == 0xFC &&
+						radar_data_frame_[2]                              == 0xFB &&
+						radar_data_frame_[3]                              == 0xFA &&
+						radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
+						radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
+						radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
+						radar_data_frame_[radar_data_frame_position_ - 1] == 0x01
+					)
+				{
+					if(ld2410_parse_command_frame_())
+					{
+						#ifdef LD2410_DEBUG_COMMANDS
+							printf("parsed command OK\n");
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+						return true;
+					}
+					else
+					{
+						#ifdef LD2410_DEBUG_COMMANDS
+							printf("failed to parse command");
+						#endif
+						frame_started_ = false;
+						radar_data_frame_position_ = 0;
+					}
+				}
 			}
 		}
 		else
 		{
-			if(radar_data_frame_position_ < LD2410_MAX_FRAME_LENGTH)
-			{
-				#ifdef LD2410_DEBUG_DATA
-				if(ack_frame_ == false)
-				{
-					if(radar_data_frame_position_ < 0x10)
-					{
-						printf("0");
-					}
-					printf("%x ", radar_data_frame_position_);
-				}
-				#endif
-				#ifdef LD2410_DEBUG_COMMANDS
-				if(ack_frame_ == true)
-				{
-					if(radar_data_frame_position_ < 0x10)
-					{
-						printf("0");
-					}
-					printf("%x ",radar_data_frame_position_);
-				}
-				#endif
-				radar_data_frame_[radar_data_frame_position_++] = ld2410_uart_read();
-				if(radar_data_frame_position_ > 7)	//Can check for start and end
-				{
-					if(	radar_data_frame_[0]                              == 0xF4 &&	//Data frame end state
-						radar_data_frame_[1]                              == 0xF3 &&
-						radar_data_frame_[2]                              == 0xF2 &&
-						radar_data_frame_[3]                              == 0xF1 &&
-						radar_data_frame_[radar_data_frame_position_ - 4] == 0xF8 &&
-						radar_data_frame_[radar_data_frame_position_ - 3] == 0xF7 &&
-						radar_data_frame_[radar_data_frame_position_ - 2] == 0xF6 &&
-						radar_data_frame_[radar_data_frame_position_ - 1] == 0xF5
-					)
-					{
-						if(ld2410_parse_data_frame_())
-						{
-							#ifdef LD2410_DEBUG_DATA
-								printf("parsed data OK\n");
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-							return true;
-						}
-						else
-						{
-							#ifdef LD2410_DEBUG_DATA
-								printf("failed to parse data\n");
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-						}
-					}
-					else if(radar_data_frame_[0]                              == 0xFD &&	//Command frame end state
-							radar_data_frame_[1]                              == 0xFC &&
-							radar_data_frame_[2]                              == 0xFB &&
-							radar_data_frame_[3]                              == 0xFA &&
-							radar_data_frame_[radar_data_frame_position_ - 4] == 0x04 &&
-							radar_data_frame_[radar_data_frame_position_ - 3] == 0x03 &&
-							radar_data_frame_[radar_data_frame_position_ - 2] == 0x02 &&
-							radar_data_frame_[radar_data_frame_position_ - 1] == 0x01
-						)
-					{
-						if(ld2410_parse_command_frame_())
-						{
-							#ifdef LD2410_DEBUG_COMMANDS
-								printf("parsed command OK\n");
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-							return true;
-						}
-						else
-						{
-							#ifdef LD2410_DEBUG_COMMANDS
-								printf("failed to parse command");
-							#endif
-							frame_started_ = false;
-							radar_data_frame_position_ = 0;
-						}
-					}
-				}
-			}
-			else
-			{
-				#if defined(LD2410_DEBUG_DATA) || defined(LD2410_DEBUG_COMMANDS)
-					printf("\nLD2410 frame overran");
-				#endif
-				frame_started_ = false;
-				radar_data_frame_position_ = 0;
-			}
+			#if defined(LD2410_DEBUG_DATA) || defined(LD2410_DEBUG_COMMANDS)
+				printf("\nLD2410 frame overran");
+			#endif
+			frame_started_ = false;
+			radar_data_frame_position_ = 0;
 		}
 	}
 	return false;
@@ -781,12 +653,9 @@ static bool ld2410_enter_configuration_mode_()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(ld2410_read_frame_())
+		if(latest_ack_ == 0xFF && latest_command_success_)
 		{
-			if(latest_ack_ == 0xFF && latest_command_success_)
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 	return false;
@@ -804,12 +673,9 @@ static bool ld2410_leave_configuration_mode_()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(ld2410_read_frame_())
+		if(latest_ack_ == 0xFE && latest_command_success_)
 		{
-			if(latest_ack_ == 0xFE && latest_command_success_)
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 	return false;
@@ -827,12 +693,9 @@ bool ld2410_request_start_engineering_mode()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(ld2410_read_frame_())
+		if(latest_ack_ == 0x62 && latest_command_success_)
 		{
-			if(latest_ack_ == 0x62 && latest_command_success_)
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 	return false;
@@ -850,12 +713,9 @@ bool ld2410_requestEndEngineeringMode()
 	radar_uart_last_command_ = millis();
 	while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 	{
-		if(ld2410_read_frame_())
+		if(latest_ack_ == 0x63 && latest_command_success_)
 		{
-			if(latest_ack_ == 0x63 && latest_command_success_)
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 	return false;
@@ -876,14 +736,11 @@ bool ld2410_request_current_configuration()
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(ld2410_read_frame_())
+			if(latest_ack_ == 0x61 && latest_command_success_)
 			{
-				if(latest_ack_ == 0x61 && latest_command_success_)
-				{
-					delay(50);
-					ld2410_leave_configuration_mode_();
-					return true;
-				}
+				delay(50);
+				ld2410_leave_configuration_mode_();
+				return true;
 			}
 		}
 	}
@@ -907,7 +764,6 @@ bool ld2410_request_firmware_version()
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			ld2410_read_frame_();
 			if(latest_ack_ == 0xA0 && latest_command_success_)
 			{
 				delay(50);
@@ -936,14 +792,11 @@ bool ld2410_requestRestart()
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(ld2410_read_frame_())
+			if(latest_ack_ == 0xA3 && latest_command_success_)
 			{
-				if(latest_ack_ == 0xA3 && latest_command_success_)
-				{
-					delay(50);
-					ld2410_leave_configuration_mode_();
-					return true;
-				}
+				delay(50);
+				ld2410_leave_configuration_mode_();
+				return true;
 			}
 		}
 	}
@@ -967,14 +820,11 @@ bool ld2410_requestFactoryReset()
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(ld2410_read_frame_())
+			if(latest_ack_ == 0xA2 && latest_command_success_)
 			{
-				if(latest_ack_ == 0xA2 && latest_command_success_)
-				{
-					delay(50);
-					ld2410_leave_configuration_mode_();
-					return true;
-				}
+				delay(50);
+				ld2410_leave_configuration_mode_();
+				return true;
 			}
 		}
 	}
@@ -1015,14 +865,11 @@ bool ld2410_set_max_values(uint16_t moving, uint16_t stationary, uint16_t inacti
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(ld2410_read_frame_())
+			if(latest_ack_ == 0x60 && latest_command_success_)
 			{
-				if(latest_ack_ == 0x60 && latest_command_success_)
-				{
-					delay(50);
-					ld2410_leave_configuration_mode_();
-					return true;
-				}
+				delay(50);
+				ld2410_leave_configuration_mode_();
+				return true;
 			}
 		}
 	}
@@ -1063,14 +910,11 @@ bool ld2410_set_gate_sensitivity_threshold(uint8_t gate, uint8_t moving, uint8_t
 		radar_uart_last_command_ = millis();
 		while(millis() - radar_uart_last_command_ < radar_uart_command_timeout_)
 		{
-			if(ld2410_read_frame_())
+			if(latest_ack_ == 0x64 && latest_command_success_)
 			{
-				if(latest_ack_ == 0x64 && latest_command_success_)
-				{
-					delay(50);
-					ld2410_leave_configuration_mode_();
-					return true;
-				}
+				delay(50);
+				ld2410_leave_configuration_mode_();
+				return true;
 			}
 		}
 	}
@@ -1087,4 +931,20 @@ bool ld2410_set_gates_sensitivity_threshold(uint8_t* moving, uint8_t* stationary
 		ret = ld2410_set_gate_sensitivity_threshold(gate, moving[gate], stationary[gate]);
 	}
 	return ret;
+}
+
+static size_t ld2410_uart_write_byte(uint8_t byte)
+{
+    uart_write_bytes(ezlo_ld2410_uart_handle->ezlopi_uart.channel, &byte, 1); // returns true always if there is no parameter error
+    return 1;
+}
+
+void ld2410_driver_start_reading()
+{
+    vTaskResume(ezlo_ld2410_uart_handle->taskHandle);
+}
+
+void ld2410_driver_stop_reading()
+{
+    vTaskSuspend(ezlo_ld2410_uart_handle->taskHandle);
 }

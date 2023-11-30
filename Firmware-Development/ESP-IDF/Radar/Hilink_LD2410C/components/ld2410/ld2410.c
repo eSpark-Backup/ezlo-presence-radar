@@ -2,14 +2,13 @@
 #include "trace.h"
 
 static const char* TAG = "ld2410";
-s_ezlopi_uart_object_handle_t ezlo_ld2410_uart_handle = NULL;
 
 esp_err_t ld2410_setup(s_ezlopi_uart_t uart_settings)
 {
     printf("\nConnect LD2410 radar TX to GPIO: %d\n", RADAR_RX_PIN);
     printf("Connect LD2410 radar RX to GPIO: %d\n", RADAR_TX_PIN);
     printf("LD2410 radar sensor initialising:\n");
-    if(ld2410_begin(true, uart_settings, &ezlo_ld2410_uart_handle))
+    if(ld2410_begin(true, uart_settings))
     {
         printf("OK\n");
 
@@ -21,9 +20,7 @@ esp_err_t ld2410_setup(s_ezlopi_uart_t uart_settings)
             .min_move_distance = DISTANCE_0CM,
             .no_one_duration = 5
         };
-        ld2410_stop_reading();
         ld2410_set_template(CUSTOM_TEMPLATE, &settings);
-        ld2410_start_reading();
         return ESP_OK;
     }
     else
@@ -209,10 +206,10 @@ esp_err_t ld2410_get_data(ld2410_outputs_t* output)
 
 void ld2410_start_reading()
 {
-    vTaskResume(ezlo_ld2410_uart_handle->taskHandle);
+    ld2410_driver_start_reading();
 }
 
 void ld2410_stop_reading()
 {
-    vTaskSuspend(ezlo_ld2410_uart_handle->taskHandle);
+    ld2410_driver_stop_reading();
 }
