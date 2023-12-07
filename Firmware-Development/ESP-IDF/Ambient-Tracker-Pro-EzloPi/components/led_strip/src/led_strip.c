@@ -34,8 +34,9 @@
 #include <esp_log.h>
 #include <esp_attr.h>
 #include <stdlib.h>
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 #include "esp32s3/rom/ets_sys.h"
-
+#endif
 #ifndef RMT_DEFAULT_CONFIG_TX
 #define RMT_DEFAULT_CONFIG_TX(gpio, channel_id)      \
     {                                                \
@@ -60,8 +61,19 @@ static const char *TAG = "led_strip";
 
 #define LED_STRIP_RMT_CLK_DIV 2
 
-#define CHECK(x) do { esp_err_t __; if ((__ = x) != ESP_OK) return __; } while (0)
-#define CHECK_ARG(VAL) do { if (!(VAL)) return ESP_ERR_INVALID_ARG; } while (0)
+#define CHECK(x)                \
+    do                          \
+    {                           \
+        esp_err_t __;           \
+        if ((__ = x) != ESP_OK) \
+            return __;          \
+    } while (0)
+#define CHECK_ARG(VAL)                  \
+    do                                  \
+    {                                   \
+        if (!(VAL))                     \
+            return ESP_ERR_INVALID_ARG; \
+    } while (0)
 
 #define COLOR_SIZE(strip) (3 + ((strip)->is_rgbw != 0))
 
@@ -105,52 +117,55 @@ static void IRAM_ATTR _rmt_adapter(const void *src, rmt_item32_t *dest, size_t s
     *item_num = num;
 }
 
-typedef struct {
+typedef struct
+{
     rmt_item32_t bit0, bit1;
 } led_rmt_t;
 
-static led_rmt_t rmt_items[LED_STRIP_TYPE_MAX] = { 0 };
+static led_rmt_t rmt_items[LED_STRIP_TYPE_MAX] = {0};
 
 static void IRAM_ATTR ws2812_rmt_adapter(const void *src, rmt_item32_t *dest, size_t src_size,
-        size_t wanted_num, size_t *translated_size, size_t *item_num)
+                                         size_t wanted_num, size_t *translated_size, size_t *item_num)
 {
     _rmt_adapter(src, dest, src_size, wanted_num, translated_size, item_num, &rmt_items[LED_STRIP_WS2812].bit0, &rmt_items[LED_STRIP_WS2812].bit1);
 }
 
 static void IRAM_ATTR sk6812_rmt_adapter(const void *src, rmt_item32_t *dest, size_t src_size,
-        size_t wanted_num, size_t *translated_size, size_t *item_num)
+                                         size_t wanted_num, size_t *translated_size, size_t *item_num)
 {
     _rmt_adapter(src, dest, src_size, wanted_num, translated_size, item_num, &rmt_items[LED_STRIP_SK6812].bit0, &rmt_items[LED_STRIP_SK6812].bit1);
 }
 
 static void IRAM_ATTR apa106_rmt_adapter(const void *src, rmt_item32_t *dest, size_t src_size,
-        size_t wanted_num, size_t *translated_size, size_t *item_num)
+                                         size_t wanted_num, size_t *translated_size, size_t *item_num)
 {
     _rmt_adapter(src, dest, src_size, wanted_num, translated_size, item_num, &rmt_items[LED_STRIP_APA106].bit0, &rmt_items[LED_STRIP_APA106].bit1);
 }
 
 static void IRAM_ATTR sm16703_rmt_adapter(const void *src, rmt_item32_t *dest, size_t src_size,
-                                         size_t wanted_num, size_t *translated_size, size_t *item_num)
+                                          size_t wanted_num, size_t *translated_size, size_t *item_num)
 {
     _rmt_adapter(src, dest, src_size, wanted_num, translated_size, item_num, &rmt_items[LED_STRIP_SM16703].bit0, &rmt_items[LED_STRIP_SM16703].bit1);
 }
 
-typedef enum {
+typedef enum
+{
     ORDER_GRB,
     ORDER_RGB,
 } color_order_t;
 
-typedef struct {
+typedef struct
+{
     uint32_t t0h, t0l, t1h, t1l;
     color_order_t order;
     sample_to_rmt_t adapter;
 } led_params_t;
 
 static const led_params_t led_params[] = {
-    [LED_STRIP_WS2812]  = { .t0h = 400, .t0l = 1000, .t1h = 1000, .t1l = 400, .order = ORDER_GRB, .adapter = ws2812_rmt_adapter },
-    [LED_STRIP_SK6812]  = { .t0h = 300, .t0l = 900,  .t1h = 600,  .t1l = 600, .order = ORDER_GRB, .adapter = sk6812_rmt_adapter },
-    [LED_STRIP_APA106]  = { .t0h = 350, .t0l = 1360, .t1h = 1360, .t1l = 350, .order = ORDER_RGB, .adapter = apa106_rmt_adapter },
-    [LED_STRIP_SM16703] = { .t0h = 300, .t0l = 900,  .t1h = 1360, .t1l = 350, .order = ORDER_RGB, .adapter = sm16703_rmt_adapter },
+    [LED_STRIP_WS2812] = {.t0h = 400, .t0l = 1000, .t1h = 1000, .t1l = 400, .order = ORDER_GRB, .adapter = ws2812_rmt_adapter},
+    [LED_STRIP_SK6812] = {.t0h = 300, .t0l = 900, .t1h = 600, .t1l = 600, .order = ORDER_GRB, .adapter = sk6812_rmt_adapter},
+    [LED_STRIP_APA106] = {.t0h = 350, .t0l = 1360, .t1h = 1360, .t1l = 350, .order = ORDER_RGB, .adapter = apa106_rmt_adapter},
+    [LED_STRIP_SM16703] = {.t0h = 300, .t0l = 900, .t1h = 1360, .t1l = 350, .order = ORDER_RGB, .adapter = sm16703_rmt_adapter},
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -222,7 +237,8 @@ esp_err_t led_strip_flush(led_strip_t *strip)
 
 bool led_strip_busy(led_strip_t *strip)
 {
-    if (!strip) return false;
+    if (!strip)
+        return false;
     return rmt_wait_tx_done(strip->channel, 0) == ESP_ERR_TIMEOUT;
 }
 
@@ -239,20 +255,20 @@ esp_err_t led_strip_set_pixel(led_strip_t *strip, size_t num, rgb_t color)
     size_t idx = num * COLOR_SIZE(strip);
     switch (led_params[strip->type].order)
     {
-        case ORDER_GRB:
-            strip->buf[idx] = color.g;
-            strip->buf[idx + 1] = color.r;
-            strip->buf[idx + 2] = color.b;
-            if (strip->is_rgbw)
-                strip->buf[idx + 3] = rgb_luma(color);
-            break;
-        case ORDER_RGB:
-            strip->buf[idx] = color.r;
-            strip->buf[idx + 1] = color.g;
-            strip->buf[idx + 2] = color.b;
-            if (strip->is_rgbw)
-                strip->buf[idx + 3] = rgb_luma(color);
-            break;
+    case ORDER_GRB:
+        strip->buf[idx] = color.g;
+        strip->buf[idx + 1] = color.r;
+        strip->buf[idx + 2] = color.b;
+        if (strip->is_rgbw)
+            strip->buf[idx + 3] = rgb_luma(color);
+        break;
+    case ORDER_RGB:
+        strip->buf[idx] = color.r;
+        strip->buf[idx + 1] = color.g;
+        strip->buf[idx + 2] = color.b;
+        if (strip->is_rgbw)
+            strip->buf[idx + 3] = rgb_luma(color);
+        break;
     }
     return ESP_OK;
 }
@@ -279,4 +295,3 @@ esp_err_t led_strip_set_brightness(led_strip_t *strip, uint8_t brightness)
     strip->brightness = brightness;
     return ESP_OK;
 }
-

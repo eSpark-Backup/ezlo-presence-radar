@@ -20,6 +20,7 @@ extern "C"
 #define EZLOPI_DEVICE_TYPE EZLOPI_AMBIENT_TRACKER
 
 #include "esp_partition.h"
+#include "frozen.h"
 
 #define EZLOPI_FACTORY_INFO_V2_PARTITION_NAME "id"
 #define EZLOPI_FACTORY_INFO_V2_PARTITION_SIZE 0xF000 // 20480 // 20KB
@@ -29,24 +30,6 @@ extern "C"
 #if (ID_BIN_VERSION_2 == ID_BIN_VERSION)
     typedef enum e_ezlopi_factory_info_v2_offset
     {
-        // VERSION_OFFSET = 0x0000,
-        // NAME_OFFSET = 0x0002,
-        // MANUFACTURER_OFFSET = 0x0082,
-        // BRAND_OFFSET = 0x00C2,
-        // MODEL_OFFSET = 0x0102,
-        // ID_OFFSET = 0x0142,
-        // DEVICE_UUID_OFFSET = 0x014A,
-        // PROVISIONING_UUID_OFFSET = 0x0172,
-        // SSID_OFFSET = 0x019A,
-        // PASSWORD_OFFSET = 0x01DA,
-        // DEVICE_MAC_OFFSET = 0x021A,
-        // CLOUD_SERVER_OFFSET = 0x0220,
-        // DEVICE_TYPE_OFFSET = 0x02A0,
-
-        // CA_CERTIFICATE_OFFSET = 0x1000,
-        // SSL_PRIVATE_KEY_OFFSET = 0x2000,
-        // SSL_SHARED_KEY_OFFSET = 0x3000,
-        // EZLOPI_CONFIG_OFFSET = 0x4000,
         VERSION_OFFSET = 0xE000 + 0x0002,
         NAME_OFFSET = 0xE000 + 0x0084,
         MANUFACTURER_OFFSET = 0xE000 + 0x00CA,
@@ -154,6 +137,8 @@ typedef struct s_basic_factory_info
 #endif
 
     void print_factory_info_v2(void);
+    uint32_t ezlopi_factory_info_v2_get_provisioning_status(void);
+    const esp_partition_t *ezlopi_factory_info_v2_init(void);
     void ezlopi_factory_info_v2_free(void *arg);
     uint16_t ezlopi_factory_info_v2_get_version(void);
     char *ezlopi_factory_info_v2_get_name(void);
@@ -193,15 +178,27 @@ static const char *ir_blaster_constant_config =
             {\
                 \"dev_name\": \"IR_Blaster1\",\
                 \"dev_type\": 5,\
-                \"gpio\": 3,\
-                \"id_item\": 30,\
+                \"id_item\": 29,\
                 \"id_room\": \"\",\
+                \"gpio_tx\": 8,\
+                \"gpio_rx\": 18,\
                 \"pwm_resln\": 8,\
                 \"freq_hz\": 50,\
                 \"duty_cycle\": 30\
+            },\
+            {\
+                \"dev_name\": \"RF Blaster\",\
+                \"dev_type\": 9,\
+                \"id_item\": 64,\
+                \"id_room\": \"\",\
+                \"gpio_miso\": 11,\
+                \"gpio_mosi\": 12,\
+                \"gpio_sck\": 13,\
+                \"gpio_cs\": 14\
             }\
         ],\
     \"dev_total\": 1}";
+
 #elif (EZLOPI_SWITCH_BOX == EZLOPI_DEVICE_TYPE)
 static const char *switch_box_constant_config =
     "{\
@@ -213,7 +210,7 @@ static const char *switch_box_constant_config =
                 \"dev_type\" : 8,\
                 \"gpio_scl\" : 45,\
                 \"gpio_sda\" : 46,\
-                \"id_item\" : 29,\
+                \"id_item\" : 35,\
                 \"id_room\" : \"\",\
                 \"pullup_scl\" : true,\
                 \"pullup_sda\" : true,\
@@ -385,21 +382,21 @@ static const char *switch_box_constant_config =
                 \"val_op\": false\
             }\
         ],\
-    \"dev_total\": 1}";
-#elif(EZLOPI_TEST_DEVICE == EZLOPI_DEVICE_TYPE)
+    \"dev_total\": 12}";
+#elif (EZLOPI_TEST_DEVICE == EZLOPI_DEVICE_TYPE)
+
 static const char *test_device_constant_config =
     "{\
         \"cmd\": 3,\
         \"dev_detail\":\
         [\
             {\
-                \"dev_name\": \"Acceleration Sensor\",\
-                \"dev_type\": 8,\
-                \"gpio_scl\": 3,\
-                \"gpio_sda\": 2,\
-                \"id_item\": 28,\
-                \"id_room\": \"\"\
-            }\
+                \"dev_name\": \"DS18B20\",\
+                \"dev_type\": 7,\
+                \"id_item\": 30,\
+                \"id_room\": \"\",\
+                \"gpio\": 1\
+            }\             
         ],\
     \"dev_total\": 1}";
 
@@ -410,18 +407,10 @@ static const char *ambient_tracker_constant_config =
         \"dev_detail\":\
         [\
             {\
-               \"dev_name\": \"BME680\",\
-               \"dev_type\": 8,\
-               \"id_item\": 34,\
-               \"id_room\": \"\",\
-               \"gpio_scl\": 17,\
-               \"gpio_sda\": 18\
-            },\
-            {\
                 \"dev_name\": \"Backlight Control\",\
                 \"dev_type\": 5,\
                 \"gpio\": 47,\
-                \"id_item\": 35,\
+                \"id_item\": 9,\
                 \"id_room\": \"\",\
                 \"pwm_resln\": 8,\
                 \"freq_hz\": 50,\
@@ -430,10 +419,18 @@ static const char *ambient_tracker_constant_config =
             {\
                 \"dev_name\":\"Luminosity\",\
                 \"dev_type\": 8,\
-                \"id_item\": 36,\
+                \"id_item\": 8,\
                 \"id_room\": \"\",\
                 \"gpio_scl\": 17,\
                 \"gpio_sda\": 18\
+            },\
+            {\
+               \"dev_name\": \"BME680\",\
+               \"dev_type\": 8,\
+               \"id_item\": 10,\
+               \"id_room\": \"\",\
+               \"gpio_scl\": 17,\
+               \"gpio_sda\": 18\
             },\
             {\
                 \"dev_name\": \"Dust Particles\",\
@@ -455,3 +452,33 @@ static const char *ambient_tracker_constant_config =
 
 #endif // __FACTORY_INFO_H__
 
+/**
+ *
+//   {\
+//                 \"dev_name\": \"Backlight Control\",\
+//                 \"dev_type\": 5,\
+//                 \"gpio\": 47,\
+//                 \"id_item\": 9,\
+//                 \"id_room\": \"\",\
+//                 \"pwm_resln\": 8,\
+//                 \"freq_hz\": 50,\
+//                 \"duty_cycle\": 10000\
+//             },\
+//             {\
+//                 \"dev_name\":\"Luminosity\",\
+//                 \"dev_type\": 8,\
+//                 \"id_item\": 8,\
+//                 \"id_room\": \"\",\
+//                 \"gpio_scl\": 17,\
+//                 \"gpio_sda\": 18\
+//             },\
+//             {\
+//                \"dev_name\": \"BME680\",\
+//                \"dev_type\": 8,\
+//                \"id_item\": 10,\
+//                \"id_room\": \"\",\
+//                \"gpio_scl\": 17,\
+//                \"gpio_sda\": 18\
+//             },\
+ *
+ */

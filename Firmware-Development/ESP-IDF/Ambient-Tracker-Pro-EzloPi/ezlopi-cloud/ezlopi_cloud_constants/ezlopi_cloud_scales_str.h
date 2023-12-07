@@ -20,4 +20,31 @@ const static char *scales_kilo_volt_ampere_reactive = "kilo_volt_ampere_reactive
 /// @brief amount_of_useful_energy
 const static char *scales_amount_of_useful_energy = "amount_of_useful_energy";
 
+/// @brief length
+const static char *scales_centi_meter = "centi_meter";
+const static char *scales_meter = "meter";
+const static char *scales_feet = "feet";
+
+/// @brief LUX
+const static char *scales_lux = "lux";
+
+/// @brief pressure
+const static char *scales_kilo_pascal = "kilo_pascal";
+
+
+///@brief frequency
+const static char *scales_kilo_hertz = "kilo_hertz";
+
+///@brief Particulate matter
+const static char *scales_micro_gram_per_cubic_meter = "micro_gram_per_cubic_meter";
+const static char *scales_particles_per_deciliter = "particles_per_deciliter";
+const static char *scales_parts_per_million = "parts_per_million";
+
+/// @brief velocity
+const static char *scales_meter_per_second = "meter_per_second";
+
+/// @brief horizontal angles
+const static char *scales_north_pole_degress = "north_pole_degress";
+const static char *scales_elevation_degrees = "elevation_degrees";
+
 #endif // __EZLOPI_SCALES_STR_H__

@@ -2,6 +2,7 @@
 #define __EZLOPI_ETHERNET_H__
 
 #include "esp_netif.h"
+
 #include "ezlopi_boards.h"
 #include "ezlopi_spi_master.h"
 
@@ -32,7 +33,7 @@ typedef enum e_ethernet_status
 
 } e_ethernet_status_t;
 
-esp_err_t ezlopi_ethernet_init(void);
+void ezlopi_ethernet_init(void);
 void ezlopi_ethernet_deinit(void);
 e_ethernet_status_t ezlopi_ethernet_get_status(void);
 esp_netif_ip_info_t *ezlopi_ethernet_get_ip_info(void);

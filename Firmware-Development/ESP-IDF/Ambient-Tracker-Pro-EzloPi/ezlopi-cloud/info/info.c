@@ -4,6 +4,7 @@
 #include "ezlopi_factory_info.h"
 #include "info.h"
 #include "trace.h"
+#include "frozen.h"
 #include "version.h"
 
 #include "cJSON.h"

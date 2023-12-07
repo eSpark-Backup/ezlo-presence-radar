@@ -25,7 +25,7 @@
 #include "ezlopi_http.h"
 #include "ezlopi_factory_info.h"
 #include "ezlopi_cloud_constants.h"
-
+#include "settings.h"
 #include "web_provisioning.h"
 
 static uint32_t message_counter = 0;
@@ -83,23 +83,39 @@ static const s_method_list_v2_t method_list_v2[] = {
     /** Getter functions **/
     {.method_name = "hub.data.list", .method = data_list, .updater = NULL},
     {.method_name = "hub.room.list", .method = room_list, .updater = NULL},
-    {.method_name = "hub.items.list", .method = items_list, .updater = NULL},
+    // {.method_name = "hub.items.list", .method = items_list, .updater = NULL},
+    {.method_name = "hub.items.list", .method = items_list_v3, .updater = NULL},
+
     {.method_name = "hub.scenes.list", .method = scenes_list, .updater = NULL},
-    {.method_name = "hub.devices.list", .method = devices_list, .updater = NULL},
+    {.method_name = "hub.scenes.create", .method = scenes_create, .updater = NULL},
+    {.method_name = "hub.scenes.get", .method = scenes_get, .updater = NULL},
+    {.method_name = "hub.scenes.edit", .method = scenes_edit, .updater = NULL},
+    {.method_name = "hub.scenes.delete", .method = scenes_delete, .updater = NULL},
+    // {.method_name = "hub.scenes.status.get", .method = scenes_status_get, .updater = NULL}, // Implementation remains
+    {.method_name = "hub.scenes.blocks.list", .method = scenes_blocks_list, .updater = NULL},
+    {.method_name = "hub.scenes.block.data.list", .method = scenes_block_data_list, .updater = NULL},
+    {.method_name = "hub.scenes.scripts.list", .method = scenes_scripts_list, .updater = NULL},
+
+    // {.method_name = "hub.devices.list", .method = devices_list, .updater = NULL},
+    {.method_name = "hub.devices.list", .method = devices_list_v3, .updater = NULL},
     {.method_name = "hub.favorite.list", .method = favorite_list, .updater = NULL},
     {.method_name = "hub.gateways.list", .method = gateways_list, .updater = NULL},
     {.method_name = "hub.info.get", .method = info_get, .updater = NULL},
     {.method_name = "hub.modes.get", .method = modes_get, .updater = NULL},
     {.method_name = "hub.network.get", .method = network_get, .updater = NULL},
-    {.method_name = "hub.firmware.update", .method = firmware_update, .updater = NULL},
+    {.method_name = "hub.firmware.update.start", .method = firmware_update_start, .updater = NULL},
+    {.method_name = "cloud.firmware.info.get", .method = firmware_info_get, .updater = NULL},
+    {.method_name = "hub.nma.register.repeat", .method = register_repeat, .updater = NULL},
     // {.method_name = "hub.settings.list", .method = settings_list, .updater = NULL},
-    // {.method_name = "hub.device.settings.list", .method = devices_settings_list, .updater = NULL},
+    {.method_name = "hub.device.settings.list", .method = ezlopi_device_settings_list_v3, .updater = NULL},
     {.method_name = "hub.reboot", .method = __hub_reboot, .updater = NULL},
 
     // // /** Setter functions **/
-    {.method_name = "hub.item.value.set", .method = items_set_value, .updater = items_update},
+    // {.method_name = "hub.item.value.set", .method = items_set_value, .updater = items_update},
+    {.method_name = "hub.item.value.set", .method = items_set_value_v3, .updater = items_update_v3},
     // {.method_name = "hub.device.name.set", .method = devices_name_set, .updater = NULL},
-    // {.method_name = "hub.device.setting.value.set", .method = __rpc_method_notfound, .updater = NULL},
+    {.method_name = "hub.device.setting.value.set", .method = ezlopi_device_settings_value_set_v3, .updater = NULL},
+    {.method_name = "hub.device.setting.reset", .method = ezlopi_device_settings_reset_v3, .updater = NULL},
     {.method_name = "registered", .method = registered, .updater = NULL}, // called only once so its in last
 
     // {.method_name = "hub.feature.status.set", .method = __rpc_method_notfound, .updater = NULL}, // documentation missing
@@ -166,17 +182,13 @@ static char *cloud_server = NULL;
 static char *ca_certificate = NULL;
 static char *ssl_shared_key = NULL;
 static char *ssl_private_key = NULL;
+
 static void web_provisioning_fetch_wss_endpoint(void *pv)
 {
-    // s_ezlopi_factory_info_t *factory = ezlopi_factory_info_get_info();
-
     char *ws_endpoint = NULL;
 
     while (1)
     {
-        UBaseType_t water_mark = uxTaskGetStackHighWaterMark(NULL);
-        TRACE_D("water_mark: %d", water_mark);
-
         // ezlopi_wait_for_wifi_to_connect();
 
         cloud_server = ezlopi_factory_info_v2_get_cloud_server();
@@ -188,15 +200,10 @@ static void web_provisioning_fetch_wss_endpoint(void *pv)
         snprintf(http_request, sizeof(http_request), "%s/getserver?json=true", cloud_server);
         ws_endpoint = ezlopi_http_get_request(http_request, ssl_private_key, ssl_shared_key, ca_certificate);
 
-        // ezlopi_factory_info_v2_free(cloud_server);
-        // ezlopi_factory_info_v2_free(ca_certificate);
-        // ezlopi_factory_info_v2_free(ssl_shared_key);
-        // ezlopi_factory_info_v2_free(ssl_private_key);
-
         if (ws_endpoint)
-        {   
+        {
             TRACE_D("ws_endpoint: %s", ws_endpoint); // {"uri": "wss://endpoint:port"}
-            TRACE_D("http_request: %s", http_request); 
+            TRACE_D("http_request: %s", http_request);
             cJSON *root = cJSON_Parse(ws_endpoint);
             if (root)
             {
@@ -208,10 +215,31 @@ static void web_provisioning_fetch_wss_endpoint(void *pv)
                     break;
                 }
             }
+
+            free(ws_endpoint);
         }
 
-        vTaskDelay(5000 / portTICK_RATE_MS);
+        vTaskDelay(2000 / portTICK_RATE_MS);
     }
+
+#if 0
+    while (1)
+    {
+        if (-1 != ezlopi_event_group_wait_for_event(EZLOPI_EVENT_OTA, 30 * 1000, 1))
+        {
+            TRACE_D("Sending firmware check request...");
+            cJSON *firmware_info_request = firmware_send_firmware_query_to_nma_server(message_counter);
+            if (NULL != firmware_info_request)
+            {
+                web_provisioning_send_to_nma_websocket(firmware_info_request, TRACE_TYPE_B);
+                cJSON_Delete(firmware_info_request);
+                firmware_info_request = NULL;
+            }
+        }
+
+        vTaskDelay(30 * 1000 / portTICK_RATE_MS);
+    }
+#endif
 
     vTaskDelete(NULL);
 }
@@ -221,12 +249,12 @@ static void __connection_upcall(bool connected)
     static bool prev_status;
     if (connected)
     {
-        if (!prev_status)
+        if (prev_status != connected)
         {
+            TRACE_I("Web-socket re-connected.");
             TRACE_B("Starting registration process....");
             registration_init();
         }
-        TRACE_I("Web-socket re-connected.");
     }
     else
     {
@@ -290,11 +318,7 @@ static void __call_method_func_and_send_response(cJSON *cj_request, cJSON *cj_me
 
 static void __message_upcall(const char *payload, uint32_t len)
 {
-    // if (payload && len)
-    // {
-    //     TRACE_D("payload:: len: %d, data: %.*s", len, len, payload);
-    // }
-
+    TRACE_W("__message_upcall: \r\n%.*s", len, payload);
     cJSON *cj_request = cJSON_ParseWithLength(payload, len);
 
     if (cj_request)
@@ -302,12 +326,23 @@ static void __message_upcall(const char *payload, uint32_t len)
         cJSON *cj_error = cJSON_GetObjectItem(cj_request, "error");
         cJSON *cj_method = cJSON_GetObjectItem(cj_request, "method");
 
-        if ((NULL == cj_error) || (NULL == cj_error->valuestring) || (0 == strncmp(cj_error->valuestring, "null", 4)))
+#if 0
+        TRACE_B("cj_error: %p", cj_error);
+        if (cj_error)
+        {
+            TRACE_W("cj_error->type: %d", cj_error->type);
+            TRACE_W("cj_error->valuestring: %p", cj_error->valuestring);
+        }
+#endif
+
+        if ((NULL == cj_error) || (cJSON_NULL == cj_error->type) || (NULL != cj_error->valuestring) || ((NULL != cj_error->valuestring) && (0 == strncmp(cj_error->valuestring, "null", 4))))
         {
             if ((NULL != cj_method) && (NULL != cj_method->valuestring))
             {
                 TRACE_D("## WS Rx <<<<<<<<<< '%s'\r\n%.*s", (cj_method->valuestring ? cj_method->valuestring : ""), len, payload);
                 uint32_t method_idx = __search_method_in_list(cj_method);
+                // TRACE_D("Method: %s", method_list_v2[method_idx].method_name);
+                TRACE_D("Method[%d]: %s", method_idx, method_list_v2[method_idx].method_name);
                 if (UINT32_MAX != method_idx)
                 {
                     __call_method_func_and_send_response(cj_request, cj_method, method_list_v2[method_idx].method, TRACE_TYPE_B);
@@ -321,7 +356,8 @@ static void __message_upcall(const char *payload, uint32_t len)
         }
         else
         {
-            TRACE_E("## WS Rx <<<<<<<<<<'%s'\r\n%.*s", (cj_method->valuestring ? cj_method->valuestring : ""), len, payload);
+            TRACE_E("## WS Rx <<<<<<<<<< '%s'\r\n%.*s", (NULL != cj_method) ? (cj_method->valuestring ? cj_method->valuestring : "") : "", len, payload);
+            TRACE_E("cj_error: %p, cj_error->type: %u, cj_error->value_string: %s", cj_error, cj_error->type, cj_error ? (cj_error->valuestring ? cj_error->valuestring : "null") : "null");
         }
 
         cJSON_Delete(cj_request);
@@ -348,4 +384,3 @@ static void __hub_reboot(cJSON *cj_request, cJSON *cj_response)
     esp_restart();
     return NULL;
 }
-

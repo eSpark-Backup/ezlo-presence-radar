@@ -24,7 +24,7 @@ const static char *value_type_humidity = "humidity";
 const static char *value_type_velocity = "velocity";
 const static char *value_type_acceleration = "acceleration";
 // const static char *value_type_direction = "direction";
-const static char *value_type_general_purpose = "general_purpose";
+// const static char *value_type_general_purpose = "general_purpose";
 // const static char *value_type_acidity = "acidity";
 // const static char *value_type_electric_potential = "electric_potential";
 // const static char *value_type_electric_current = "electric_current";
@@ -67,5 +67,6 @@ const static char *value_type_temperature = "temperature";
 // const static char *value_keypad_lock_operation = "keypad_lock_operation";
 // const static char *value_keypad_unlock_operation = "keypad_unlock_operation";
 // const static char *value_manual_not_fully_locked_operation = "manual_not_fully_locked_operation";
+static const char *value_type_frequency_sweep = "frequency_sweep";
 
 #endif // __EZLOPI_VLAUES_STR_H__

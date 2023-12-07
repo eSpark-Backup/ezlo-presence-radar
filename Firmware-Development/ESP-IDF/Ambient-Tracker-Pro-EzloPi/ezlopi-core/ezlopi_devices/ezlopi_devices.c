@@ -1,4 +1,6 @@
-#include <cJSON.h>
+#include "ctype.h"
+
+#include "cJSON.h"
 
 #include "items.h"
 #include "trace.h"
@@ -6,23 +8,228 @@
 #include "ezlopi_devices.h"
 #include "web_provisioning.h"
 #include "ezlopi_factory_info.h"
+#include "ezlopi_cloud.h"
 
+#if 0
 static uint32_t device_id = 0;
 static uint32_t item_id = 0;
 static uint32_t room_id = 0;
 static uint32_t gateway_id = 0;
+#endif
 
-static void ezlopi_device_parse_json(char *config_string);
+static l_ezlopi_device_t *l_device_head = NULL;
+static s_ezlopi_cloud_controller_t s_controller_information;
+
+static void ezlopi_device_parse_json_v3(char *config_string);
+static void ezlopi_device_print_controller_cloud_information_v3(void);
+static void ezlopi_device_print_ezlopi_informations();
+#if (EZLOPI_AMBIENT_TRACKER == EZLOPI_DEVICE_TYPE)
+static void ezlopi_device_prepare_ambient_tracker();
+#endif
 
 void ezlopi_device_prepare(void)
 {
-    // char *config_string = ezlopi_factory_info_get_ezlopi_config();
-    
-    char *config_string = ezlopi_factory_info_v2_get_ezlopi_config();
+    s_controller_information.armed = false;
+    s_controller_information.battery_powered = false;
+    // s_controller_information.device_type_id[0] = '\0';
+    snprintf(s_controller_information.device_type_id, sizeof(s_controller_information.device_type_id), "ezlopi");
+    s_controller_information.gateway_id[0] = '\0';
+    // snprintf(s_controller_information.gateway_id, sizeof(s_controller_information.gateway_id), "\0");
+    s_controller_information.parent_device_id[0] = '\0';
+    // snprintf(s_controller_information.parent_device_id, sizeof(s_controller_information.parent_device_id), "\0");
+    s_controller_information.persistent = true;
+    s_controller_information.reachable = true;
+    s_controller_information.room_id[0] = '\0';
+    // snprintf(s_controller_information.room_id, sizeof(s_controller_information.room_id), "\0");
+    s_controller_information.security = "null";
+    s_controller_information.service_notification = false;
+    s_controller_information.ready = true;
+    s_controller_information.status = "synced";
 
+    // char *config_string = ezlopi_factory_info_get_ezlopi_config();
+    // TRACE_D("config_string: %s", config_string ? config_string : "");
+
+#if (EZLOPI_AMBIENT_TRACKER == EZLOPI_DEVICE_TYPE)
+    ezlopi_device_prepare_ambient_tracker();
+#elif
     if (config_string)
     {
-        ezlopi_device_parse_json(config_string);
+        char *config_string = ezlopi_factory_info_v2_get_ezlopi_config();
+        ezlopi_device_parse_json_v3(config_string);
+    }
+#endif
+}
+
+#if (EZLOPI_AMBIENT_TRACKER == EZLOPI_DEVICE_TYPE)
+static void ezlopi_device_prepare_ambient_tracker()
+{
+    uint32_t parent_device_id = ezlopi_cloud_generate_device_id();
+    s_ezlopi_device_v3_t *v3_sensor_list = ezlopi_devices_list_get_list_v3();
+    // int item_id_array[5] = { 8, 9, 10, 37, 38};
+    int item_id_array[1] = {38};
+    for (int i = 0; i < (sizeof(item_id_array) / sizeof(item_id_array[0])); i++)
+    {
+        int dev_idx = 0;
+        while (NULL != v3_sensor_list[dev_idx].func)
+        {
+            if (item_id_array[i] == v3_sensor_list[dev_idx].id)
+            {
+                s_ezlopi_prep_arg_t prep_arg = {
+                    .device = &v3_sensor_list[dev_idx],
+                    .cjson_device = NULL,
+                };
+                v3_sensor_list[dev_idx].func(EZLOPI_ACTION_PREPARE, NULL, &prep_arg, &parent_device_id);
+                break;
+            }
+            dev_idx++;
+        }
+    }
+    
+    ezlopi_device_print_ezlopi_informations();
+}
+#endif
+
+static void ezlopi_device_print_controller_cloud_information_v3(void)
+{
+    TRACE_B("Armed: %d", s_controller_information.armed);
+    TRACE_B("Battery Powered: %d", s_controller_information.battery_powered);
+    TRACE_B("Device Type Id: %.*s", sizeof(s_controller_information.device_type_id), s_controller_information.device_type_id);
+    TRACE_B("Gateway Id: %.*s", sizeof(s_controller_information.gateway_id), s_controller_information.gateway_id);
+    TRACE_B("Parent Device Id: %.*s", sizeof(s_controller_information.parent_device_id), s_controller_information.parent_device_id);
+    TRACE_B("Persistent: %d", s_controller_information.persistent);
+    TRACE_B("Reachable: %d", s_controller_information.reachable);
+    TRACE_B("Room Id: %.*s", sizeof(s_controller_information.room_id), s_controller_information.room_id);
+    TRACE_B("Security: %s", s_controller_information.security ? s_controller_information.security : "null");
+    TRACE_B("Service Notification: %d", s_controller_information.service_notification);
+    TRACE_B("Ready: %d", s_controller_information.ready);
+    TRACE_B("Status: %s", s_controller_information.status ? s_controller_information.status : "null");
+}
+
+static void ezlopi_device_print_interface_digital_io(l_ezlopi_item_t *item)
+{
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_in.enable: %s", item->interface.gpio.gpio_in.enable ? "true" : "false");
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_in.gpio_num: %d", item->interface.gpio.gpio_in.gpio_num);
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_in.invert: %s", item->interface.gpio.gpio_in.invert ? "true" : "false");
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_in.value: %d", item->interface.gpio.gpio_in.value);
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_in.pull: %d", item->interface.gpio.gpio_in.pull);
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_in.interrupt: %d", item->interface.gpio.gpio_in.interrupt);
+
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_out.enable: %s", item->interface.gpio.gpio_out.enable ? "true" : "false");
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_out.gpio_num: %d", item->interface.gpio.gpio_out.gpio_num);
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_out.invert: %s", item->interface.gpio.gpio_out.invert ? "true" : "false");
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_out.value: %d", item->interface.gpio.gpio_out.value);
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_out.pull: %d", item->interface.gpio.gpio_out.pull);
+    TRACE_D(" |~~~|- item->interface.gpio.gpio_in.interrupt: %d", item->interface.gpio.gpio_in.interrupt);
+}
+
+static void ezlopi_device_print_interface_analogue_input(l_ezlopi_item_t *item)
+{
+    TRACE_D(" |~~~|- item->interface.adc.gpio_num: %d", item->interface.adc.gpio_num);
+    TRACE_D(" |~~~|- item->interface.adc.resln_bit: %d", item->interface.adc.resln_bit);
+}
+
+static void ezlopi_device_print_interface_analogue_output(l_ezlopi_item_t *item) {}
+
+static void ezlopi_device_print_interface_pwm(l_ezlopi_item_t *item)
+{
+    TRACE_D(" |~~~|- item->interface.pwm.gpio_num: %d", item->interface.pwm.gpio_num);
+    TRACE_D(" |~~~|- item->interface.pwm.channel: %d", item->interface.pwm.channel);
+    TRACE_D(" |~~~|- item->interface.pwm.speed_mode: %d", item->interface.pwm.speed_mode);
+    TRACE_D(" |~~~|- item->interface.pwm.pwm_resln: %d", item->interface.pwm.pwm_resln);
+    TRACE_D(" |~~~|- item->interface.pwm.freq_hz: %d", item->interface.pwm.freq_hz);
+    TRACE_D(" |~~~|- item->interface.pwm.duty_cycle: %d", item->interface.pwm.duty_cycle);
+}
+
+static void ezlopi_device_print_interface_uart(l_ezlopi_item_t *item)
+{
+    TRACE_D(" |~~~|- item->interface.uart.channel: %d", item->interface.uart.channel);
+    TRACE_D(" |~~~|- item->interface.uart.baudrate: %d", item->interface.uart.baudrate);
+    TRACE_D(" |~~~|- item->interface.uart.tx: %d", item->interface.uart.tx);
+    TRACE_D(" |~~~|- item->interface.uart.rx: %d", item->interface.uart.rx);
+    TRACE_D(" |~~~|- item->interface.uart.enable: %d", item->interface.uart.enable);
+}
+
+static void ezlopi_device_print_interface_i2c_master(l_ezlopi_item_t *item)
+{
+    TRACE_D("|~~~|- item->interface.i2c_master.enable: %s", item->interface.i2c_master.enable ? "true" : "false");
+    TRACE_D("|~~~|- item->interface.i2c_master.channel: %d", item->interface.i2c_master.channel);
+    TRACE_D("|~~~|- item->interface.i2c_master.clock_speed: %d", item->interface.i2c_master.clock_speed);
+    TRACE_D("|~~~|- item->interface.i2c_master.scl: %d", item->interface.i2c_master.scl);
+    TRACE_D("|~~~|- item->interface.i2c_master.sda: %d", item->interface.i2c_master.sda);
+}
+
+static void ezlopi_device_print_interface_spi_master(l_ezlopi_item_t *item)
+{
+    TRACE_D(" |~~~|- item->interface.spi_master.enable: %d", item->interface.spi_master.enable);
+    TRACE_D(" |~~~|- item->interface.spi_master.channel: %d", item->interface.spi_master.channel);
+    TRACE_D(" |~~~|- item->interface.spi_master.mode: %d", item->interface.spi_master.mode);
+    TRACE_D(" |~~~|- item->interface.spi_master.mosi: %d", item->interface.spi_master.mosi);
+    TRACE_D(" |~~~|- item->interface.spi_master.miso: %d", item->interface.spi_master.miso);
+    TRACE_D(" |~~~|- item->interface.spi_master.sck: %d", item->interface.spi_master.sck);
+    TRACE_D(" |~~~|- item->interface.spi_master.cs: %d", item->interface.spi_master.cs);
+    TRACE_D(" |~~~|- item->interface.spi_master.clock_speed_mhz: %d", item->interface.spi_master.clock_speed_mhz);
+    TRACE_D(" |~~~|- item->interface.spi_master.command_bits: %d", item->interface.spi_master.command_bits);
+    TRACE_D(" |~~~|- item->interface.spi_master.addr_bits: %d", item->interface.spi_master.addr_bits);
+    TRACE_D(" |~~~|- item->interface.spi_master.queue_size: %d", item->interface.spi_master.queue_size);
+    TRACE_D(" |~~~|- item->interface.spi_master.transfer_sz: %d", item->interface.spi_master.transfer_sz);
+    TRACE_D(" |~~~|- item->interface.spi_master.flags: %d", item->interface.spi_master.flags);
+}
+
+static void ezlopi_device_print_interface_onewire_master(l_ezlopi_item_t *item)
+{
+    TRACE_D(" |~~~|- item->interface.onewire_master.enable: %d", item->interface.onewire_master.enable);
+    TRACE_D(" |~~~|- item->interface.onewire_master.onewire_pin: %d", item->interface.onewire_master.onewire_pin);
+}
+
+static void ezlopi_device_print_interface_type(l_ezlopi_item_t *item)
+{
+    switch (item->interface_type)
+    {
+    case EZLOPI_DEVICE_INTERFACE_DIGITAL_OUTPUT:
+    case EZLOPI_DEVICE_INTERFACE_DIGITAL_INPUT:
+    {
+        ezlopi_device_print_interface_digital_io(item);
+        break;
+    }
+    case EZLOPI_DEVICE_INTERFACE_ANALOG_INPUT:
+    {
+        ezlopi_device_print_interface_analogue_input(item);
+        break;
+    }
+    case EZLOPI_DEVICE_INTERFACE_ANALOG_OUTPUT:
+    {
+        ezlopi_device_print_interface_analogue_output(item);
+        break;
+    }
+    case EZLOPI_DEVICE_INTERFACE_PWM:
+    {
+        ezlopi_device_print_interface_pwm(item);
+        break;
+    }
+    case EZLOPI_DEVICE_INTERFACE_UART:
+    {
+        ezlopi_device_print_interface_uart(item);
+        break;
+    }
+    case EZLOPI_DEVICE_INTERFACE_ONEWIRE_MASTER:
+    {
+        ezlopi_device_print_interface_onewire_master(item);
+        break;
+    }
+    case EZLOPI_DEVICE_INTERFACE_I2C_MASTER:
+    {
+        ezlopi_device_print_interface_i2c_master(item);
+        break;
+    }
+    case EZLOPI_DEVICE_INTERFACE_SPI_MASTER:
+    {
+        ezlopi_device_print_interface_spi_master(item);
+        break;
+    }
+    default:
+    {
+        break;
+    }
     }
 }
 
@@ -47,6 +254,7 @@ void ezlopi_device_print_properties(s_ezlopi_device_properties_t *device)
         // TRACE_D("device->ezlopi_cloud.room_id: 0x%08x", device->ezlopi_cloud.room_id);
         TRACE_D("device->ezlopi_cloud.room_id: \"\"");
         TRACE_D("device->ezlopi_cloud.item_id: 0x%08x", device->ezlopi_cloud.item_id);
+
         switch (device->interface_type)
         {
         case EZLOPI_DEVICE_INTERFACE_DIGITAL_INPUT:
@@ -120,11 +328,54 @@ void ezlopi_device_print_properties(s_ezlopi_device_properties_t *device)
     vTaskDelay(1);
 }
 
-static void ezlopi_device_parse_json(char *config_string)
+static void ezlopi_device_print_ezlopi_informations()
+{
+
+    ezlopi_device_print_controller_cloud_information_v3();
+
+    int device_count = 0;
+    l_ezlopi_device_t *tm_device_l_list = l_device_head;
+    while (tm_device_l_list)
+    {
+        TRACE_D("|~~~~~~~~~~~~~~~~ Device - %d ~~~~~~~~~~~~~~~~|", device_count);
+        TRACE_D("|- Name: %.*s", 32, isprint(tm_device_l_list->cloud_properties.device_name[0]) ? tm_device_l_list->cloud_properties.device_name : "-");
+        TRACE_D("|- Id: 0x%08X", tm_device_l_list->cloud_properties.device_id);
+        TRACE_D("|- parentId: 0x%08X", tm_device_l_list->cloud_properties.parent_device_id);
+        TRACE_D("|- gatewayId: 0x%08X", tm_device_l_list->cloud_properties.gateway_id);
+        TRACE_D("|- Category: %s", tm_device_l_list->cloud_properties.category ? tm_device_l_list->cloud_properties.category : "-");
+        TRACE_D("|- Sub-category: %s", tm_device_l_list->cloud_properties.subcategory ? tm_device_l_list->cloud_properties.subcategory : "-");
+        TRACE_D("|- Device-type: %s", tm_device_l_list->cloud_properties.device_type ? tm_device_l_list->cloud_properties.device_type : "-");
+
+        int item_count = 0;
+        l_ezlopi_item_t *tm_itme_l_list = tm_device_l_list->items;
+        while (tm_itme_l_list)
+        {
+            TRACE_D("|~~~|--------------- Item - %d ---------------|", item_count);
+            TRACE_D("|~~~|- Id: 0x%08X", tm_itme_l_list->cloud_properties.item_id);
+            TRACE_D("|~~~|- name: %s", tm_itme_l_list->cloud_properties.item_name ? tm_itme_l_list->cloud_properties.item_name : "-");
+            TRACE_D("|~~~|- Value: %s", tm_itme_l_list->cloud_properties.value_type ? tm_itme_l_list->cloud_properties.value_type : "-");
+            TRACE_D("|~~~|- Scale: %s", tm_itme_l_list->cloud_properties.scale ? tm_itme_l_list->cloud_properties.scale : "-");
+            TRACE_D("|~~~|- Device-type: %.*s", 32, tm_device_l_list->cloud_properties.device_type ? tm_device_l_list->cloud_properties.device_type : "-");
+
+            TRACE_D("|~~~|- Interface-type: %d", tm_itme_l_list->interface_type);
+            ezlopi_device_print_interface_type(tm_itme_l_list);
+
+            tm_itme_l_list = tm_itme_l_list->next;
+            item_count++;
+        }
+
+        TRACE_D("|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|");
+
+        tm_device_l_list = tm_device_l_list->next;
+        device_count++;
+    }
+}
+
+static void ezlopi_device_parse_json_v3(char *config_string)
 {
     TRACE_I("PARSING - config_string: \n%s", config_string);
     cJSON *cjson_config = cJSON_Parse(config_string);
-    
+
     if (cjson_config)
     {
         cJSON *cjson_device_list = cJSON_GetObjectItem(cjson_config, "dev_detail");
@@ -140,10 +391,25 @@ static void ezlopi_device_parse_json(char *config_string)
 
                 int id_item = 0;
                 CJSON_GET_VALUE_INT(cjson_device, "id_item", id_item);
-                TRACE_B("id_item: %d", id_item);
 
                 if (0 != id_item)
                 {
+
+                    s_ezlopi_device_v3_t *v3_sensor_list = ezlopi_devices_list_get_list_v3();
+                    int dev_idx = 0;
+
+                    while (NULL != v3_sensor_list[dev_idx].func)
+                    {
+                        if (id_item == v3_sensor_list[dev_idx].id)
+                        {
+                            s_ezlopi_prep_arg_t device_prep_arg = {.device = &v3_sensor_list[dev_idx], .cjson_device = cjson_device};
+                            v3_sensor_list[dev_idx].func(EZLOPI_ACTION_PREPARE, NULL, (void *)&device_prep_arg, NULL);
+                        }
+
+                        dev_idx++;
+                    }
+
+#if 0
                     s_ezlopi_device_t *sensor_list = ezlopi_devices_list_get_list();
                     int dev_idx = 0;
                     while (NULL != sensor_list[dev_idx].func)
@@ -156,6 +422,7 @@ static void ezlopi_device_parse_json(char *config_string)
 
                         dev_idx++;
                     }
+#endif
                 }
 
                 config_dev_idx++;
@@ -170,15 +437,20 @@ static void ezlopi_device_parse_json(char *config_string)
         TRACE_E("EZLOPI-CONFIG parse- failed!");
     }
 
+    ezlopi_device_print_ezlopi_informations();
+
+#if 0
     l_ezlopi_configured_devices_t *current_head = ezlopi_devices_list_get_configured_items();
     while (NULL != current_head)
     {
-        // ezlopi_device_print_properties(current_head->properties);
-        TRACE_B("Device name: %s", current_head->properties->ezlopi_cloud.device_name ? current_head->properties->ezlopi_cloud.device_name : "");
+        ezlopi_device_print_properties(current_head->properties);
+        TRACE_B("Device name: %.*s", sizeof(current_head->properties->ezlopi_cloud.device_name), current_head->properties->ezlopi_cloud.device_name);
         current_head = current_head->next;
     }
+#endif
 }
 
+#if 0
 // uint32_t ezlopi_device_generate_device_id(void)
 // {
 //     device_id = (0 == device_id) ? 0x30000001 : device_id + 1;
@@ -206,3 +478,120 @@ static void ezlopi_device_parse_json(char *config_string)
 //     // TRACE_D("gateway_id: %u\r\n", gateway_id);
 //     return gateway_id;
 // }
+#endif
+
+l_ezlopi_device_t *ezlopi_device_get_head(void)
+{
+    return l_device_head;
+}
+
+l_ezlopi_device_t *ezlopi_device_add_device(void)
+{
+    l_ezlopi_device_t *new_device = malloc(sizeof(l_ezlopi_device_t));
+    if (new_device)
+    {
+        memset(new_device, 0, sizeof(l_ezlopi_device_t));
+        if (NULL == l_device_head)
+        {
+            l_device_head = new_device;
+        }
+        else
+        {
+            l_ezlopi_device_t *curr_device = l_device_head;
+            while (curr_device->next)
+            {
+                curr_device = curr_device->next;
+            }
+
+            curr_device->next = new_device;
+        }
+    }
+
+    return new_device;
+}
+
+l_ezlopi_item_t *ezlopi_device_add_item_to_device(l_ezlopi_device_t *device,
+                                                  int (*item_func)(e_ezlopi_actions_t action, l_ezlopi_item_t *item, void *arg, void *user_arg))
+{
+    l_ezlopi_item_t *new_item = NULL;
+    if (device)
+    {
+        new_item = malloc(sizeof(l_ezlopi_item_t));
+        if (new_item)
+        {
+            memset(new_item, 0, sizeof(l_ezlopi_item_t));
+            new_item->func = item_func;
+
+            if (NULL == device->items)
+            {
+                device->items = new_item;
+            }
+            else
+            {
+                l_ezlopi_item_t *curr_item = device->items;
+                while (curr_item->next)
+                {
+                    curr_item = curr_item->next;
+                }
+
+                curr_item->next = new_item;
+            }
+        }
+    }
+
+    return new_item;
+}
+
+static void ezlopi_device_free_item(l_ezlopi_item_t *items)
+{
+    if (items->next)
+    {
+        ezlopi_device_free_item(items->next);
+    }
+
+    free(items);
+}
+
+static void ezlopi_device_free(l_ezlopi_device_t *device)
+{
+    if (device->items)
+    {
+        ezlopi_device_free_item(device->items);
+    }
+    free(device);
+}
+
+void ezlopi_device_free_device(l_ezlopi_device_t *device)
+{
+    if (device)
+    {
+        if (l_device_head)
+        {
+            if (l_device_head == device)
+            {
+                ezlopi_device_free(l_device_head);
+                l_device_head = NULL;
+            }
+            else
+            {
+                l_ezlopi_device_t *curr_device = l_device_head;
+                while (curr_device->next)
+                {
+                    if (curr_device->next == device)
+                    {
+                        break;
+                    }
+
+                    curr_device = curr_device->next;
+                }
+
+                if (curr_device->next)
+                {
+                    l_ezlopi_device_t *free_device = curr_device->next;
+                    curr_device->next = curr_device->next->next;
+                    ezlopi_device_free(free_device);
+                }
+            }
+        }
+    }
+}

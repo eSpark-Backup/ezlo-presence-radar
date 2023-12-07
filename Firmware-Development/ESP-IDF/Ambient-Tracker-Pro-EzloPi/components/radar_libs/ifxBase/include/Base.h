@@ -57,7 +57,7 @@ extern "C"
 #include <Error.h>
 #include <LA.h>
 #include <Log.h>
-#include <Math.h>
+#include <math.h>
 #include <Matrix.h>
 #include <Mem.h>
 #include <Types.h>

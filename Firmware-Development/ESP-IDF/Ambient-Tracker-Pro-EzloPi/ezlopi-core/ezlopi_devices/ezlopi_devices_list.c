@@ -1,178 +1,47 @@
 #include "ezlopi_actions.h"
 #include "ezlopi_devices_list.h"
-#include "ezlopi_factory_info.h"
 
-#include "digital_io.h"
-#include "dimmable_bulb.h"
-#include "0034_sens_bme680_sensor.h"
-#include "0035_SK6812.h"
-#include "0036_sens_ltr303_ambient.h"
+#include "0008_sensor_I2C_LTR303ALS.h"
+#include "0009_other_RMT_SK6812.h"
+#include "0010_I2C_BME680.h"
 #include "0037_sens_pms5003_sensor.h"
+#include "0038_sensor_presence_sensor.h"
 
-static s_ezlopi_device_t device_array[] = {
+static s_ezlopi_device_v3_t device_array_v3[] = {
 
-#if (EZLOPI_SWITCH_BOX == EZLOPI_DEVICE_TYPE)
-#ifdef EZLOPI_SENSOR_0001_LED
+#ifdef EZLOPI_SENSOR_0008_ALS_LTR303_I2C_SENSOR
     {
-        .id = EZLOPI_SENSOR_0001_LED,
-        .func = digital_io,
-    },
-#endif
-#ifdef EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C
-    {
-        .id = EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C,
-        .func = gxhtc3_rh_t_sensor,
+        .id = EZLOPI_SENSOR_0008_ALS_LTR303_I2C_SENSOR,
+        .func = sensor_0008_I2C_LTR303ALS_v3,
     },
 #endif
 
-#else
-
-#ifdef EZLOPI_SENSOR_0001_LED
+#ifdef EZLOPI_DEVICE_0009_SK6812_LED_STRIP
     {
-        .id = EZLOPI_SENSOR_0001_LED,
-        .func = digital_io,
+        .id = EZLOPI_DEVICE_0009_SK6812_LED_STRIP,
+        .func = device_0009_other_RMT_SK6812_v3,
     },
 #endif
 
-#ifdef EZLOPI_SENSOR_0002_RELAY
+#ifdef EZLOPI_SENSOR_0010_BME680_I2C
     {
-        .id = EZLOPI_SENSOR_0002_RELAY,
-        .func = digital_io,
+        .id = EZLOPI_SENSOR_0010_BME680_I2C,
+        .func = sensor_0010_I2C_BME680_v3,
     },
 #endif
 
-#ifdef EZLOPI_SENSOR_0003_PLUG
+#ifdef EZLOPI_SENSOR_0037_PMS_UART
     {
-        .id = EZLOPI_SENSOR_0003_PLUG,
-        .func = digital_io,
+        .id = EZLOPI_SENSOR_0037_PMS_UART,
+        .func = pms5003_sensor_v3,
     },
 #endif
 
-#ifdef EZLOPI_SENSOR_0012_BME280_I2C
+#ifdef EZLOPI_SENSOR_0038_RADAR_SENSOR
     {
-        .id = EZLOPI_SENSOR_0012_BME280_I2C,
-        .func = sensor_bme280,
+        .id = EZLOPI_SENSOR_0038_RADAR_SENSOR,
+        .func = presence_sensor_v3,
     },
-#endif
-
-// #ifdef EZLOPI_SENSOR_0017_POTENTIOMETER
-//     {
-//         .id = EZLOPI_SENSOR_0017_POTENTIOMETER,
-//         .func = sensor_ldr_analog_sensor,
-//     },
-// #endif
-
-#ifdef EZLOPI_SENSOR_0018_DOOR
-    {
-        .id = EZLOPI_SENSOR_0018_DOOR,
-        .func = door_hall_sensor,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0019_PIR
-    {
-        .id = EZLOPI_SENSOR_0019_PIR,
-        .func = sensor_pir,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0020_JOYSTICK_2_AXIS
-    {
-        .id = EZLOPI_SENSOR_0020_JOYSTICK_2_AXIS,
-        .func = joystick_2_axis,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0021_ULTRASONIC_HRLV_MAXSENSOR_EZ_MB1013
-    {
-        .id = EZLOPI_SENSOR_0021_ULTRASONIC_HRLV_MAXSENSOR_EZ_MB1013,
-        .func = ultrasonic_MB1013,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0022_DIMMABLE_BULB
-    {
-        .id = EZLOPI_SENSOR_0022_DIMMABLE_BULB,
-        .func = ezlopi_dimmable_bulb,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0023_TTP_223B_TOUCH_SENSOR
-    {
-        .id = EZLOPI_SENSOR_0023_TTP_223B_TOUCH_SENSOR,
-        .func = sensor_touch_ttp_223b,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0024_ULTRASONIC_HC_SR04_SENSOR
-    {
-        .id = EZLOPI_SENSOR_0024_ULTRASONIC_HC_SR04_SENSOR,
-        .func = ultrasonic_HC_SR04,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0025_LDR_DIGITAL_MODULE_SENSOR
-    {
-        .id = EZLOPI_SENSOR_0025_LDR_DIGITAL_MODULE_SENSOR,
-        .func = sensor_ldr_digital_module,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0027_WATER_LEAK
-    {
-        .id = EZLOPI_SENSOR_0027_WATER_LEAK,
-        .func = water_leak_sensor,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0028_SOUND_SENSOR_SPI
-    {
-        .id = EZLOPI_SENSOR_0028_SOUND_SENSOR_SPI,
-        .func = sound_sensor,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_1024_DEVICE_HEALTH
-    {
-        .id = EZLOPI_SENSOR_1024_DEVICE_HEALTH,
-        .func = device_health,
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C
-    {
-        .id = EZLOPI_SENSOR_0029_GXHTC3_RH_T_I2C,
-        .func = gxhtc3_rh_t_sensor,
-    },
-#endif
-
-
-#ifdef EZLOPI_SENSOR_0034_BME680_I2C
-    {
-        .id = EZLOPI_SENSOR_0034_BME680_I2C,
-        .func = bme680_sensor,
-    },
-#endif
-
-#ifdef EZLOPI_SK6812_LED
-    {
-        .id = EZLOPI_SK6812_LED,
-        .func = sk6812
-    },
-#endif
-
-#ifdef EZLOPI_SENSOR_LTR303_AMBIENT_I2C
-    {
-        .id = EZLOPI_SENSOR_LTR303_AMBIENT_I2C,
-        .func = ltr303_ambient_sensor,
-    },
-#endif
-#ifdef EZLOPI_SENSOR_PMS5003_UART
-    {
-        .id = EZLOPI_SENSOR_PMS5003_UART,
-        .func = pms5003_sensor,
-    },
-#endif
 #endif
     /**
      * @brief 'EZLOPI_SENSOR_NONE' must not be removed from this array.
@@ -184,9 +53,18 @@ static s_ezlopi_device_t device_array[] = {
     },
 };
 
+#if 1 // version 3.x.x
+s_ezlopi_device_v3_t *ezlopi_devices_list_get_list_v3(void)
+{
+    return device_array_v3;
+}
+#endif
+
+#if 1 // version 1.x.x to 2.x.x
 s_ezlopi_device_t *ezlopi_devices_list_get_list(void)
 {
-    return device_array;
+    return NULL;
+    // device_array;
 }
 
 static l_ezlopi_configured_devices_t *configured_device = NULL;
@@ -243,3 +121,4 @@ static l_ezlopi_configured_devices_t *ezlopi_device_list_create(s_ezlopi_device_
     }
     return device_list_element;
 }
+#endif

@@ -78,11 +78,12 @@ static char *g_ca_certificate = NULL;
 static char *g_ssl_private_key = NULL;
 static char *g_ssl_shared_key = NULL;
 static char *g_ezlopi_config = NULL;
+static uint32_t g_provisioning_status = 0;
 
 static int ezlopi_factory_info_v2_set_4kb(char *data, uint32_t offset);
 static char *ezlopi_factory_info_v2_read_string(e_ezlopi_factory_info_v2_offset_t offset, e_ezlopi_factory_info_v2_length_t length);
 
-static const esp_partition_t *ezlopi_factory_info_v2_init(void)
+const esp_partition_t *ezlopi_factory_info_v2_init(void)
 {
     if (NULL == partition_ctx_v2)
     {
@@ -127,10 +128,14 @@ void print_factory_info_v2(void)
     char *ca_certificate = ezlopi_factory_info_v2_get_ca_certificate();
     char *ssl_private_key = ezlopi_factory_info_v2_get_ssl_private_key();
     char *ssl_shared_key = ezlopi_factory_info_v2_get_ssl_shared_key();
+#if (EZLOPI_TEST_DEVICE == EZLOPI_DEVICE_TYPE)
+    char *ezlopi_config = test_device_constant_config;
+#else
 #if (ID_BIN_VERSION_2 == ID_BIN_VERSION)
     char *ezlopi_config = ezlopi_factory_info_v2_get_ezlopi_config();
 #elif (ID_BIN_VERSION_1 == ID_BIN_VERSION)
     char *ezlopi_config = ezlopi_nvs_read_config_data_str();
+#endif
 #endif
 
     TRACE_D("----------------- Factory Info -----------------");
@@ -170,6 +175,11 @@ void print_factory_info_v2(void)
 }
 
 /** Getter */
+uint32_t ezlopi_factory_info_v2_get_provisioning_status(void)
+{
+    return g_provisioning_status;
+}
+
 uint16_t ezlopi_factory_info_v2_get_version(void)
 {
     uint16_t _version = 0ULL;
@@ -268,7 +278,12 @@ void ezlopi_factory_info_v2_get_ezlopi_mac(uint8_t *mac)
 
 char *ezlopi_factory_info_v2_get_cloud_server(void)
 {
-    return ezlopi_factory_info_v2_read_string(CLOUD_SERVER_OFFSET, CLOUD_SERVER_LENGTH);
+    char *cloud_server = ezlopi_factory_info_v2_read_string(CLOUD_SERVER_OFFSET, CLOUD_SERVER_LENGTH);
+    if (cloud_server && strstr(cloud_server, "https://"))
+    {
+        g_provisioning_status = 1;
+    }
+    return cloud_server;
 }
 
 char *ezlopi_factory_info_v2_get_device_type(void)
@@ -309,7 +324,7 @@ char *ezlopi_factory_info_v2_get_ezlopi_config(void)
 //     return switch_box_constant_config;
 #if (EZLOPI_IR_BLASTER == EZLOPI_DEVICE_TYPE)
     return ir_blaster_constant_config;
-#elif(EZLOPI_TEST_DEVICE == EZLOPI_DEVICE_TYPE)
+#elif (EZLOPI_TEST_DEVICE == EZLOPI_DEVICE_TYPE)
     return test_device_constant_config;
 #elif (EZLOPI_GENERIC == EZLOPI_DEVICE_TYPE)
     if (NULL == g_ezlopi_config)
@@ -320,6 +335,7 @@ char *ezlopi_factory_info_v2_get_ezlopi_config(void)
 #elif(EZLOPI_AMBIENT_TRACKER == EZLOPI_DEVICE_TYPE)
     return ambient_tracker_constant_config;
 #else
+
     return NULL;
 #endif
 }

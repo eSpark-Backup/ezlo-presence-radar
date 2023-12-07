@@ -17,7 +17,7 @@
 #define PMS_UART_BUAD_RATE 9600
 
 #define PMS_ACTIVE_TIME         30
-#define PMS_SLEEP_TIME          120  
+#define PMS_SLEEP_TIME          60  
 #define PMS_STABILITY_TIME      15      // Here  
 #define PMS_TOTAL_TIME          (PMS_ACTIVE_TIME + PMS_SLEEP_TIME)
 
@@ -31,13 +31,13 @@
 /**! Structure holding Plantower's standard packet **/
 typedef struct PMSAQIdata {
   uint16_t framelen;       ///< How long this data chunk is
-  float pm10_standard,  ///< Standard PM1.0
+  uint16_t pm10_standard,  ///< Standard PM1.0
       pm25_standard,       ///< Standard PM2.5
       pm100_standard;      ///< Standard PM10.0
-  float pm10_env,       ///< Environmental PM1.0
+  uint16_t pm10_env,       ///< Environmental PM1.0
       pm25_env,            ///< Environmental PM2.5
       pm100_env;           ///< Environmental PM10.0
-  float particles_03um, ///< 0.3um Particle Count
+  uint16_t particles_03um, ///< 0.3um Particle Count
       particles_05um,      ///< 0.5um Particle Count
       particles_10um,      ///< 1.0um Particle Count
       particles_25um,      ///< 2.5um Particle Count
@@ -59,6 +59,7 @@ void pms_print_data(PM25_AQI_Data* data);
 void pms_sleep_mode(gpio_num_t set_pin);
 void pms_active_mode(gpio_num_t set_pin);
 void pms_create_sleep_timer(PM25_AQI_Data* data);
+
 bool pms_is_data_available(void* user_arg);
 void pms_set_data_available_to_false(void* user_arg);
 static void pms_timer_callback(void* arg);

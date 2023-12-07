@@ -21,251 +21,249 @@ extern "C"
 #include "xensiv_bgt60trxx_esp32.h"
 #include "esp_log.h"
 
-ifx_Avian_Device_t *ifx_avian_create_dummy_from_xensiv(xensiv_bgt60trxx_t *bgt60)
-{
-
-   IFX_ERR_BRK_NULL(bgt60);
-   ifx_Avian_Device_t *ifx_device = ifx_avian_create();
-
-   IFX_ERR_BRK_NULL(ifx_device);
-
-   // Assign the SPI handel in here
-   ifx_device->m_xensiv_device_handle = bgt60;
-
-   // Initialize with the BGT60TR13C sensor at the beginning
-   ifx_device->m_sensor_type = IFX_AVIAN_BGT60TR13C;
-
-   return ifx_device;
-}
-
-ifx_Avian_Device_t *ifx_avian_create(void)
-{
-
-   ifx_Avian_Device_t *ifx_device = malloc(sizeof(*ifx_device));
-
-   IFX_ERR_BRK_MEMALLOC(ifx_device);
-
-   memset(ifx_device, 0, sizeof(*ifx_device));
-
-   ifx_device->m_firmware_info.description = (char *)malloc(sizeof(IFX_SIZE_STR_FMW_DESCRIPTION));
-   IFX_ERR_BRK_MEMALLOC(ifx_device->m_firmware_info.description);
-
-   ifx_device->m_sensor_info.description = (char *)malloc(sizeof(IFX_SIZE_STR_SENSOR_DESCRIPTION));
-   IFX_ERR_BRK_MEMALLOC(ifx_device->m_sensor_info.description);
-
-   return ifx_device;
-}
-
-void ifx_avian_set_config(ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
-{
-
-   // TODO: To be defined later with these getter and setter functions
-   // int32_t xensiv_bgt60trxx_set_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_addr, uint32_t data)
-   // int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_addr, uint32_t* data)
-}
-
-void ifx_avian_get_config(ifx_Avian_Device_t *handle, ifx_Avian_Config_t *config)
-{
-   config->sample_rate_Hz = XENSIV_BGT60TRXX_CONF_SAMPLE_RATE;
-   config->rx_mask = 5;
-   config->tx_mask = 1;
-   config->tx_power_level = 31;
-   config->if_gain_dB = IF_DB_GAIN;
-   config->start_frequency_Hz = XENSIV_BGT60TRXX_CONF_START_FREQ_HZ;
-   config->end_frequency_Hz = XENSIV_BGT60TRXX_CONF_END_FREQ_HZ;
-   config->num_samples_per_chirp = XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP;
-   config->num_chirps_per_frame = XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME;
-   config->chirp_repetition_time_s = XENSIV_BGT60TRXX_CONF_CHIRP_REPETITION_TIME_S;
-   config->frame_repetition_time_s = XENSIV_BGT60TRXX_CONF_FRAME_REPETITION_TIME_S;
-   config->hp_cutoff_Hz = 80000;
-   config->aaf_cutoff_Hz = 500000;
-   config->mimo_mode = IFX_MIMO_OFF;
-   // to be defined
-}
-
-void ifx_avian_get_config_defaults(ifx_Avian_Device_t *handle, ifx_Avian_Config_t *config)
-{
-   // to be defined
-}
-
-void ifx_avian_config_get_default_limits(const ifx_Avian_Device_t *handle, ifx_Avian_Config_t *config_lower, ifx_Avian_Config_t *config_upper)
-{
-   // to be defined
-}
-
-ifx_Radar_Sensor_t ifx_avian_get_sensor_type(const ifx_Avian_Device_t *handle)
-{
-   return handle->m_sensor_type;
-}
-
-void ifx_avian_get_temperature(ifx_Avian_Device_t *handle, ifx_Float_t *temperature_celsius)
-{
-}
-
-void ifx_avian_configure_adc(ifx_Avian_Device_t *handle,
-                              const ifx_Avian_ADC_Config_t *config)
-{
-}
-
-void ifx_avian_destroy(ifx_Avian_Device_t *handle)
-{
-   free(handle);
-}
-
-void ifx_avian_start_acquisition(ifx_Avian_Device_t *handle)
-{
-   uint32_t err = xensiv_bgt60trxx_start_frame(handle->m_xensiv_device_handle, true);
-   IFX_ERR_BRK_COND(err, IFX_ERROR_FRAME_ACQUISITION_FAILED);
-}
-
-void ifx_avian_stop_acquisition(ifx_Avian_Device_t *handle)
-{
-   uint32_t err = xensiv_bgt60trxx_start_frame(handle->m_xensiv_device_handle, false);
-   IFX_ERR_BRK_INTERNAL((err != XENSIV_BGT60TRXX_STATUS_OK));
-}
-
-ifx_Avian_Config_t cfg;
-
-ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t *frame, uint16_t *samples)
-{
-   ifx_avian_get_config(handle, &cfg);
-
-   uint32_t sample_no = 0;
-   uint32_t sample_idx = 0;
-
-   #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 1
-   uint32_t antenna1_data_index = 0;
-   #endif
-
-   #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 2
-   uint32_t antenna1_data_index = 0;
-   uint32_t antenna2_data_index = SAMP_PER_FRAME / 2;
-   #endif
-
-   #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 3
-   uint32_t antenna1_data_index = 0;
-   uint32_t antenna2_data_index = SAMP_PER_FRAME / 3;
-   uint32_t antenna3_data_index = (SAMP_PER_FRAME / 3) * 2;
-   #endif
-
-   for (uint16_t chirp_index = 0; chirp_index < cfg.num_chirps_per_frame; chirp_index++)
+   ifx_Avian_Device_t *ifx_avian_create_dummy_from_xensiv(xensiv_bgt60trxx_t *bgt60)
    {
-      if ( (samples[sample_no + SYNCWORD1_OFFSET] | samples[sample_no + SYNCWORD0_OFFSET]) != 0 )
-      {
-         ESP_LOGE("FIFO", "Sync Word Error");
-         return frame;
-      }
 
-      if (samples[sample_no + SHAPE_GRP_OFFSET] != chirp_index)
-      {
-         ESP_LOGE("FIFO", "Chirp missing : %d , Received : %d", chirp_index, samples[3]);
-         return frame;
-      }
+      IFX_ERR_BRK_NULL(bgt60);
+      ifx_Avian_Device_t *ifx_device = ifx_avian_create();
 
-      if (samples[sample_no + CHIRP_LEN_OFFSET] != cfg.num_samples_per_chirp) // XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP
-      {
-         ESP_LOGE("FIFO", "Chirp Samples Mismatched, Expected : %d , Received : %d", frame->slices, samples[4]);
-         return frame;
-      }
+      IFX_ERR_BRK_NULL(ifx_device);
 
-      sample_idx = sample_no + DATA_OFFSET;
+      // Assign the SPI handel in here
+      ifx_device->m_xensiv_device_handle = bgt60;
 
-      
-      for (uint32_t x = 0; x < cfg.num_samples_per_chirp; x++)
-      {
-      #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 1
-         frame->d[antenna1_data_index] = samples[sample_idx + x];
-         antenna1_data_index++;
-      #endif
+      // Initialize with the BGT60TR13C sensor at the beginning
+      ifx_device->m_sensor_type = IFX_AVIAN_BGT60TR13C;
 
-      #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 2
-         frame->d[antenna1_data_index] = samples[sample_idx + (2 * x)];
-         frame->d[antenna2_data_index] = samples[sample_idx + ((2 * x) + 1)];
-
-         antenna1_data_index++;
-         antenna2_data_index++;
-      #endif
-
-      #if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 3
-         frame->d[antenna1_data_index] = samples[sample_idx + (3 * x)];    
-         frame->d[antenna2_data_index] = samples[sample_idx + ((3 * x) + 1)];       
-         frame->d[antenna3_data_index] = samples[sample_idx + ((3 * x) + 2)];
-
-         antenna1_data_index++;
-         antenna2_data_index++;
-         antenna3_data_index++;
-      #endif
-      }
-      
-
-      sample_no += ((cfg.num_samples_per_chirp * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS) + DATA_OFFSET);
+      return ifx_device;
    }
 
-   return frame;
-}
+   ifx_Avian_Device_t *ifx_avian_create(void)
+   {
 
-ifx_Cube_R_t *ifx_avian_get_next_frame_timeout(ifx_Avian_Device_t *handle, ifx_Cube_R_t *frame, uint16_t timeout_ms)
-{
-   ifx_Cube_R_t *t = NULL;
-   return t;
-}
+      ifx_Avian_Device_t *ifx_device = malloc(sizeof(*ifx_device));
 
-const char *ifx_avian_get_board_uuid(const ifx_Avian_Device_t *handle)
-{
-   char *uuid = NULL;
-   return uuid;
-}
+      IFX_ERR_BRK_MEMALLOC(ifx_device);
 
-const ifx_Radar_Sensor_Info_t *ifx_avian_get_sensor_information(const ifx_Avian_Device_t *handle)
-{
+      memset(ifx_device, 0, sizeof(*ifx_device));
 
-   ifx_Radar_Sensor_Info_t *sensor_info = (ifx_Radar_Sensor_Info_t *)malloc(sizeof(ifx_Radar_Sensor_Info_t));
+      ifx_device->m_firmware_info.description = (char *)malloc(sizeof(IFX_SIZE_STR_FMW_DESCRIPTION));
+      IFX_ERR_BRK_MEMALLOC(ifx_device->m_firmware_info.description);
 
-   // sensor_info->description = (char *)malloc(50);
-   // sprintf(sensor_info->description, "%s", "EzloPi Presence Sensor");
+      ifx_device->m_sensor_info.description = (char *)malloc(sizeof(IFX_SIZE_STR_SENSOR_DESCRIPTION));
+      IFX_ERR_BRK_MEMALLOC(ifx_device->m_sensor_info.description);
 
-   sensor_info->min_rf_frequency_Hz = 60020000000;
-   sensor_info->max_rf_frequency_Hz = 61020000000;
-   sensor_info->num_tx_antennas = 1;
-   sensor_info->num_rx_antennas = 1;
-   sensor_info->max_tx_power = 31;
-   sensor_info->num_temp_sensors = 1;
-   // sensor_info->interleaved_rx;
-   // sensor_info->device_id;
+      return ifx_device;
+   }
 
-   return sensor_info;
-}
+   void ifx_avian_set_config(ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
+   {
 
-const ifx_Firmware_Info_t *ifx_avian_get_firmware_information(const ifx_Avian_Device_t *handle)
-{
-   ifx_Firmware_Info_t *t = NULL;
-   return t;
-}
+      // TODO: To be defined later with these getter and setter functions
+      // int32_t xensiv_bgt60trxx_set_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_addr, uint32_t data)
+      // int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_addr, uint32_t* data)
+   }
 
-void ifx_avian_get_shield_information(const ifx_Avian_Device_t *handle, ifx_RF_Shield_Info_t *shield_info)
-{
-}
+   void ifx_avian_get_config(ifx_Avian_Device_t *handle, ifx_Avian_Config_t *config)
+   {
+      config->sample_rate_Hz = XENSIV_BGT60TRXX_CONF_SAMPLE_RATE;
+      config->rx_mask = 5;
+      config->tx_mask = 1;
+      config->tx_power_level = 31;
+      config->if_gain_dB = IF_DB_GAIN;
+      config->start_frequency_Hz = XENSIV_BGT60TRXX_CONF_START_FREQ_HZ;
+      config->end_frequency_Hz = XENSIV_BGT60TRXX_CONF_END_FREQ_HZ;
+      config->num_samples_per_chirp = XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP;
+      config->num_chirps_per_frame = XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME;
+      config->chirp_repetition_time_s = XENSIV_BGT60TRXX_CONF_CHIRP_REPETITION_TIME_S;
+      config->frame_repetition_time_s = XENSIV_BGT60TRXX_CONF_FRAME_REPETITION_TIME_S;
+      config->hp_cutoff_Hz = 80000;
+      config->aaf_cutoff_Hz = 500000;
+      config->mimo_mode = IFX_MIMO_OFF;
+      // to be defined
+   }
 
-ifx_Float_t ifx_avian_get_chirp_time(const ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
-{
+   void ifx_avian_get_config_defaults(ifx_Avian_Device_t *handle, ifx_Avian_Config_t *config)
+   {
+      // to be defined
+   }
 
-   return 0.0;
-}
+   void ifx_avian_config_get_default_limits(const ifx_Avian_Device_t *handle, ifx_Avian_Config_t *config_lower, ifx_Avian_Config_t *config_upper)
+   {
+      // to be defined
+   }
 
-ifx_Float_t ifx_avian_get_tx_power(ifx_Avian_Device_t *handle, uint8_t tx_antenna)
-{
-   return 0.0;
-}
+   ifx_Radar_Sensor_t ifx_avian_get_sensor_type(const ifx_Avian_Device_t *handle)
+   {
+      return handle->m_sensor_type;
+   }
 
-ifx_Float_t ifx_avian_config_get_min_chirp_repetition_time(const ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
-{
-   return 0.0;
-}
+   void ifx_avian_get_temperature(ifx_Avian_Device_t *handle, ifx_Float_t *temperature_celsius)
+   {
+   }
 
-ifx_Float_t ifx_avian_config_get_min_frame_repetition_time(const ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
-{
-   return 0.0;
-}
+   void ifx_avian_configure_adc(ifx_Avian_Device_t *handle,
+                                const ifx_Avian_ADC_Config_t *config)
+   {
+   }
+
+   void ifx_avian_destroy(ifx_Avian_Device_t *handle)
+   {
+      free(handle);
+   }
+
+   void ifx_avian_start_acquisition(ifx_Avian_Device_t *handle, void *user_data)
+   {
+      uint32_t err = xensiv_bgt60trxx_start_frame(handle->m_xensiv_device_handle, true, user_data);
+      IFX_ERR_BRK_COND(err, IFX_ERROR_FRAME_ACQUISITION_FAILED);
+   }
+
+   void ifx_avian_stop_acquisition(ifx_Avian_Device_t *handle, void *user_data)
+   {
+      uint32_t err = xensiv_bgt60trxx_start_frame(handle->m_xensiv_device_handle, false, user_data);
+      IFX_ERR_BRK_INTERNAL((err != XENSIV_BGT60TRXX_STATUS_OK));
+   }
+
+   ifx_Avian_Config_t cfg;
+
+   ifx_Cube_R_t *ifx_avian_get_next_frame(ifx_Avian_Device_t *handle, ifx_Cube_R_t *frame, uint16_t *samples)
+   {
+      ifx_avian_get_config(handle, &cfg);
+
+      uint32_t sample_no = 0;
+      uint32_t sample_idx = 0;
+
+#if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 1
+      uint32_t antenna1_data_index = 0;
+#endif
+
+#if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 2
+      uint32_t antenna1_data_index = 0;
+      uint32_t antenna2_data_index = SAMP_PER_FRAME / 2;
+#endif
+
+#if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 3
+      uint32_t antenna1_data_index = 0;
+      uint32_t antenna2_data_index = SAMP_PER_FRAME / 3;
+      uint32_t antenna3_data_index = (SAMP_PER_FRAME / 3) * 2;
+#endif
+
+      for (uint16_t chirp_index = 0; chirp_index < cfg.num_chirps_per_frame; chirp_index++)
+      {
+         if ((samples[sample_no + SYNCWORD1_OFFSET] | samples[sample_no + SYNCWORD0_OFFSET]) != 0)
+         {
+            ESP_LOGE("FIFO", "Sync Word Error");
+            return frame;
+         }
+
+         if (samples[sample_no + SHAPE_GRP_OFFSET] != chirp_index)
+         {
+            ESP_LOGE("FIFO", "Chirp missing : %d , Received : %d", chirp_index, samples[3]);
+            return frame;
+         }
+
+         if (samples[sample_no + CHIRP_LEN_OFFSET] != cfg.num_samples_per_chirp) // XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP
+         {
+            ESP_LOGE("FIFO", "Chirp Samples Mismatched, Expected : %d , Received : %d", frame->slices, samples[4]);
+            return frame;
+         }
+
+         sample_idx = sample_no + DATA_OFFSET;
+
+         for (uint32_t x = 0; x < cfg.num_samples_per_chirp; x++)
+         {
+#if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 1
+            frame->d[antenna1_data_index] = samples[sample_idx + x];
+            antenna1_data_index++;
+#endif
+
+#if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 2
+            frame->d[antenna1_data_index] = samples[sample_idx + (2 * x)];
+            frame->d[antenna2_data_index] = samples[sample_idx + ((2 * x) + 1)];
+
+            antenna1_data_index++;
+            antenna2_data_index++;
+#endif
+
+#if XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS == 3
+            frame->d[antenna1_data_index] = samples[sample_idx + (3 * x)];
+            frame->d[antenna2_data_index] = samples[sample_idx + ((3 * x) + 1)];
+            frame->d[antenna3_data_index] = samples[sample_idx + ((3 * x) + 2)];
+
+            antenna1_data_index++;
+            antenna2_data_index++;
+            antenna3_data_index++;
+#endif
+         }
+
+         sample_no += ((cfg.num_samples_per_chirp * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS) + DATA_OFFSET);
+      }
+
+      return frame;
+   }
+
+   ifx_Cube_R_t *ifx_avian_get_next_frame_timeout(ifx_Avian_Device_t *handle, ifx_Cube_R_t *frame, uint16_t timeout_ms)
+   {
+      ifx_Cube_R_t *t = NULL;
+      return t;
+   }
+
+   const char *ifx_avian_get_board_uuid(const ifx_Avian_Device_t *handle)
+   {
+      char *uuid = NULL;
+      return uuid;
+   }
+
+   const ifx_Radar_Sensor_Info_t *ifx_avian_get_sensor_information(const ifx_Avian_Device_t *handle)
+   {
+
+      ifx_Radar_Sensor_Info_t *sensor_info = (ifx_Radar_Sensor_Info_t *)malloc(sizeof(ifx_Radar_Sensor_Info_t));
+
+      // sensor_info->description = (char *)malloc(50);
+      // sprintf(sensor_info->description, "%s", "EzloPi Presence Sensor");
+
+      sensor_info->min_rf_frequency_Hz = 60020000000;
+      sensor_info->max_rf_frequency_Hz = 61020000000;
+      sensor_info->num_tx_antennas = 1;
+      sensor_info->num_rx_antennas = 1;
+      sensor_info->max_tx_power = 31;
+      sensor_info->num_temp_sensors = 1;
+      // sensor_info->interleaved_rx;
+      // sensor_info->device_id;
+
+      return sensor_info;
+   }
+
+   const ifx_Firmware_Info_t *ifx_avian_get_firmware_information(const ifx_Avian_Device_t *handle)
+   {
+      ifx_Firmware_Info_t *t = NULL;
+      return t;
+   }
+
+   void ifx_avian_get_shield_information(const ifx_Avian_Device_t *handle, ifx_RF_Shield_Info_t *shield_info)
+   {
+   }
+
+   ifx_Float_t ifx_avian_get_chirp_time(const ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
+   {
+
+      return 0.0;
+   }
+
+   ifx_Float_t ifx_avian_get_tx_power(ifx_Avian_Device_t *handle, uint8_t tx_antenna)
+   {
+      return 0.0;
+   }
+
+   ifx_Float_t ifx_avian_config_get_min_chirp_repetition_time(const ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
+   {
+      return 0.0;
+   }
+
+   ifx_Float_t ifx_avian_config_get_min_frame_repetition_time(const ifx_Avian_Device_t *handle, const ifx_Avian_Config_t *config)
+   {
+      return 0.0;
+   }
 
 #ifdef __cplusplus
 } // extern "C"

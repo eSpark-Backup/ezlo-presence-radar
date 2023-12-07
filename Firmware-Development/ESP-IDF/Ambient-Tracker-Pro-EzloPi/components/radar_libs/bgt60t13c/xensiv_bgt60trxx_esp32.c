@@ -18,7 +18,7 @@ void xensiv_bgt60trxx_esp32_spi_cs_set(const void* iface, uint8_t val) {
 int32_t xensiv_bgt60trxx_esp32_spi_transfer(void* iface,
                                                uint8_t* tx_data,
                                                uint8_t* rx_data,
-                                               uint32_t len) {
+                                               uint32_t len, void * user_data) {
     spi_transaction_t transaction; 
 
     transaction.flags = 0;
@@ -26,8 +26,9 @@ int32_t xensiv_bgt60trxx_esp32_spi_transfer(void* iface,
     transaction.rxlength = 0;
     transaction.user = NULL;
     transaction.tx_buffer = tx_data;
-    transaction.rx_buffer = rx_data;    
-    
+    transaction.rx_buffer = rx_data;
+    transaction.user = user_data;
+
     esp_err_t err = spi_device_polling_transmit(*(spi_device_handle_t *)iface, &transaction);
 
     if (ESP_OK == err)
@@ -44,7 +45,8 @@ uint8_t fifo_read_count =0;
 
 int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
                                                 uint16_t* rx_data,
-                                                uint32_t len) {
+                                                uint32_t len,
+                                                void *user_data) {
     int32_t err = XENSIV_BGT60TRXX_STATUS_OK;
 
     xensiv_bgt60trxx_esp32_assert(iface != NULL);
@@ -53,13 +55,13 @@ int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
     transaction.flags = 0;
     transaction.length = (12 * TOTAL_DATA)/ MAX_FIFO_BREAK_COUNT;
     transaction.rxlength = (12 * TOTAL_DATA)/ MAX_FIFO_BREAK_COUNT;
-    transaction.user = NULL;
+    transaction.user = user_data;
     transaction.tx_buffer = NULL;
     transaction.rx_buffer = (rx_data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
     
     xensiv_bgt60trxx_esp32_enable_reading_fifo();
     fifo_read_count++;       
-    err = spi_device_queue_trans(*(spi_device_handle_t *)iface, &transaction,portMAX_DELAY);        
+    err = spi_device_queue_trans(*(spi_device_handle_t *)iface, &transaction, portMAX_DELAY);        
 
     return err;
 }

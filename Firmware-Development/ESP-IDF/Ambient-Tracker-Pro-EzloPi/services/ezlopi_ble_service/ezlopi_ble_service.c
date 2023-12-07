@@ -26,7 +26,7 @@
 #include "ezlopi_ble_service.h"
 #include "ezlopi_ble_buffer.h"
 
-extern void ezlopi_ble_service_passkey_init(void);
+extern void ezlopi_ble_service_security_init(void);
 extern void ezlopi_ble_service_wifi_profile_init(void);
 extern void ezlopi_ble_service_provisioning_init(void);
 extern void ezlopi_ble_service_device_info_init(void);
@@ -38,7 +38,7 @@ static void ezlopi_ble_start_secure_gatt_server_open_pairing(void);
 void ezlopi_ble_service_init(void)
 {
     ezlopi_ble_service_wifi_profile_init();
-    ezlopi_ble_service_passkey_init();
+    ezlopi_ble_service_security_init();
     ezlopi_ble_service_provisioning_init();
     ezlopi_ble_service_device_info_init();
 
@@ -46,7 +46,7 @@ void ezlopi_ble_service_init(void)
     ezlopi_ble_basic_init();
 
     CHECK_PRINT_ERROR(esp_ble_gatts_app_register(BLE_WIFI_SERVICE_HANDLE), "gatts app-0 register error");
-    CHECK_PRINT_ERROR(esp_ble_gatts_app_register(BLE_PASSKEY_SERVICE_HANDLE), "gatts app-1 register error");
+    CHECK_PRINT_ERROR(esp_ble_gatts_app_register(BLE_SECURITY_SERVICE_HANDLE), "gatts app-1 register error");
     CHECK_PRINT_ERROR(esp_ble_gatts_app_register(BLE_PROVISIONING_ID_HANDLE), "gatts app-2 register error");
     CHECK_PRINT_ERROR(esp_ble_gatts_app_register(BLE_DEVICE_INFO_ID_HANDLE), "gatts app-3 register error");
 
@@ -62,10 +62,12 @@ void ezlopi_ble_service_init(void)
 
 static void ezlopi_ble_start_secure_gatt_server_open_pairing(void)
 {
-    const esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND; // ESP_LE_AUTH_REQ_BOND_MITM;
-    const esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE;                   // ESP_IO_CAP_OUT;
+    const esp_ble_auth_req_t auth_req = ESP_LE_AUTH_REQ_SC_MITM_BOND;
+    // ESP_LE_AUTH_REQ_SC_MITM_BOND;
+    // ESP_LE_AUTH_REQ_BOND_MITM;
+    const esp_ble_io_cap_t iocap = ESP_IO_CAP_NONE; // ESP_IO_CAP_OUT;
     const uint8_t auth_option = ESP_BLE_ONLY_ACCEPT_SPECIFIED_AUTH_DISABLE;
-    const uint8_t oob_support = ESP_BLE_OOB_ENABLE; // ESP_BLE_OOB_ENABLE; // ESP_BLE_OOB_DISABLE;
+    const uint8_t oob_support = ESP_BLE_OOB_DISABLE; // ESP_BLE_OOB_ENABLE; // ESP_BLE_OOB_DISABLE;
     const uint8_t init_key = (ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
     const uint8_t rsp_key = (ESP_BLE_ENC_KEY_MASK | ESP_BLE_ID_KEY_MASK);
 

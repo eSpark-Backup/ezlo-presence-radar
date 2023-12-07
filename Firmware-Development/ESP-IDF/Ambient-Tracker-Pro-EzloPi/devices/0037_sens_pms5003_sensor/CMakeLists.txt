@@ -1,6 +1,6 @@
 file(GLOB_RECURSE config_src "*.c")
 # set(config_src)
 
-idf_component_register(SRCS "0037_sens_pms5003_sensor.c" "${config_src}"
+idf_component_register(SRCS "0037_sens_pms5003_sensor.c" "pms_dev_items_prepare.c" "${config_src}"
     INCLUDE_DIRS "."
     REQUIRES trace library ezlopi_actions ezlopi_hal ezlopi_timer ezlopi_devices ezlopi_cloud_constants gpio_isr_service)

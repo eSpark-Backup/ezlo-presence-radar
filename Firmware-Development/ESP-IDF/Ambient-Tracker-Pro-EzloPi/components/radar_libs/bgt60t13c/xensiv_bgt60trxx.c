@@ -1,52 +1,53 @@
-/***********************************************************************************************//**
- * \file xensiv_bgt60trxx.c
- *
- * \brief
- * This file contains the functions for interacting with the
- * XENSIV(TM) BGT60TRxx 60GHz FMCW radar sensors.
- *
- ***************************************************************************************************
- * \copyright
- * Copyright 2022 Infineon Technologies AG
- * SPDX-License-Identifier: Apache-2.0
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- **************************************************************************************************/
+/***********************************************************************************************/ /**
+                                                                                                   * \file xensiv_bgt60trxx.c
+                                                                                                   *
+                                                                                                   * \brief
+                                                                                                   * This file contains the functions for interacting with the
+                                                                                                   * XENSIV(TM) BGT60TRxx 60GHz FMCW radar sensors.
+                                                                                                   *
+                                                                                                   ***************************************************************************************************
+                                                                                                   * \copyright
+                                                                                                   * Copyright 2022 Infineon Technologies AG
+                                                                                                   * SPDX-License-Identifier: Apache-2.0
+                                                                                                   *
+                                                                                                   * Licensed under the Apache License, Version 2.0 (the "License");
+                                                                                                   * you may not use this file except in compliance with the License.
+                                                                                                   * You may obtain a copy of the License at
+                                                                                                   *
+                                                                                                   *     http://www.apache.org/licenses/LICENSE-2.0
+                                                                                                   *
+                                                                                                   * Unless required by applicable law or agreed to in writing, software
+                                                                                                   * distributed under the License is distributed on an "AS IS" BASIS,
+                                                                                                   * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                                                                                                   * See the License for the specific language governing permissions and
+                                                                                                   * limitations under the License.
+                                                                                                   **************************************************************************************************/
 
 #include <stddef.h>
 
+#include "../ifxBase/include/Error.h"
 #include "xensiv_bgt60trxx.h"
 #include "xensiv_bgt60trxx_esp32.h"
 
 // int64_t timeduration=0;
-#define XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES         (4U)
-#define XENSIV_BGT60TRXX_SOFT_RESET_DELAY_MS            (10U)
+#define XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES (4U)
+#define XENSIV_BGT60TRXX_SOFT_RESET_DELAY_MS (10U)
 
-#define XENSIV_BGT60TRXX_SPI_WR_OP_MSK                  (0x01000000UL)
-#define XENSIV_BGT60TRXX_SPI_WR_OP_POS                  (24U)
-#define XENSIV_BGT60TRXX_SPI_GSR0_MSK                   (0x0F000000UL)
-#define XENSIV_BGT60TRXX_SPI_GSR0_POS                   (24U)
-#define XENSIV_BGT60TRXX_SPI_REGADR_MSK                 (0xFE000000UL)
-#define XENSIV_BGT60TRXX_SPI_REGADR_POS                 (25U)
-#define XENSIV_BGT60TRXX_SPI_DATA_MSK                   (0x00FFFFFFUL)
-#define XENSIV_BGT60TRXX_SPI_DATA_POS                   (0U)
-#define XENSIV_BGT60TRXX_SPI_BURST_MODE_CMD             (0xFF000000UL)
-#define XENSIV_BGT60TRXX_SPI_BURST_MODE_SADR_MSK        (0x00FE0000UL)
-#define XENSIV_BGT60TRXX_SPI_BURST_MODE_SADR_POS        (17U)
-#define XENSIV_BGT60TRXX_SPI_BURST_MODE_RWB_MSK         (0x00010000UL)
-#define XENSIV_BGT60TRXX_SPI_BURST_MODE_RWB_POS         (16U)
-#define XENSIV_BGT60TRXX_SPI_BURST_MODE_LEN_MSK         (0x0000FE00UL)
-#define XENSIV_BGT60TRXX_SPI_BURST_MODE_LEN_POS         (9U)
+#define XENSIV_BGT60TRXX_SPI_WR_OP_MSK (0x01000000UL)
+#define XENSIV_BGT60TRXX_SPI_WR_OP_POS (24U)
+#define XENSIV_BGT60TRXX_SPI_GSR0_MSK (0x0F000000UL)
+#define XENSIV_BGT60TRXX_SPI_GSR0_POS (24U)
+#define XENSIV_BGT60TRXX_SPI_REGADR_MSK (0xFE000000UL)
+#define XENSIV_BGT60TRXX_SPI_REGADR_POS (25U)
+#define XENSIV_BGT60TRXX_SPI_DATA_MSK (0x00FFFFFFUL)
+#define XENSIV_BGT60TRXX_SPI_DATA_POS (0U)
+#define XENSIV_BGT60TRXX_SPI_BURST_MODE_CMD (0xFF000000UL)
+#define XENSIV_BGT60TRXX_SPI_BURST_MODE_SADR_MSK (0x00FE0000UL)
+#define XENSIV_BGT60TRXX_SPI_BURST_MODE_SADR_POS (17U)
+#define XENSIV_BGT60TRXX_SPI_BURST_MODE_RWB_MSK (0x00010000UL)
+#define XENSIV_BGT60TRXX_SPI_BURST_MODE_RWB_POS (16U)
+#define XENSIV_BGT60TRXX_SPI_BURST_MODE_LEN_MSK (0x0000FE00UL)
+#define XENSIV_BGT60TRXX_SPI_BURST_MODE_LEN_POS (9U)
 
 struct xensiv_bgt60trxx_type
 {
@@ -56,23 +57,16 @@ struct xensiv_bgt60trxx_type
 };
 
 static const struct xensiv_bgt60trxx_type bgt60trxx_types[] =
-{
     {
-        .fifo_addr = XENSIV_BGT60TRXX_REG_FIFO_TR13C,
-        .fifo_size = 8192U,
-        .device = XENSIV_DEVICE_BGT60TR13C
-    },
-    {
-        .fifo_addr = XENSIV_BGT60TRXX_REG_FIFO_UTR13D,
-        .fifo_size = 8192U,
-        .device = XENSIV_DEVICE_BGT60UTR13D
-    },
-    {
-        .fifo_addr = XENSIV_BGT60TRXX_REG_FIFO_UTR11,
-        .fifo_size = 2048U,
-        .device = XENSIV_DEVICE_BGT60UTR11
-    }
-};
+        {.fifo_addr = XENSIV_BGT60TRXX_REG_FIFO_TR13C,
+         .fifo_size = 8192U,
+         .device = XENSIV_DEVICE_BGT60TR13C},
+        {.fifo_addr = XENSIV_BGT60TRXX_REG_FIFO_UTR13D,
+         .fifo_size = 8192U,
+         .device = XENSIV_DEVICE_BGT60UTR13D},
+        {.fifo_addr = XENSIV_BGT60TRXX_REG_FIFO_UTR11,
+         .fifo_size = 2048U,
+         .device = XENSIV_DEVICE_BGT60UTR11}};
 
 static xensiv_bgt60trxx_device_t detect_device_type(uint32_t chipid)
 {
@@ -105,10 +99,7 @@ static xensiv_bgt60trxx_device_t detect_device_type(uint32_t chipid)
     }
 }
 
-
-int32_t xensiv_bgt60trxx_init(xensiv_bgt60trxx_t* dev,
-                              void* iface,
-                              bool high_speed)
+int32_t xensiv_bgt60trxx_init(xensiv_bgt60trxx_t *dev, void *iface, bool high_speed, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(iface != NULL);
@@ -120,20 +111,18 @@ int32_t xensiv_bgt60trxx_init(xensiv_bgt60trxx_t* dev,
 
     if (high_speed)
     {
-        status = xensiv_bgt60trxx_set_reg(dev,
-                                          XENSIV_BGT60TRXX_REG_SFCTL,
-                                          XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK);
+        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK, user_data);
     }
     else
     {
-        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, 0U);
+        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, 0U, user_data);
     }
 
     /* Read chipid */
     uint32_t chipid;
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
     {
-        status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_CHIP_ID, &chipid);
+        status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_CHIP_ID, &chipid, user_data);
     }
 
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
@@ -152,16 +141,14 @@ int32_t xensiv_bgt60trxx_init(xensiv_bgt60trxx_t* dev,
     return status;
 }
 
-
-int32_t xensiv_bgt60trxx_config(xensiv_bgt60trxx_t* dev,
-                                const uint32_t* regs,
-                                uint32_t len)
+int32_t xensiv_bgt60trxx_config(xensiv_bgt60trxx_t *dev,
+                                const uint32_t *regs,
+                                uint32_t len, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(regs != NULL);
 
-    int32_t status = xensiv_bgt60trxx_soft_reset(dev,
-                                                 XENSIV_BGT60TRXX_RESET_SW);
+    int32_t status = xensiv_bgt60trxx_soft_reset(dev, XENSIV_BGT60TRXX_RESET_SW, user_data);
 
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
     {
@@ -169,26 +156,24 @@ int32_t xensiv_bgt60trxx_config(xensiv_bgt60trxx_t* dev,
         for (uint32_t reg_idx = 0; reg_idx < len; ++reg_idx)
         {
             uint32_t val = regs[reg_idx];
-            uint32_t reg_addr = ((val & XENSIV_BGT60TRXX_SPI_REGADR_MSK) >>
-                                 XENSIV_BGT60TRXX_SPI_REGADR_POS);
-            uint32_t reg_data = ((val & XENSIV_BGT60TRXX_SPI_DATA_MSK) >>
-                                 XENSIV_BGT60TRXX_SPI_DATA_POS);
+            uint32_t reg_addr = ((val & XENSIV_BGT60TRXX_SPI_REGADR_MSK) >> XENSIV_BGT60TRXX_SPI_REGADR_POS);
+            uint32_t reg_data = ((val & XENSIV_BGT60TRXX_SPI_DATA_MSK) >> XENSIV_BGT60TRXX_SPI_DATA_POS);
 
             if (reg_addr == XENSIV_BGT60TRXX_REG_SFCTL)
             {
                 /* FIFO limit set by user */
-                reg_data &= (uint32_t) ~XENSIV_BGT60TRXX_REG_SFCTL_FIFO_CREF_MSK;
+                reg_data &= (uint32_t)~XENSIV_BGT60TRXX_REG_SFCTL_FIFO_CREF_MSK;
                 if (dev->high_speed)
                 {
                     reg_data |= (uint32_t)XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;
                 }
                 else
                 {
-                    reg_data &= (uint32_t) ~XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;
+                    reg_data &= (uint32_t)~XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;
                 }
             }
 
-            status = xensiv_bgt60trxx_set_reg(dev, reg_addr, reg_data);
+            status = xensiv_bgt60trxx_set_reg(dev, reg_addr, reg_data, user_data);
 
             if (status != XENSIV_BGT60TRXX_STATUS_OK)
             {
@@ -200,8 +185,7 @@ int32_t xensiv_bgt60trxx_config(xensiv_bgt60trxx_t* dev,
     return status;
 }
 
-
-int32_t xensiv_bgt60trxx_set_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_addr, uint32_t data)
+int32_t xensiv_bgt60trxx_set_reg(const xensiv_bgt60trxx_t *dev, uint32_t reg_addr, uint32_t data, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
 
@@ -214,31 +198,31 @@ int32_t xensiv_bgt60trxx_set_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_add
 
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
     int32_t status = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
-                                                            (uint8_t*)&temp,
-                                                            NULL,
-                                                            XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
+                                                         (uint8_t *)&temp,
+                                                         NULL,
+                                                         XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES,
+                                                         user_data);
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
 
     return status;
 }
 
-
-int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_addr, uint32_t* data)
+int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t *dev, uint32_t reg_addr, uint32_t *data, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(data != NULL);
 
-    uint32_t temp ;//= (uint32_t *)malloc(sizeof(uint32_t));
+    uint32_t temp; //= (uint32_t *)malloc(sizeof(uint32_t));
 
     temp = (reg_addr << XENSIV_BGT60TRXX_SPI_REGADR_POS) & XENSIV_BGT60TRXX_SPI_REGADR_MSK;
 
-    temp = xensiv_bgt60trxx_esp32_word_reverse(temp);    
+    temp = xensiv_bgt60trxx_esp32_word_reverse(temp);
 
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
     int32_t status = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
-                                                            (uint8_t*)&temp,
-                                                            (uint8_t*)data,
-                                                            XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
+                                                         (uint8_t *)&temp,
+                                                         (uint8_t *)data,
+                                                         XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES, user_data);
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
 
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
@@ -251,22 +235,23 @@ int32_t xensiv_bgt60trxx_get_reg(const xensiv_bgt60trxx_t* dev, uint32_t reg_add
     return status;
 }
 
-
-int32_t xensiv_bgt60trxx_get_gsro(const xensiv_bgt60trxx_t* dev, uint8_t *gsro) {
+int32_t xensiv_bgt60trxx_get_gsro(const xensiv_bgt60trxx_t *dev, uint8_t *gsro, void *user_data)
+{
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(gsro != NULL);
 
-    uint32_t * temp = (uint32_t *)malloc(sizeof(uint32_t));
+    uint32_t *temp = (uint32_t *)malloc(sizeof(uint32_t));
 
     *temp = (0 << XENSIV_BGT60TRXX_SPI_REGADR_POS) & XENSIV_BGT60TRXX_SPI_REGADR_MSK;
 
-    *temp = xensiv_bgt60trxx_esp32_word_reverse(*temp); 
+    *temp = xensiv_bgt60trxx_esp32_word_reverse(*temp);
 
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 0);
     int32_t status = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
-                                                            (uint8_t*)temp,
-                                                            (uint8_t*)temp,
-                                                            XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);
+                                                         (uint8_t *)temp,
+                                                         (uint8_t *)temp,
+                                                         XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES,
+                                                         user_data);
     xensiv_bgt60trxx_esp32_spi_cs_set(dev->iface, 1);
 
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
@@ -277,43 +262,41 @@ int32_t xensiv_bgt60trxx_get_gsro(const xensiv_bgt60trxx_t* dev, uint8_t *gsro) 
     }
 
     free(temp);
-    return status;    
+    return status;
 }
 
-uint16_t xensiv_bgt60trxx_get_fifo_size(const xensiv_bgt60trxx_t* dev)
+uint16_t xensiv_bgt60trxx_get_fifo_size(const xensiv_bgt60trxx_t *dev)
 {
     return (dev->type->fifo_size);
 }
 
-
-xensiv_bgt60trxx_device_t xensiv_bgt60trxx_get_device(const xensiv_bgt60trxx_t* dev)
+xensiv_bgt60trxx_device_t xensiv_bgt60trxx_get_device(const xensiv_bgt60trxx_t *dev)
 {
     return (dev->type->device);
 }
 
-
-int32_t xensiv_bgt60trxx_set_fifo_limit(const xensiv_bgt60trxx_t* dev, uint32_t num_samples)
+int32_t xensiv_bgt60trxx_set_fifo_limit(const xensiv_bgt60trxx_t *dev, uint32_t num_samples, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert((num_samples % 2U) == 0U);
     xensiv_bgt60trxx_esp32_assert((num_samples / 2U) <= dev->type->fifo_size);
 
     uint32_t tmp;
-    int32_t retval = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, &tmp);
+    int32_t retval = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, &tmp, user_data);
 
     if (XENSIV_BGT60TRXX_STATUS_OK == retval)
     {
-        tmp &= (uint32_t) ~XENSIV_BGT60TRXX_REG_SFCTL_FIFO_CREF_MSK;
+        tmp &= (uint32_t)~XENSIV_BGT60TRXX_REG_SFCTL_FIFO_CREF_MSK;
         tmp |= (((num_samples / 2U) - 1U) << XENSIV_BGT60TRXX_REG_SFCTL_FIFO_CREF_POS) &
-               XENSIV_BGT60TRXX_REG_SFCTL_FIFO_CREF_MSK;               
-        retval = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, tmp);
+               XENSIV_BGT60TRXX_REG_SFCTL_FIFO_CREF_MSK;
+        retval = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, tmp, user_data);
     }
 
     return retval;
 }
 
-int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* data,
-                                       uint32_t num_samples)
+int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t *dev, uint16_t *data,
+                                       uint32_t num_samples, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(data != NULL);
@@ -325,45 +308,45 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t* dev, uint16_t* 
                         (dev->type->fifo_addr << XENSIV_BGT60TRXX_SPI_BURST_MODE_SADR_POS);
 
     reg_addr = xensiv_bgt60trxx_esp32_word_reverse(reg_addr);
-    
+
     /* SPI read burst mode command */
     int32_t retval = xensiv_bgt60trxx_esp32_spi_transfer(dev->iface,
-                                                            (uint8_t*)&reg_addr,
-                                                            (uint8_t*)&gsr0,
-                                                            XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES);                                   
-    
+                                                         (uint8_t *)&reg_addr,
+                                                         (uint8_t *)&gsr0,
+                                                         XENSIV_BGT60TRXX_SPI_REG_XFER_LEN_BYTES,
+                                                         user_data);
+
     if (XENSIV_BGT60TRXX_STATUS_OK == retval)
     {
         if ((gsr0 & (XENSIV_BGT60TRXX_REG_GSR0_FOU_ERR_MSK |
                      XENSIV_BGT60TRXX_REG_GSR0_SPI_BURST_ERR_MSK |
                      XENSIV_BGT60TRXX_REG_GSR0_CLK_NUM_ERR_MSK)) == 0U)
         {
-            retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface,
-                                                             data,
-                                                             num_samples);                                           
+            retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface, data, num_samples, user_data);
         }
         else
         {
+
+            printf("gsr0: %d\r\n", gsr0);
+            printf("'xensiv_bgt60trxx_esp32_spi_transfer' error[%d]: %s\r\n", retval, ifx_error_to_string(retval));
             retval = XENSIV_BGT60TRXX_STATUS_GSR0_ERROR;
         }
-    }    
+    }
 
     return retval;
 }
 
-
-int32_t xensiv_bgt60trxx_get_fifo_status(const xensiv_bgt60trxx_t* dev, uint32_t* status)
+int32_t xensiv_bgt60trxx_get_fifo_status(const xensiv_bgt60trxx_t *dev, uint32_t *status, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(status != NULL);
 
-    int32_t retval = xensiv_bgt60trxx_get_reg(dev, dev->type->fifo_addr - 1U, status);
-    *status &= (uint32_t) ~XENSIV_BGT60TRXX_REG_FSTAT_FILL_STATUS_MSK;
+    int32_t retval = xensiv_bgt60trxx_get_reg(dev, dev->type->fifo_addr - 1U, status, user_data);
+    *status &= (uint32_t)~XENSIV_BGT60TRXX_REG_FSTAT_FILL_STATUS_MSK;
     return retval;
 }
 
-
-int32_t xensiv_bgt60trxx_start_frame(const xensiv_bgt60trxx_t* dev, bool start)
+int32_t xensiv_bgt60trxx_start_frame(const xensiv_bgt60trxx_t *dev, bool start, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
 
@@ -372,37 +355,35 @@ int32_t xensiv_bgt60trxx_start_frame(const xensiv_bgt60trxx_t* dev, bool start)
 
     if (start)
     {
-        status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, &tmp);
+        status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, &tmp, user_data);
         if (status == XENSIV_BGT60TRXX_STATUS_OK)
         {
             tmp |= XENSIV_BGT60TRXX_REG_MAIN_FRAME_START_MSK;
-            status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, tmp);
+            status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, tmp, user_data);
         }
     }
     else
     {
         /* Stop chirp generation */
-        status = xensiv_bgt60trxx_soft_reset(dev,
-                                             XENSIV_BGT60TRXX_RESET_FSM);
+        status = xensiv_bgt60trxx_soft_reset(dev, XENSIV_BGT60TRXX_RESET_FSM, user_data);
     }
 
     return status;
 }
 
-
-int32_t xensiv_bgt60trxx_soft_reset(const xensiv_bgt60trxx_t* dev,
-                                    xensiv_bgt60trxx_reset_t reset_type)
+int32_t xensiv_bgt60trxx_soft_reset(const xensiv_bgt60trxx_t *dev,
+                                    xensiv_bgt60trxx_reset_t reset_type, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
 
     uint32_t tmp;
     int32_t status;
 
-    status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, &tmp);
+    status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, &tmp, user_data);
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
     {
         tmp |= (uint32_t)reset_type;
-        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, tmp);
+        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, tmp, user_data);
     }
 
     uint32_t timeout = XENSIV_BGT60TRXX_RESET_WAIT_TIMEOUT;
@@ -410,7 +391,7 @@ int32_t xensiv_bgt60trxx_soft_reset(const xensiv_bgt60trxx_t* dev,
     {
         while (timeout > 0U)
         {
-            status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, &tmp);
+            status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_MAIN, &tmp, user_data);
             if ((XENSIV_BGT60TRXX_STATUS_OK == status) && ((tmp & (uint32_t)reset_type) == 0U))
             {
                 break;
@@ -434,15 +415,14 @@ int32_t xensiv_bgt60trxx_soft_reset(const xensiv_bgt60trxx_t* dev,
     return status;
 }
 
-
-int32_t xensiv_bgt60trxx_enable_data_test_mode(const xensiv_bgt60trxx_t* dev, bool enable)
+int32_t xensiv_bgt60trxx_enable_data_test_mode(const xensiv_bgt60trxx_t *dev, bool enable, void *user_data)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
 
     uint32_t tmp;
     int32_t status;
 
-    status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, &tmp);
+    status = xensiv_bgt60trxx_get_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, &tmp, user_data);
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
     {
         if (enable)
@@ -451,15 +431,14 @@ int32_t xensiv_bgt60trxx_enable_data_test_mode(const xensiv_bgt60trxx_t* dev, bo
         }
         else
         {
-            tmp &= (uint32_t) ~XENSIV_BGT60TRXX_REG_SFCTL_LFSR_EN_MSK;
+            tmp &= (uint32_t)~XENSIV_BGT60TRXX_REG_SFCTL_LFSR_EN_MSK;
         }
 
-        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, tmp);
+        status = xensiv_bgt60trxx_set_reg(dev, XENSIV_BGT60TRXX_REG_SFCTL, tmp, user_data);
     }
 
     return status;
 }
-
 
 /* Because the reset input is multiplexed with the quad SPI data line
    DIO3 the SPI CS signal must be HIGH all time during a reset
@@ -467,7 +446,7 @@ int32_t xensiv_bgt60trxx_enable_data_test_mode(const xensiv_bgt60trxx_t* dev, bo
 
    The reset signal of the connected device must be driven low
    and kept low for at least 1000ns, before going HIGH again. */
-void xensiv_bgt60trxx_hard_reset(const xensiv_bgt60trxx_t* dev)
+void xensiv_bgt60trxx_hard_reset(const xensiv_bgt60trxx_t *dev)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(dev->iface != NULL);
@@ -486,14 +465,14 @@ void xensiv_bgt60trxx_hard_reset(const xensiv_bgt60trxx_t* dev)
     xensiv_bgt60trxx_esp32_delay(1U);
 }
 
-
 uint16_t xensiv_bgt60trxx_get_next_test_word(uint16_t cur_test_word)
 {
     uint16_t next_value = (cur_test_word >> 1) |
                           (((cur_test_word << 11) ^
                             (cur_test_word << 10) ^
-                            (cur_test_word <<  9) ^
-                            (cur_test_word <<  3)) & 0x0800U);
+                            (cur_test_word << 9) ^
+                            (cur_test_word << 3)) &
+                           0x0800U);
 
     return next_value;
 }

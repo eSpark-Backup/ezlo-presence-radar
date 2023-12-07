@@ -16,9 +16,8 @@ static const char *user_id_nvs_name = "user_id";
 static const char *wifi_info_nvs_name = "wifi_info";
 static const char *boot_count_nvs_name = "boot_count";
 static const char *provisioning_status_nvs_name = "prov_stat";
-
-static char *ezlopi_nvs_read_str(char *nvs_name);
-static int ezlopi_nvs_write_str(char *data, uint32_t len, char *nvs_name);
+static const char *ezlopi_scenes_nvs_name = "ezlopi_scenes";
+static const char *settings_initialized_status_name = "settings_magic";
 
 int ezlopi_nvs_init(void)
 {
@@ -52,6 +51,21 @@ int ezlopi_nvs_init(void)
     }
 
     return ret;
+}
+
+int ezlopi_nvs_scene_set(char *scene)
+{
+    int ret = 0;
+    if (scene)
+    {
+        ret = ezlopi_nvs_write_str(scene, strlen(scene) + 1, ezlopi_scenes_nvs_name);
+    }
+    return ret;
+}
+
+char *ezlopi_nvs_scene_get(void)
+{
+    return ezlopi_nvs_read_str(ezlopi_scenes_nvs_name);
 }
 
 int ezlopi_nvs_factory_reset(void)
@@ -253,7 +267,7 @@ uint32_t ezlopi_nvs_get_boot_count(void)
     return boot_count;
 }
 
-static int ezlopi_nvs_write_str(char *data, uint32_t len, char *nvs_name)
+int ezlopi_nvs_write_str(char *data, uint32_t len, char *nvs_name)
 {
     int ret = 0;
 
@@ -261,23 +275,25 @@ static int ezlopi_nvs_write_str(char *data, uint32_t len, char *nvs_name)
     {
         if (1 == ezlopi_nvs_init())
         {
-            esp_err_t err = nvs_set_blob(ezlopi_nvs_handle, nvs_name, data, len);
+            esp_err_t err = nvs_set_str(ezlopi_nvs_handle, nvs_name, data);
             if (ESP_OK == err)
             {
                 err = nvs_commit(ezlopi_nvs_handle);
                 if (ESP_OK == err)
                 {
-                    ret = 1;
                     TRACE_D("%s commit success.", nvs_name);
+                    ret = 0;
                 }
                 else
                 {
                     TRACE_E("%s commit error: %s", nvs_name, esp_err_to_name(err));
+                    ret = 1;
                 }
             }
             else
             {
                 TRACE_E("%s write error: %s", nvs_name, esp_err_to_name(err));
+                ret = 1;
             }
         }
     }
@@ -285,14 +301,14 @@ static int ezlopi_nvs_write_str(char *data, uint32_t len, char *nvs_name)
     return ret;
 }
 
-static char *ezlopi_nvs_read_str(char *nvs_name)
+char *ezlopi_nvs_read_str(char *nvs_name)
 {
     char *return_str = NULL;
 
     if (1 == ezlopi_nvs_init())
     {
         esp_err_t err = ESP_OK;
-        size_t buf_len_needed;
+        size_t buf_len_needed = 0;
         err = nvs_get_str(ezlopi_nvs_handle, nvs_name, NULL, &buf_len_needed);
 
         if (buf_len_needed && (ESP_OK == err))
@@ -301,11 +317,12 @@ static char *ezlopi_nvs_read_str(char *nvs_name)
 
             if (return_str)
             {
+                memset(return_str, 0, buf_len_needed + 1);
                 err = nvs_get_str(ezlopi_nvs_handle, nvs_name, return_str, &buf_len_needed);
 
                 if (ESP_OK == err)
                 {
-                    TRACE_D("%s read success. Data[%d]: %s", nvs_name, buf_len_needed, return_str);
+                    TRACE_D("%s read success. \r\nData[%d]: \r\n%s", nvs_name, buf_len_needed, return_str);
                 }
                 else
                 {
@@ -319,7 +336,191 @@ static char *ezlopi_nvs_read_str(char *nvs_name)
                 TRACE_E("MALLOC ERROR");
             }
         }
+        else
+        {
+            TRACE_E("%s: buf_len_needed: %d, err: %s", nvs_name, buf_len_needed, esp_err_to_name(err));
+        }
     }
 
     return return_str;
+}
+
+uint8_t ezlopi_nvs_write_u8(uint8_t u, const char *key_name)
+{
+    uint8_t ret = 0;
+
+    if (ezlopi_nvs_handle)
+    {
+        esp_err_t err = nvs_set_u8(ezlopi_nvs_handle, key_name, u);
+        if (ESP_OK == err)
+        {
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_set_u8 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+uint8_t ezlopi_nvs_read_u8(uint8_t *u, const char *key_name)
+{
+    uint8_t ret = 0;
+    if (ezlopi_nvs_handle)
+    {
+        esp_err_t err = nvs_get_u8(ezlopi_nvs_handle, key_name, u);
+        if (ESP_OK == err)
+        {
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_get_u8 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+uint8_t ezlopi_nvs_write_int32(int32_t i, const char *key_name)
+{
+    uint8_t ret = 0;
+    if (ezlopi_nvs_handle)
+    {
+        esp_err_t err = nvs_set_i32(ezlopi_nvs_handle, key_name, i);
+        if (ESP_OK != err)
+        {
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_set_i32 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+uint8_t ezlopi_nvs_read_int32(int32_t *i, const char *key_name)
+{
+    uint8_t ret = 0;
+    if (ezlopi_nvs_handle)
+    {
+        esp_err_t err = nvs_get_i32(ezlopi_nvs_handle, key_name, i);
+        if (ESP_OK == err)
+        {
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_get_i32 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+uint8_t ezlopi_nvs_write_float32(float f, const char *key_name)
+{
+    uint8_t ret = 0;
+    if (ezlopi_nvs_handle)
+    {
+        uint32_t value;
+        memcpy(&value, &f, sizeof(uint32_t));
+
+        esp_err_t err = nvs_set_u32(ezlopi_nvs_handle, key_name, value);
+        if (err != ESP_OK)
+        {
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_set_u32 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+uint8_t ezlopi_nvs_read_float32(float *f, const char *key_name)
+{
+    uint8_t ret = 0;
+    if (ezlopi_nvs_handle)
+    {
+        uint32_t value;
+
+        esp_err_t err = nvs_get_u32(ezlopi_nvs_handle, key_name, &value);
+        if (err == ESP_OK)
+        {
+            memcpy(f, &value, sizeof(float));
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_get_u32 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+uint8_t ezlopi_nvs_write_bool(bool b, const char *key_name)
+{
+    uint8_t ret = 0;
+    if (ezlopi_nvs_handle)
+    {
+        uint8_t bool_val;
+
+        if (true == b)
+        {
+            bool_val = 1;
+        }
+        else
+        {
+            bool_val = 0;
+        }
+
+        esp_err_t err = nvs_set_u8(ezlopi_nvs_handle, key_name, bool_val);
+
+        if (ESP_OK == err)
+        {
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_set_u8 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
+}
+
+uint8_t ezlopi_nvs_read_bool(bool *b, const char *key_name)
+{
+    uint8_t ret = 0;
+    if (ezlopi_nvs_handle)
+    {
+        uint8_t bool_val = 0;
+        esp_err_t err = nvs_get_u8(ezlopi_nvs_handle, key_name, &bool_val);
+        if (ESP_OK == err)
+        {
+            if (bool_val)
+            {
+                *b = true;
+            }
+            else
+            {
+                *b = false;
+            }
+            ret = 0;
+        }
+        else
+        {
+            TRACE_W("nvs_get_u8 - error: %s", esp_err_to_name(err));
+            ret = 1;
+        }
+    }
+    return ret;
 }

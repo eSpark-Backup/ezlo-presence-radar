@@ -30,6 +30,7 @@ MACRO(SUBDIRLIST result curdir)
 ENDMACRO()
 
 set(external_components_list sensors devices_old devices protocols interface ezlopi-cloud ezlopi-core services components/radar_libs) # list of external components
+
 set(EXTRA_COMPONENT_DIRS "") # clearing variable 'EXTRA_COMPONENT_DIRS'
 set(ALL_COMPONENTS "") # clearing 'ALL_COMPONENTS' variable
 

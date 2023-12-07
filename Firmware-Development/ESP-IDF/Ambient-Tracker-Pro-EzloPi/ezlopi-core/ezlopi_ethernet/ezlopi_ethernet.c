@@ -37,9 +37,9 @@ static s_ezlopi_spi_master_t spi_config = {
     .channel = EZLOPI_ETHERNET_W5500_SPI_HOST,
 };
 
-static esp_err_t ezlopi_ethernet_reset(void);
-static esp_err_t ezlopi_ethernet_gpio_setup(void);
-static esp_err_t ezlopi_ethernet_setup_basic(void);
+static void ezlopi_ethernet_reset(void);
+static void ezlopi_ethernet_gpio_setup(void);
+static void ezlopi_ethernet_setup_basic(void);
 static s_ezlopi_spi_master_t *ezlopi_ethernet_spi_setup(void);
 static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 static void __ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
@@ -86,13 +86,11 @@ void ezlopi_ethernet_deinit(void)
     }
 }
 
-esp_err_t ezlopi_ethernet_init(void)
+void ezlopi_ethernet_init(void)
 {
-    esp_err_t ret = ESP_FAIL;
-    ret = ezlopi_ethernet_gpio_setup();
-    ret |= ezlopi_ethernet_reset();
-    ret |= ezlopi_ethernet_setup_basic();
-    return ret;
+    ezlopi_ethernet_gpio_setup();
+    ezlopi_ethernet_reset();
+    ezlopi_ethernet_setup_basic();
 }
 
 static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
@@ -100,7 +98,6 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t ev
     uint8_t mac_addr[6] = {0};
     /* we can get the ethernet driver handle from event data */
     esp_eth_handle_t eth_handle = *(esp_eth_handle_t *)event_data;
-    eth_speed_t speed;
 
     switch (event_id)
     {
@@ -142,33 +139,33 @@ static void eth_event_handler(void *arg, esp_event_base_t event_base, int32_t ev
 static void __ip_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-    const esp_netif_ip_info_t *eth_ip_info = &event->ip_info;
 
     switch (event_id)
     {
     case IP_EVENT_ETH_GOT_IP:
     {
+        memcpy(&eth_ip_info, &event->ip_info, sizeof(esp_netif_ip_info_t));
         TRACE_B("Ethernet Got IP Address");
         TRACE_B("~~~~~~~~~~~");
-        TRACE_B("ETHIP:" IPSTR, IP2STR(&eth_ip_info->ip));
-        TRACE_B("ETHMASK:" IPSTR, IP2STR(&eth_ip_info->netmask));
-        TRACE_B("ETHGW:" IPSTR, IP2STR(&eth_ip_info->gw));
+        TRACE_B("ETHIP:" IPSTR, IP2STR(&eth_ip_info.ip));
+        TRACE_B("ETHMASK:" IPSTR, IP2STR(&eth_ip_info.netmask));
+        TRACE_B("ETHGW:" IPSTR, IP2STR(&eth_ip_info.gw));
         TRACE_B("~~~~~~~~~~~");
         eth_last_status = ETHERNET_STATUS_GOT_IP;
         break;
     }
     case IP_EVENT_ETH_LOST_IP:
     {
+        memset(&eth_ip_info, 0, sizeof(esp_netif_ip_info_t));
         eth_last_status = ETHERNET_STATUS_LOST_IP;
-        TRACE_W("Ethernet Got IP Address");
+        TRACE_W("Ethernet Lost IP Address");
         break;
     }
     }
 }
 
-static esp_err_t ezlopi_ethernet_setup_basic(void)
+static void ezlopi_ethernet_setup_basic(void)
 {
-    esp_err_t ret = ESP_FAIL;
     esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_ETH();
 
     esp_netif_config.route_prio = 30;
@@ -194,38 +191,17 @@ static esp_err_t ezlopi_ethernet_setup_basic(void)
 
     eth_mac_spi = esp_eth_mac_new_w5500(&w5500_config, &mac_config_spi);
     eth_phy_spi = esp_eth_phy_new_w5500(&phy_config_spi);
-    if((NULL == eth_mac_spi) || (NULL == eth_phy_spi))
-        {
-        goto ethernet_end;
-    }
 
     esp_eth_config_t eth_config_spi = ETH_DEFAULT_CONFIG(eth_mac_spi, eth_phy_spi);
-    ret = esp_eth_driver_install(&eth_config_spi, &eth_handle_spi);
-    if(ESP_OK != ret)
-    {
-        eth_phy_spi->del(eth_phy_spi);
-        eth_mac_spi->del(eth_mac_spi);
-        goto ethernet_end;
-    }
+    ESP_ERROR_CHECK(esp_eth_driver_install(&eth_config_spi, &eth_handle_spi));
 
     uint8_t base_mac[6];
     esp_read_mac(base_mac, ESP_MAC_ETH);
-    dump("ethernet mac", base_mac, 0, sizeof(base_mac));
-    esp_eth_ioctl(eth_handle_spi, ETH_CMD_S_MAC_ADDR, base_mac);
-    eth_glue = esp_eth_new_netif_glue(eth_handle_spi);
-    esp_netif_attach(eth_netif_spi, eth_glue);
-
-    esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP, &__ip_event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_LOST_IP, &__ip_event_handler, NULL);
 
     esp_eth_start(eth_handle_spi);
-
-    ethernet_end:
-    return ret;
 }
 
-static esp_err_t ezlopi_ethernet_gpio_setup(void)
+static void ezlopi_ethernet_gpio_setup(void)
 {
     gpio_config_t gpio_conf = {
         .pin_bit_mask = (1UL << EZLOPI_ETHERNET_W5500_EN_PIN) | (1UL << EZLOPI_ETHERNET_W5500_RST_PIN),
@@ -235,22 +211,19 @@ static esp_err_t ezlopi_ethernet_gpio_setup(void)
         .intr_type = GPIO_INTR_DISABLE,
     };
 
-    return gpio_config(&gpio_conf);
+    gpio_config(&gpio_conf);
 }
 
-static esp_err_t ezlopi_ethernet_reset(void)
+static void ezlopi_ethernet_reset(void)
 {
-    esp_err_t ret = ESP_FAIL;
     /* 1.Enable PWR to W5500 via mosfet */
-    ret = gpio_set_level(EZLOPI_ETHERNET_W5500_EN_PIN, 1);
+    gpio_set_level(EZLOPI_ETHERNET_W5500_EN_PIN, 1);
     /* 2. Wait 500mS */
     vTaskDelay(500 / portTICK_RATE_MS);
     /* 3. Pull reset low, wait 5mS */
-    ret |= gpio_set_level(EZLOPI_ETHERNET_W5500_RST_PIN, 0);
+    gpio_set_level(EZLOPI_ETHERNET_W5500_RST_PIN, 0);
     vTaskDelay(5 / portTICK_RATE_MS);
     /* 4. Pull reset high, wait 10mS */
-    ret |=gpio_set_level(EZLOPI_ETHERNET_W5500_RST_PIN, 1);
+    gpio_set_level(EZLOPI_ETHERNET_W5500_RST_PIN, 1);
     vTaskDelay(10 / portTICK_RATE_MS);
-
-    return ret;
 }
