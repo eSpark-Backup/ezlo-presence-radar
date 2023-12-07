@@ -10,12 +10,12 @@
 
 #define TAG "radar_app.c"
 
-static SemaphoreHandle_t smphr_handle = NULL;
-
 static esp_err_t __radar_gpio_init(l_ezlopi_item_t *item);
 static esp_err_t __radar_spi_init(s_device_args_t *device_args);
 static void __print_device_config(const ifx_Avian_Config_t *config);
 static ifx_Error_t __radar_process_frame(s_device_args_t *device_args);
+static void __split_uint16_by_12bits(uint16_t *dest, uint16_t *src);
+static int32_t __radar_get_fifo_data(s_device_args_t *device_args);
 
 static void IRAM_ATTR __gpio_isr_handler(void *arg);
 static void IRAM_ATTR __queue_ready_spi_post_cb(spi_transaction_t *trans);
@@ -94,8 +94,6 @@ esp_err_t radar_app_init(l_ezlopi_item_t *item)
         return ESP_FAIL;
     }
 
-    smphr_handle = xSemaphoreCreateMutex();
-
     int status = 0;
     esp_err_t ret = ESP_OK;
     ifx_Error_t error = IFX_OK;
@@ -134,7 +132,7 @@ esp_err_t radar_app_init(l_ezlopi_item_t *item)
     if (XENSIV_BGT60TRXX_STATUS_OK == status)
     {
         TRACE_I("'xensiv_bgt60trxx_get_reg' OK");
-        read_reg |= XENSIV_BGT60TRXX_REG_SFCTL_PREFIX_EN_MSK | XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;
+        read_reg |= XENSIV_BGT60TRXX_REG_SFCTL_PREFIX_EN_MSK;// | XENSIV_BGT60TRXX_REG_SFCTL_MISO_HS_READ_MSK;
         status = xensiv_bgt60trxx_set_reg(device_args->device_handle->m_xensiv_device_handle, XENSIV_BGT60TRXX_REG_SFCTL, read_reg, device_args);
         if (XENSIV_BGT60TRXX_STATUS_OK != status)
         {
@@ -155,14 +153,13 @@ esp_err_t radar_app_init(l_ezlopi_item_t *item)
     __print_device_config(&device_config);
     TRACE_I("'__print_device_config' OK");
 
-    status = xensiv_bgt60trxx_set_fifo_limit(device_args->device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME / MAX_FIFO_BREAK_COUNT) + 200, device_args);
+    status = xensiv_bgt60trxx_set_fifo_limit(device_args->device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME / MAX_FIFO_BREAK_COUNT), device_args);
     if (XENSIV_BGT60TRXX_STATUS_OK != status)
     {
         TRACE_E("unable to set fifo limit");
     }
     else
     {
-
         TRACE_I("'xensiv_bgt60trxx_set_fifo_limit' OK");
     }
 
@@ -171,12 +168,8 @@ esp_err_t radar_app_init(l_ezlopi_item_t *item)
     ESP_GOTO_ON_FALSE(device_args->frame, ESP_ERR_NO_MEM, exit_out, TAG, "frame creation failed");
     TRACE_I("'ifx_cube_create_r' OK");
 
-    device_args->samples_buf1 = (uint16_t *)ifx_mem_alloc(sizeof(uint16_t) * TOTAL_DATA);
-    ESP_GOTO_ON_FALSE(device_args->samples_buf1, ESP_ERR_NO_MEM, exit_out, TAG, "samples buffer 1 memory allocation failed");
-    TRACE_I("'ifx_mem_alloc' OK");
-
-    device_args->samples_buf2 = (uint16_t *)ifx_mem_alloc(sizeof(uint16_t) * TOTAL_DATA);
-    ESP_GOTO_ON_FALSE(device_args->samples_buf2, ESP_ERR_NO_MEM, exit_out, TAG, "samples buffer 2 memory allocation failed");
+    device_args->p_samples = (uint16_t *)ifx_mem_alloc(sizeof(uint16_t) * TOTAL_DATA);
+    ESP_GOTO_ON_FALSE(device_args->p_samples, ESP_ERR_NO_MEM, exit_out, TAG, "samples buffer memory allocation failed");
     TRACE_I("'ifx_mem_alloc' OK");
 
     status = xensiv_bgt60trxx_start_frame(device_args->device_handle->m_xensiv_device_handle, true, device_args);
@@ -234,14 +227,23 @@ exit_out:
 static ifx_Error_t __radar_process_frame(s_device_args_t *device_args)
 {
     ifx_Error_t ret = IFX_ERROR;
-    TRACE_D("frame_process_status is %d\n", device_args->frame_process_status);
+    // TRACE_D("frame_process_status is %d\n", device_args->frame_process_status);
     if (device_args->frame_process_status)
     {
+        if (device_args->dma_spi_buffer[0] == device_args->p_samples)
+        {
+            __split_uint16_by_12bits(device_args->p_samples, device_args->dma_spi_buffer[1]);
+        }
+        else
+        {
+            __split_uint16_by_12bits(device_args->p_samples, device_args->dma_spi_buffer[0]);
+        }
+        
         device_args->frame = ifx_avian_get_next_frame(device_args->device_handle, device_args->frame, device_args->p_samples);
 
 #if PRESENCE_APP | VELOCITY_APP | MOTION_ANGLE_APP
         ret = presence_process(&device_args->presence_handle, device_args->frame);
-        TRACE_W("ret: %d", ret);
+        // TRACE_W("ret: %d", ret);
         ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed processing presence!"); // IFX_OK = ESP_OK
 
         if (device_args->presence_handle.presence_status == IFX_PRESENCE_SENSING_PRESENT)
@@ -255,7 +257,7 @@ static ifx_Error_t __radar_process_frame(s_device_args_t *device_args)
 #if MOTION_ANGLE_APP
             vTaskDelay(20 / portTICK_RATE_MS); // To avoid wdt
             ret = ma_process(&device_args->ma_context, &device_args->target_result, device_args->frame);
-            TRACE_W("ret: %d", ret);
+            // TRACE_W("ret: %d", ret);
             ESP_GOTO_ON_ERROR(ret, algo_err, TAG, "failed motion angle processing!"); // IFX_OK = ESP_OK
 #endif
         }
@@ -265,7 +267,6 @@ static ifx_Error_t __radar_process_frame(s_device_args_t *device_args)
         }
 #endif
     algo_err:
-        TRACE_E("error in '__radar_process_frame'");
         device_args->frame_process_status = false;
     }
     return ret;
@@ -273,31 +274,18 @@ static ifx_Error_t __radar_process_frame(s_device_args_t *device_args)
 
 static void IRAM_ATTR __gpio_isr_handler(void *user_arg)
 {
-    static uint32_t count;
-    // TRACE_D("interrupt count: %d", count++);
-
     l_ezlopi_item_t *item = (l_ezlopi_item_t *)user_arg;
     if (item)
     {
         s_device_args_t *device_args = item->user_arg;
         if (device_args)
         {
-#if 0
-            int ret = 0;
+            esp_err_t ret;
             xensiv_bgt60trxx_esp32_spi_cs_set(device_args->device_handle->m_xensiv_device_handle->iface, GPIO_LEVEL_LOW);
-            ret = xensiv_bgt60trxx_get_fifo_data(device_args->device_handle->m_xensiv_device_handle, device_args->samples_spi_buf,
-                                                 TOTAL_DATA / MAX_FIFO_BREAK_COUNT, device_args);
-            if (XENSIV_BGT60TRXX_STATUS_OK != ret)
+            if (XENSIV_BGT60TRXX_STATUS_OK !=  (ret = __radar_get_fifo_data(device_args))) // initiate spi dma read request (no computation involved )
             {
-                device_args->radar_fifo_status = FIFO_READ_FAILED;
-                TRACE_E("'radar_get_fifo_data' error[%d]: %s", ret, ifx_error_to_string(ret));
-            }
-
-#else
-            vTaskNotifyGiveFromISR(device_args->task_handle, NULL);
-            // xTaskNotifyGiveFromISR(device_args->task_handle);
-            // xSemaphoree
-#endif
+                // TRACE_E("'radar_get_fifo_data' error[%d]: %s", ret, ifx_error_to_string(ret));
+            }          
         }
     }
 }
@@ -345,8 +333,6 @@ static esp_err_t __radar_gpio_init(l_ezlopi_item_t *item)
     gpio_intr_enable(XNSIV_BGT60_IRQ_GPIO);
     gpio_isr_handler_add(XNSIV_BGT60_IRQ_GPIO, __gpio_isr_handler, (void *)item);
 
-    // gpio_isr_service_register_via_gpio_num(XNSIV_BGT60_IRQ_GPIO, __gpio_isr_handler, 10, item);
-
     // Disable Reset
     gpio_set_level(XNSIV_BGT60_RST_GPIO, 1);
 
@@ -370,7 +356,7 @@ static esp_err_t __radar_spi_init(s_device_args_t *device_args)
         };
 
         spi_device_interface_config_t devcfg = {
-            .clock_speed_hz = 50 * 1000 * 1000,
+            .clock_speed_hz = XNSIV_BGT60_SPI_CLK,
             .mode = 0, // SPI mode 0
 #ifndef XNSIV_CS_HANDLING
 // .spics_io_num = XNSIV_BGT60_CS_GPIO,      // CS pin
@@ -392,6 +378,25 @@ static esp_err_t __radar_spi_init(s_device_args_t *device_args)
     return ret;
 }
 
+static void __split_uint16_by_12bits(uint16_t *dest, uint16_t *src)
+{
+    uint16_t index = 0;
+    for (uint16_t i = 0; i < TOTAL_DATA * 12 / 16; i += 3)
+    {
+        dest[index] = src[i] & 0xF0FF;
+        dest[index] = (dest[index] << 4) | (dest[index] >> 12);
+
+        dest[index + 1] = (src[i + 1] & 0x00FF) | (src[i] & 0x0F00);
+
+        dest[index + 2] = ((src[i + 1] & 0xFF00) >> 4) | ((src[i + 2] & 0x00F0) >> 4);
+
+        dest[index + 3] = (src[i + 2] & 0xFF0F);
+        dest[index + 3] = (dest[index + 3] << 8) | (dest[index + 3] >> 8);
+
+        index += 4;
+    }
+}
+
 static void IRAM_ATTR __queue_ready_spi_post_cb(spi_transaction_t *trans)
 {
     // TRACE_D("Queue ready");
@@ -399,33 +404,26 @@ static void IRAM_ATTR __queue_ready_spi_post_cb(spi_transaction_t *trans)
     if (trans && trans->user)
     {
         s_device_args_t *device_args = (s_device_args_t *)trans->user;
-        if (xensiv_bgt60trxx_esp32_is_reading_fifo())
+        if (device_args->fifo_settings.spi_fifo_read)
         {
             xensiv_bgt60trxx_esp32_spi_cs_set(device_args->device_handle->m_xensiv_device_handle->iface, GPIO_LEVEL_HIGH);
-            xensiv_bgt60trxx_esp32_disable_reading_fifo();
+            device_args->fifo_settings.spi_fifo_read = false;
 
-            if (xensiv_bgt60trxx_esp32_get_fifo_read_count() >= MAX_FIFO_BREAK_COUNT)
+            if (device_args->fifo_settings.fifo_read_count >= MAX_FIFO_BREAK_COUNT)
             {
-
-                xensiv_bgt60trxx_esp32_reset_fifo_count();
-                device_args->radar_fifo_status = FIFO_READ_SUCCESS;
-
-                if (device_args->p_samples != device_args->samples_buf1)
+                device_args->fifo_settings.fifo_read_count = FIFO_RESET_COUNT;
+                device_args->fifo_settings.radar_fifo_status = FIFO_READ_SUCCESS;
+                
+                for (uint8_t i = 0; i < 2; i++)
                 {
-                    // split_uint16_by_12bits(device_args->samples_buf1, device_args->samples_spi_buf);
-                    if (!device_args->frame_process_status)
+                    if (device_args->samples_spi_buf != device_args->dma_spi_buffer[i])
                     {
-                        device_args->p_samples = device_args->samples_buf1;
-                        device_args->frame_process_status = true;
-                    }
-                }
-                else
-                {
-                    // split_uint16_by_12bits(device_args->samples_buf2, device_args->samples_spi_buf);
-                    if (!device_args->frame_process_status)
-                    {
-                        device_args->p_samples = device_args->samples_buf2;
-                        device_args->frame_process_status = true;
+                        if (!device_args->frame_process_status)
+                        {
+                            device_args->samples_spi_buf = device_args->dma_spi_buffer[i];
+                            device_args->frame_process_status = true;
+                        }
+                        break;
                     }
                 }
             }
@@ -451,4 +449,65 @@ static void __print_device_config(const ifx_Avian_Config_t *config)
     TRACE_D("aaf_cutoff_Hz:           %" PRIu32, config->aaf_cutoff_Hz);
     TRACE_D("mimo_mode:               %s", config->mimo_mode == IFX_MIMO_TDM ? "time-domain multiplexed" : "off");
     TRACE_D("\n");
+}
+
+static int32_t __radar_get_fifo_data(s_device_args_t *device_args)
+{
+    return xensiv_bgt60trxx_get_fifo_data(device_args->device_handle->m_xensiv_device_handle,
+                                          device_args->samples_spi_buf,
+                                          TOTAL_DATA / MAX_FIFO_BREAK_COUNT,
+                                          device_args,
+                                          &(device_args->fifo_settings));
+}
+
+#if 0
+static void __presence_sensor_task(void *pv)
+{
+    l_ezlopi_item_t *item = (l_ezlopi_item_t *)pv;
+
+    if (item && item->user_arg)
+    {
+        s_device_args_t *device_args = (s_device_args_t *)item->user_arg;
+        TRACE_D("task handle: %p", device_args->task_handle);
+        TRACE_W("Wait complete!");
+
+        while (1)
+        {
+            esp_err_t err = ESP_OK;
+
+            if (ulTaskNotifyTake(false, portMAX_DELAY))
+            {
+                // TRACE_I("Got event");
+                static int event_count = 0;
+                event_count ++;
+                TRACE_E("event_count : %d", event_count);
+            }
+        }
+    }
+
+    vTaskDelete(NULL);
+}
+#endif
+
+esp_err_t initializeRadarTask(l_ezlopi_item_t *item)
+{
+    if (!item || !item->user_arg)
+    {
+        TRACE_E("Invalid args");
+        return ESP_FAIL;
+    }
+
+    esp_err_t ret = ESP_FAIL;
+
+    if(ESP_OK == (ret = radar_app_init(item)))
+    {
+        TRACE_B("'radar_app_init' OK");
+        #if 0
+        s_device_args_t *device_args = item->user_arg;
+        xTaskCreatePinnedToCore(__presence_sensor_task, "presense_sensor_task", 2 * 2048, item, 10, &device_args->task_handle, 0);
+        TRACE_D("task handle: %p", device_args->task_handle);
+        #endif
+    }
+
+    return ret;
 }

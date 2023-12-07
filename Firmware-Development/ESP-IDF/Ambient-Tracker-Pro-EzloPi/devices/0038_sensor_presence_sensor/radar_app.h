@@ -23,6 +23,7 @@
 #include "Presence/presence.h"
 #include "motion_angle.h"
 #include "ezlopi_devices.h"
+#include "radar.h"
 
 #define VELOCITY_APP 0
 #define PRESENCE_APP 0
@@ -41,18 +42,14 @@ typedef struct s_device_args
     spi_device_handle_t xnsiv_bgt60_spi;
     xensiv_bgt60trxx_t *xnsiv_bgt60tr13c;
 
-    uint16_t no_of_bytes;
-    bool fifo_read_status;
-    uint8_t fifo_read_count;
+    spi_fifo_settings_t fifo_settings;
     bool frame_process_status;
-    bgt60trxx_fifo_status_t radar_fifo_status;
+    
 
-    uint16_t *samples_spi_buf;
-    spi_transaction_t transaction;
+    uint16_t *dma_spi_buffer[2]; // needs memory
+    uint16_t *samples_spi_buf; // just a pointer
 
     uint16_t *p_samples;
-    uint16_t *samples_buf1;
-    uint16_t *samples_buf2;
     ifx_Cube_R_t *frame;
 
 #if MOTION_ANGLE_APP
@@ -94,5 +91,7 @@ esp_err_t radar_reset_radar_fifo(s_device_args_t *device_args);
  */
 
 esp_err_t radar_get_data(s_device_args_t *device_args);
+
+esp_err_t initializeRadarTask(l_ezlopi_item_t *item);
 
 #endif // __RADAR_APP_H__

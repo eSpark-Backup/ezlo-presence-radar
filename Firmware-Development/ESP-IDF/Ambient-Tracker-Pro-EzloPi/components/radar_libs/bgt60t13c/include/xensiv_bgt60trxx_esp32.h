@@ -62,6 +62,13 @@ extern "C"
         FIFO_READ_SUCCESS
     } bgt60trxx_fifo_status_t;
 
+    typedef struct spi_fifo_settings
+    {
+        bgt60trxx_fifo_status_t radar_fifo_status;
+        uint8_t fifo_read_count;
+        bool spi_fifo_read;
+    } spi_fifo_settings_t;
+
 #define SAMP_PER_FRAME (XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME * XENSIV_BGT60TRXX_CONF_NUM_SAMPLES_PER_CHIRP * XENSIV_BGT60TRXX_CONF_NUM_RX_ANTENNAS)
 #define TOTAL_DATA (SAMP_PER_FRAME + (6 * XENSIV_BGT60TRXX_CONF_NUM_CHIRPS_PER_FRAME))
 
@@ -69,7 +76,7 @@ extern "C"
 #define BUFF_SIZE TOTAL_DATA * 12 / 16
 
 #ifndef XNSIV_BGT60_SPI_HOST
-#define XNSIV_BGT60_SPI_HOST SPI2_HOST
+#define XNSIV_BGT60_SPI_HOST SPI3_HOST
 #endif
 
 #if THERMOSTAT_BOARD
@@ -162,7 +169,7 @@ extern "C"
 
 #endif
 
-#define XNSIV_BGT60_SPI_CLK (uint32_t)(50 * 1000 * 1000)
+#define XNSIV_BGT60_SPI_CLK (uint32_t)(25 * 1000 * 1000)
 
 #define XNSIV_CS_HANDLING
 
@@ -221,7 +228,8 @@ extern "C"
     int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void *iface,
                                                  uint16_t *rx_data,
                                                  uint32_t len,
-                                                 void *user_data);
+                                                 void *user_data,
+                                                spi_fifo_settings_t *fifo_settings);
 
     /**
      * @brief Platform-specific function that waits for a specified time period in milliseconds.
@@ -252,12 +260,6 @@ extern "C"
      * @param[in] expr Expression to be verified.
      */
     void xensiv_bgt60trxx_esp32_assert(bool expr);
-
-    uint8_t xensiv_bgt60trxx_esp32_get_fifo_read_count(void);
-    void xensiv_bgt60trxx_esp32_reset_fifo_count(void);
-    bool xensiv_bgt60trxx_esp32_is_reading_fifo(void);
-    void xensiv_bgt60trxx_esp32_enable_reading_fifo(void);
-    void xensiv_bgt60trxx_esp32_disable_reading_fifo(void);
 
 #ifdef __cplusplus
 }

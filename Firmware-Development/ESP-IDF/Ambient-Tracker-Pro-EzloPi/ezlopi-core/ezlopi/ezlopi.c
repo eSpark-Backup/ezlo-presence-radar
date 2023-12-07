@@ -28,28 +28,28 @@ void ezlopi_init(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     vTaskDelay(10/portTICK_PERIOD_MS);
     ezlopi_factory_info_v2_init();
-    // print_factory_info_v2();
+    print_factory_info_v2();
     vTaskDelay(10/portTICK_PERIOD_MS);
 
     // Init devices
     ezlopi_event_group_create();
     ezlopi_device_prepare();
     vTaskDelay(10/portTICK_PERIOD_MS);
-    // ezlopi_wifi_initialize();
+    ezlopi_wifi_initialize();
     vTaskDelay(10/portTICK_PERIOD_MS);
     ezlopi_initialize_devices_v3();
     vTaskDelay(10/portTICK_PERIOD_MS);
-    // ezlopi_scene_init();
-    // ezlopi_ethernet_init();
+    ezlopi_scene_init();
+    ezlopi_ethernet_init();
 
-    // uint32_t boot_count = ezlopi_system_info_get_boot_count();
+    uint32_t boot_count = ezlopi_system_info_get_boot_count();
 
-    // ezlopi_wifi_connect_from_id_bin();
-    // ezlopi_nvs_set_boot_count(boot_count + 1);
+    ezlopi_wifi_connect_from_id_bin();
+    ezlopi_nvs_set_boot_count(boot_count + 1);
 
     ezlopi_event_queue_init();
-    // ezlopi_timer_start_1000ms();
-    // ezlopi_ping_init();
+    ezlopi_timer_start_1000ms();
+    ezlopi_ping_init();
 }
 
 static void ezlopi_initialize_devices_v3(void)

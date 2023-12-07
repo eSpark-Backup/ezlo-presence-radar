@@ -296,7 +296,7 @@ int32_t xensiv_bgt60trxx_set_fifo_limit(const xensiv_bgt60trxx_t *dev, uint32_t 
 }
 
 int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t *dev, uint16_t *data,
-                                       uint32_t num_samples, void *user_data)
+                                       uint32_t num_samples, void *user_data, spi_fifo_settings_t *fifo_settings)
 {
     xensiv_bgt60trxx_esp32_assert(dev != NULL);
     xensiv_bgt60trxx_esp32_assert(data != NULL);
@@ -322,13 +322,12 @@ int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t *dev, uint16_t *
                      XENSIV_BGT60TRXX_REG_GSR0_SPI_BURST_ERR_MSK |
                      XENSIV_BGT60TRXX_REG_GSR0_CLK_NUM_ERR_MSK)) == 0U)
         {
-            retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface, data, num_samples, user_data);
+            retval = xensiv_bgt60trxx_esp32_spi_fifo_read(dev->iface, data, num_samples, user_data, fifo_settings);
         }
         else
         {
-
-            printf("gsr0: %d\r\n", gsr0);
-            printf("'xensiv_bgt60trxx_esp32_spi_transfer' error[%d]: %s\r\n", retval, ifx_error_to_string(retval));
+            // printf("gsr0: %d\r\n", gsr0);
+            // printf("'xensiv_bgt60trxx_esp32_spi_transfer' error[%d]: %s\r\n", retval, ifx_error_to_string(retval));
             retval = XENSIV_BGT60TRXX_STATUS_GSR0_ERROR;
         }
     }

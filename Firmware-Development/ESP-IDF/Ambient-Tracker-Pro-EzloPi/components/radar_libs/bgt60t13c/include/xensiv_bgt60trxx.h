@@ -27,6 +27,8 @@
 #ifndef XENSIV_BGT60TRXX_H_
 #define XENSIV_BGT60TRXX_H_
 
+#include "xensiv_bgt60trxx_esp32.h"
+
 /**
  * \addtogroup group_board_libs XENSIV(TM) BGT60TRxx Radar Sensor
  * \{
@@ -264,7 +266,8 @@ extern "C"
     int32_t xensiv_bgt60trxx_get_fifo_data(const xensiv_bgt60trxx_t *dev,
                                            uint16_t *data,
                                            uint32_t num_samples,
-                                           void *user_data);
+                                           void *user_data,
+                                           spi_fifo_settings_t *fifo_settings);
 
     /**
      * @brief Starts/stops radar frame generation.

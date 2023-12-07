@@ -37,8 +37,6 @@ static const char *motion_direction_token_vals[3] = {
 // DMA_ATTR static uint16_t samples_buf1[TOTAL_DATA * 2];
 // DMA_ATTR static uint16_t samples_buf2[TOTAL_DATA * 2];
 
-static ifx_Target_Result_t data;
-
 static int __prepare(void *arg);
 static int __init(l_ezlopi_item_t *item);
 static int __notify(l_ezlopi_item_t *item);
@@ -75,7 +73,12 @@ int presence_sensor_v3(e_ezlopi_actions_t action, l_ezlopi_item_t *item, void *a
     }
     case EZLOPI_ACTION_NOTIFY_1000_MS:
     {
-        // __notify(item);
+        static int count = 0;
+        if(++count > 4)
+        {
+            __notify(item);
+            count = 0;
+        }
         break;
     }
     default:
@@ -91,16 +94,13 @@ static int __notify(l_ezlopi_item_t *item)
 {
     int ret = 0;
 
-    esp_err_t error = radar_get_data(&data);
+    s_device_args_t *device_args = (s_device_args_t *) item->user_arg;
+    esp_err_t error = radar_get_data(device_args);
     if (ESP_OK == error)
     {
         TRACE_I("%s", esp_err_to_name(error));
         ezlopi_device_value_updated_from_device_v3(item);
-        TRACE_W("range %f, angle_azimuth %f, angle_elevation %f, speed, %f", data.range, data.angle_azimuth, data.angle_elevation, data.speed);
-    }
-    else
-    {
-        TRACE_E("%s", esp_err_to_name(error));
+        TRACE_W("range %f, angle_azimuth %f, angle_elevation %f, speed, %f", device_args->target_result.range, device_args->target_result.angle_azimuth, device_args->target_result.angle_elevation, device_args->target_result.speed);
     }
 
     return ret;
@@ -118,12 +118,14 @@ static void __add_array_to_object(cJSON *cj_params, const char *const *arr, cons
 
 static void __add_values_to_cjson(l_ezlopi_item_t *item, cJSON *cj_params, bool is_hub_request)
 {
+    s_device_args_t *device_args = (s_device_args_t *) item->user_arg;
+
     char valueFormatted[20];
     if (ezlopi_item_name_velocity == item->cloud_properties.item_name)
     {
-        snprintf(valueFormatted, 20, "%0.3f", data.speed);
+        snprintf(valueFormatted, 20, "%0.3f", device_args->target_result.speed);
         cJSON_AddStringToObject(cj_params, "valueFormatted", valueFormatted);
-        cJSON_AddNumberToObject(cj_params, "value", data.speed);
+        cJSON_AddNumberToObject(cj_params, "value", device_args->target_result.speed);
     }
     if (ezlopi_item_name_presence == item->cloud_properties.item_name)
     {
@@ -131,14 +133,14 @@ static void __add_values_to_cjson(l_ezlopi_item_t *item, cJSON *cj_params, bool 
         {
             __add_array_to_object(cj_params, presence_token_vals, 3);
         }
-        cJSON_AddStringToObject(cj_params, "valueFormatted", ((true == data.presence) ? "presence" : "not_detected"));
-        cJSON_AddStringToObject(cj_params, "value", ((true == data.presence) ? "presence" : "not_detected"));
+        cJSON_AddStringToObject(cj_params, "valueFormatted", ((true == device_args->target_result.presence) ? "presence" : "not_detected"));
+        cJSON_AddStringToObject(cj_params, "value", ((true == device_args->target_result.presence) ? "presence" : "not_detected"));
     }
     if (ezlopi_item_name_distance == item->cloud_properties.item_name)
     {
-        snprintf(valueFormatted, 20, "%0.5f", data.range);
+        snprintf(valueFormatted, 20, "%0.5f", device_args->target_result.range);
         cJSON_AddStringToObject(cj_params, "valueFormatted", valueFormatted);
-        cJSON_AddNumberToObject(cj_params, "value", data.range);
+        cJSON_AddNumberToObject(cj_params, "value", device_args->target_result.range);
     }
     if (ezlopi_item_name_motion_direction == item->cloud_properties.item_name)
     {
@@ -146,20 +148,20 @@ static void __add_values_to_cjson(l_ezlopi_item_t *item, cJSON *cj_params, bool 
         {
             __add_array_to_object(cj_params, motion_direction_token_vals, 3);
         }
-        cJSON_AddStringToObject(cj_params, "valueFormatted", ((data.speed < 0) ? "incoming" : "outgoing"));
-        cJSON_AddStringToObject(cj_params, "value", ((data.speed < 0) ? "incoming" : "outgoing"));
+        cJSON_AddStringToObject(cj_params, "valueFormatted", ((device_args->target_result.speed < 0) ? "incoming" : "outgoing"));
+        cJSON_AddStringToObject(cj_params, "value", ((device_args->target_result.speed < 0) ? "incoming" : "outgoing"));
     }
     if ((ezlopi_item_name_angle_position == item->cloud_properties.item_name) && (scales_north_pole_degress == item->cloud_properties.scale))
     {
-        snprintf(valueFormatted, 20, "%0.3f", data.angle_azimuth);
+        snprintf(valueFormatted, 20, "%0.3f", device_args->target_result.angle_azimuth);
         cJSON_AddStringToObject(cj_params, "valueFormatted", valueFormatted);
-        cJSON_AddNumberToObject(cj_params, "value", data.angle_azimuth);
+        cJSON_AddNumberToObject(cj_params, "value", device_args->target_result.angle_azimuth);
     }
     if ((ezlopi_item_name_angle_position == item->cloud_properties.item_name) && (scales_elevation_degrees == item->cloud_properties.scale))
     {
-        snprintf(valueFormatted, 20, "%0.3f", data.angle_elevation);
+        snprintf(valueFormatted, 20, "%0.3f", device_args->target_result.angle_elevation);
         cJSON_AddStringToObject(cj_params, "valueFormatted", valueFormatted);
-        cJSON_AddNumberToObject(cj_params, "value", data.angle_elevation);
+        cJSON_AddNumberToObject(cj_params, "value", device_args->target_result.angle_elevation);
     }
 }
 
@@ -189,69 +191,6 @@ static int __get_cjson_ezlopi_value(l_ezlopi_item_t *item, void *arg)
     return ret;
 }
 
-static void __presence_sensor_task(void *pv)
-{
-    l_ezlopi_item_t *item = (l_ezlopi_item_t *)pv;
-    if (item && item->user_arg)
-    {
-        s_device_args_t *device_args = (s_device_args_t *)item->user_arg;
-        TRACE_D("task handle: %p", device_args->task_handle);
-
-        // vTaskDelete(NULL);
-
-        // vTaskDelay(5000/portTICK_PERIOD_MS);
-        TRACE_W("Wait complete!");
-
-        while (1)
-        {
-            esp_err_t err = ESP_OK;
-
-            if (ulTaskNotifyTake(false, 10))
-            {
-                TRACE_I("Got event");
-                int32_t ret = 0;
-
-                xensiv_bgt60trxx_esp32_spi_cs_set(device_args->device_handle->m_xensiv_device_handle->iface, GPIO_LEVEL_LOW);
-                if (XENSIV_BGT60TRXX_STATUS_OK != (ret = radar_get_fifo_data(device_args)))
-                {
-                    device_args->radar_fifo_status = FIFO_READ_FAILED;
-                    TRACE_E("'radar_get_fifo_data' error[%d]: %s", ret, ifx_error_to_string(ret));
-                }
-
-                vTaskDelay(10 / portTICK_RATE_MS);
-            }
-
-#if 0
-            if (ESP_OK == (err = radar_get_data(device_args)))
-            {
-#if MOTION_ANGLE_APP
-                if (device_args->target_result.presence)
-                {
-                    TRACE_D("Range %0.2f Speed %0.2f Azimuth %0.2f Elevation %0.2f\n",
-                            device_args->target_result.range, device_args->target_result.speed,
-                            device_args->target_result.angle_azimuth, device_args->target_result.angle_elevation);
-                }
-#endif
-            }
-            else
-            {
-                TRACE_E("error in 'radar_get_data' -> error: %s", esp_err_to_name(err));
-            }
-#endif
-        }
-    }
-
-    vTaskDelete(NULL);
-}
-
-static int32_t radar_get_fifo_data(s_device_args_t *device_args)
-{
-    return xensiv_bgt60trxx_get_fifo_data(device_args->device_handle->m_xensiv_device_handle,
-                                          device_args->samples_spi_buf,
-                                          TOTAL_DATA / MAX_FIFO_BREAK_COUNT,
-                                          device_args);
-}
-
 static int __init(l_ezlopi_item_t *item)
 {
     int ret = 0;
@@ -261,13 +200,12 @@ static int __init(l_ezlopi_item_t *item)
         s_device_args_t *device_args = (s_device_args_t *)item->user_arg;
         if (NULL == device_args->task_handle)
         {
-            ret = 1;
-
-            xTaskCreatePinnedToCore(__presence_sensor_task, "presense_sensor_task", 2 * 2048, item, 10, &device_args->task_handle, 0);
-            TRACE_D("task handle: %p", device_args->task_handle);
-
-            radar_app_init(item);
-            TRACE_B("'radar_app_init' OK");
+            device_args->task_handle = 3;
+            if(ESP_OK == initializeRadarTask(item))
+            {
+                TRACE_B("'radar_app_init' OK");
+                ret = 1;
+            }
         }
         else
         {
@@ -290,9 +228,11 @@ static int __prepare(void *arg)
         {
             memset(device_args, 0, sizeof(s_device_args_t));
             dump("device_args", &device_args, 0, sizeof(s_device_args_t));
-            device_args->samples_spi_buf = heap_caps_malloc(BUFF_SIZE, MALLOC_CAP_DMA); // samples_spi_buf_1;
-            // device_args->samples_buf1 = samples_buf1;
-            // device_args->samples_buf2 = samples_buf2;
+
+            device_args->dma_spi_buffer[0] = heap_caps_malloc(BUFF_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA); // samples_spi_buf_1;
+            device_args->dma_spi_buffer[1] = heap_caps_malloc(BUFF_SIZE * sizeof(uint16_t), MALLOC_CAP_DMA); // samples_spi_buf_2;
+            device_args->samples_spi_buf = device_args->dma_spi_buffer[0];
+
             presence_sensor_dev_item_prep(prep_arg, device_args);
         }
     }

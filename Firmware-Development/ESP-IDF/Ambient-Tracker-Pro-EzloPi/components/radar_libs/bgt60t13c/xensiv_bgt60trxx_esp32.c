@@ -4,6 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "presence_radar_default.h"
+#include <string.h>
 
 void xensiv_bgt60trxx_esp32_rst_set(const void* iface, uint8_t val) {
     gpio_set_level(XNSIV_BGT60_RST_GPIO, (uint32_t)val);
@@ -39,61 +40,32 @@ int32_t xensiv_bgt60trxx_esp32_spi_transfer(void* iface,
     return err;
 }
 
-spi_transaction_t transaction; 
-bool fifo_read_status;
-uint8_t fifo_read_count =0;
-
 int32_t xensiv_bgt60trxx_esp32_spi_fifo_read(void* iface,
                                                 uint16_t* rx_data,
                                                 uint32_t len,
-                                                void *user_data) {
+                                                void *user_data,
+                                                spi_fifo_settings_t *fifo_settings) {
     int32_t err = XENSIV_BGT60TRXX_STATUS_OK;
 
     xensiv_bgt60trxx_esp32_assert(iface != NULL);
     xensiv_bgt60trxx_esp32_assert(rx_data != NULL);
+    xensiv_bgt60trxx_esp32_assert(user_data != NULL);
+
+    static spi_transaction_t transaction; 
+    memset(&transaction, 0, sizeof(transaction));
 
     transaction.flags = 0;
     transaction.length = (12 * TOTAL_DATA)/ MAX_FIFO_BREAK_COUNT;
     transaction.rxlength = (12 * TOTAL_DATA)/ MAX_FIFO_BREAK_COUNT;
     transaction.user = user_data;
     transaction.tx_buffer = NULL;
-    transaction.rx_buffer = (rx_data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_read_count));
+    transaction.rx_buffer = (rx_data + ((BUFF_SIZE/MAX_FIFO_BREAK_COUNT) * fifo_settings->fifo_read_count));
     
-    xensiv_bgt60trxx_esp32_enable_reading_fifo();
-    fifo_read_count++;       
+    fifo_settings->spi_fifo_read = true;
+    fifo_settings->fifo_read_count++;       
     err = spi_device_queue_trans(*(spi_device_handle_t *)iface, &transaction, portMAX_DELAY);        
 
     return err;
-}
-
-bool xensiv_bgt60trxx_esp32_is_reading_fifo(void)
-{
-    return fifo_read_status;
-}
-
-void xensiv_bgt60trxx_esp32_enable_reading_fifo(void)
-{
-    fifo_read_status = true;
-}
-
-void xensiv_bgt60trxx_esp32_disable_reading_fifo(void)
-{
-    fifo_read_status = false;
-}
-
-// uint16_t* xensiv_bgt60trxx_esp32_get_data_ptr(void)
-// {
-//     return rx_data;
-// }
-
-uint8_t xensiv_bgt60trxx_esp32_get_fifo_read_count(void)
-{
-    return fifo_read_count;
-}
-
-void xensiv_bgt60trxx_esp32_reset_fifo_count(void)
-{
-    fifo_read_count = FIFO_RESET_COUNT;
 }
 
 uint32_t xensiv_bgt60trxx_esp32_word_reverse(uint32_t x) {
