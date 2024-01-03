@@ -150,7 +150,7 @@ esp_err_t radar_app_init(l_ezlopi_item_t *item)
 
     ifx_avian_get_config(device_args->device_handle, &device_config);
     TRACE_I("'ifx_avian_get_config' OK");
-    __print_device_config(&device_config);
+    // __print_device_config(&device_config);
     TRACE_I("'__print_device_config' OK");
 
     status = xensiv_bgt60trxx_set_fifo_limit(device_args->device_handle->m_xensiv_device_handle, (SAMP_PER_FRAME / MAX_FIFO_BREAK_COUNT), device_args);
@@ -179,6 +179,7 @@ esp_err_t radar_app_init(l_ezlopi_item_t *item)
     }
     else
     {
+        // vTaskDelay(100);
         TRACE_I("'xensiv_bgt60trxx_start_frame' OK");
     }
 

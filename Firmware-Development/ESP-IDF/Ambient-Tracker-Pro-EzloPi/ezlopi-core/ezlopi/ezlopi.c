@@ -19,6 +19,7 @@
 #include "ezlopi_settings.h"
 
 static void ezlopi_initialize_devices_v3(void);
+static void __initialize_devices_task(void *pv);
 
 void ezlopi_init(void)
 {
@@ -37,8 +38,6 @@ void ezlopi_init(void)
     vTaskDelay(10/portTICK_PERIOD_MS);
     ezlopi_wifi_initialize();
     vTaskDelay(10/portTICK_PERIOD_MS);
-    ezlopi_initialize_devices_v3();
-    vTaskDelay(10/portTICK_PERIOD_MS);
     ezlopi_scene_init();
     ezlopi_ethernet_init();
 
@@ -50,6 +49,18 @@ void ezlopi_init(void)
     ezlopi_event_queue_init();
     ezlopi_timer_start_1000ms();
     ezlopi_ping_init();
+
+    xTaskCreate(__initialize_devices_task, "task-device-init", 2 * 2048, NULL, 4, NULL);
+}
+
+static void __initialize_devices_task(void *pv)
+{
+    TRACE_B("Waiting for wifi to connect....");
+    ezlopi_wait_for_wifi_to_connect(portMAX_DELAY);
+    TRACE_I("Wi-Fi Connected.");
+    ezlopi_initialize_devices_v3();
+    TRACE_I("Initialization Done.");
+    vTaskDelete(NULL);
 }
 
 static void ezlopi_initialize_devices_v3(void)

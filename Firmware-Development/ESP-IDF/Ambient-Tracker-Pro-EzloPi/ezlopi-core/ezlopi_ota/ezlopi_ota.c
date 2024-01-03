@@ -158,6 +158,10 @@ static esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
     switch (evt->event_id)
     {
+    case HTTP_EVENT_TIMEOUT:
+    {
+        break;
+    }
     case HTTP_EVENT_ERROR:
     {
         TRACE_D("HTTP_EVENT_ERROR");

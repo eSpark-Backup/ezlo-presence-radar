@@ -45,6 +45,7 @@ int sensor_0008_I2C_LTR303ALS_v3(e_ezlopi_actions_t action, l_ezlopi_item_t *ite
     case EZLOPI_ACTION_INITIALIZE:
     {
         __init(item);
+        
         break;
     }
     case EZLOPI_ACTION_HUB_GET_ITEM:

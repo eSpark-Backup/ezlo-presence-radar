@@ -159,6 +159,10 @@ static esp_err_t ezlopi_http_event_handler(esp_http_client_event_t *evt)
 {
     switch (evt->event_id)
     {
+    case HTTP_EVENT_TIMEOUT:
+    {
+        break;
+    }
     case HTTP_EVENT_ERROR:
     {
         TRACE_E("HTTP_EVENT_ERROR");

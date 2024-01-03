@@ -42,7 +42,7 @@ void app_main(void)
     web_provisioning_init();
 
     ota_service_init();
-    // ezlopi_ble_service_init();
+    ezlopi_ble_service_init();
 
     timer_service_init();
     TRACE_B("Boot count: %d", ezlopi_system_info_get_boot_count());
