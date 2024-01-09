@@ -147,54 +147,54 @@ bool bsec2_run(void)
            necessary to fulfill the input requirements, eg: operation mode, timestamp
            at which the sensor data shall be fetched etc */
         // printf("curr_time_ns %lld\n", curr_time_ns);
-        status = bsec_sensor_control_m(bsec_instance ,curr_time_ns, &bme_conf);
-        // printf("Status is %d\n", status);
-        if (status != BSEC_OK)
-            return false;
+        // status = bsec_sensor_control_m(bsec_instance ,curr_time_ns, &bme_conf);
+    //     printf("Status is %d\n", status);
+    //     if (status != BSEC_OK)
+    //         return false;
 
-        switch (bme_conf.op_mode)
-        {
-        case BME68X_FORCED_MODE:
-            bsec2_set_bme68x_config_forced();
-            break;
-        case BME68X_PARALLEL_MODE:
-            if (op_mode != bme_conf.op_mode)
-            {
-                bsec2_set_bme68x_config_parallel();
-            }
-            break;
+    //     switch (bme_conf.op_mode)
+    //     {
+    //     case BME68X_FORCED_MODE:
+    //         bsec2_set_bme68x_config_forced();
+    //         break;
+    //     case BME68X_PARALLEL_MODE:
+    //         if (op_mode != bme_conf.op_mode)
+    //         {
+    //             bsec2_set_bme68x_config_parallel();
+    //         }
+    //         break;
 
-        case BME68X_SLEEP_MODE:
-            if (op_mode != bme_conf.op_mode)
-            {
-                bme68xlib_set_op_mode(BME68X_SLEEP_MODE);
-                op_mode = BME68X_SLEEP_MODE;
-            }
-            break;
-        }
+    //     case BME68X_SLEEP_MODE:
+    //         if (op_mode != bme_conf.op_mode)
+    //         {
+    //             bme68xlib_set_op_mode(BME68X_SLEEP_MODE);
+    //             op_mode = BME68X_SLEEP_MODE;
+    //         }
+    //         break;
+    //     }
 
-        if (bme68xlib_check_status() == BME68X_ERROR)
-            return false;
+    //     if (bme68xlib_check_status() == BME68X_ERROR)
+    //         return false;
 
-        if (bme_conf.trigger_measurement && bme_conf.op_mode != BME68X_SLEEP_MODE)
-        {
-            if (bme68xlib_fetch_data())
-            {
-                do
-                {
-                    n_fields_left = bme68xlib_get_data(&data);
-                    /* check for valid gas data */
-                    if (data.status & BME68X_GASM_VALID_MSK)
-                    {
-                        if (!bsec2_process_data(curr_time_ns, &data))
-                        {
-                            return false;
-                        }
-                    }
-                } while (n_fields_left);
-            }
+    //     if (bme_conf.trigger_measurement && bme_conf.op_mode != BME68X_SLEEP_MODE)
+    //     {
+    //         if (bme68xlib_fetch_data())
+    //         {
+    //             do
+    //             {
+    //                 n_fields_left = bme68xlib_get_data(&data);
+    //                 /* check for valid gas data */
+    //                 if (data.status & BME68X_GASM_VALID_MSK)
+    //                 {
+    //                     if (!bsec2_process_data(curr_time_ns, &data))
+    //                     {
+    //                         return false;
+    //                     }
+    //                 }
+    //             } while (n_fields_left);
+    //         }
 
-        }
+    //     }
 
     }
     return true;

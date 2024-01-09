@@ -55,6 +55,7 @@ void ezlopi_init(void)
 
 static void __initialize_devices_task(void *pv)
 {
+    vTaskDelay(1000/portTICK_PERIOD_MS);
     TRACE_B("Waiting for wifi to connect....");
     ezlopi_wait_for_wifi_to_connect(portMAX_DELAY);
     TRACE_I("Wi-Fi Connected.");

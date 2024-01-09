@@ -4,6 +4,7 @@
 #include "esp_system.h"
 #include "driver/adc.h"
 #include "driver/i2c.h"
+#include "esp_heap_caps.h"
 #include "driver/gpio.h"
 #include "mbedtls/config.h"
 #include "freertos/FreeRTOS.h"
@@ -86,8 +87,8 @@ static void blinky(void *pv)
         // int hall_sensor_value = 0;
         // TRACE_D("Hall Sensor value: %d\r\n", hall_sensor_value);
 
-        vTaskDelay(1000 / portTICK_RATE_MS);
-
+        vTaskDelay(1000/ portTICK_RATE_MS);
+        // heap_caps_print_heap_info(MALLOC_CAP_INTERNAL);
         if (count++ > 10)
         {
             TRACE_D("-----------------------------------------");
@@ -95,6 +96,7 @@ static void blinky(void *pv)
             TRACE_D("UUID: %s", uuid);
             TRACE_D("esp_get_free_heap_size - %d", esp_get_free_heap_size());
             TRACE_D("esp_get_minimum_free_heap_size: %u", esp_get_minimum_free_heap_size());
+            TRACE_D("internal_heap_size: %u", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
             TRACE_D("-----------------------------------------");
             count = 0;
 

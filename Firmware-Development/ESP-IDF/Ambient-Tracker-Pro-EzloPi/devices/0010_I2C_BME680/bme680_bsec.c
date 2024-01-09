@@ -15,7 +15,7 @@ static bme680_data_t bme680_data;
 /* Entry point for the example */
 void bme680_setup(uint32_t sda, uint32_t scl, bool initialize_i2c)
 {
-    /* Desired subscription list of BSEC2 outputs */
+    // /* Desired subscription list of BSEC2 outputs */
     bsec_sensor sensor_list[] = {
         BSEC_OUTPUT_IAQ,
         BSEC_OUTPUT_RAW_TEMPERATURE,
@@ -256,5 +256,3 @@ bool get_data_status()
 {
     return callback_status;
 }
-
-

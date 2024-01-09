@@ -65,8 +65,9 @@ static void ezlopi_device_prepare_ambient_tracker()
 {
     uint32_t parent_device_id = ezlopi_cloud_generate_device_id();
     s_ezlopi_device_v3_t *v3_sensor_list = ezlopi_devices_list_get_list_v3();
-    // int item_id_array[5] = { 8, 9, 10, 37, 38};
-    int item_id_array[1] = {38};
+    // int item_id_array[1] = {/* 8, 10,9,*/  /*37,*/ 38};
+    int item_id_array[3] = {8,9,38};
+    // int item_id_array[1] = {38};
     for (int i = 0; i < (sizeof(item_id_array) / sizeof(item_id_array[0])); i++)
     {
         int dev_idx = 0;
